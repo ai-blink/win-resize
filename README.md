@@ -44,6 +44,7 @@ C:\Python312\python.exe final_build.py
 ```powershell
 C:\Python312\python.exe tests\test_close_to_tray.py
 C:\Python312\python.exe tests\test_profile_button_bar_layout.py
+C:\Python312\python.exe tests\test_apply_all_profiles.py
 C:\Python312\python.exe tests\test_profile_deletion.py
 C:\Python312\python.exe tests\test_profile_preview_and_auto_apply.py
 C:\Python312\python.exe tests\test_profile_editor_lock_settings.py

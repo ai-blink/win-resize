@@ -3039,9 +3039,12 @@ class WindowResizerMainWindow(QMainWindow):
                     'hwnd': window.hwnd,
                     'title': window.title,
                     'process_name': window.process_name,
+                    'pid': window.pid,
+                    'executable_path': window.executable_path,
                     'rect': window.rect,
                     'is_maximized': window.is_maximized,
-                    'is_minimized': window.is_minimized
+                    'is_minimized': window.is_minimized,
+                    'is_visible': window.is_visible,
                 }
                 windows_info.append(window_info)
             
