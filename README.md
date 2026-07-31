@@ -38,10 +38,11 @@ C:\Python312\python.exe final_build.py
 ## 테스트
 
 ```powershell
-C:\Python312\python.exe test_close_to_tray.py
-C:\Python312\python.exe test_profile_deletion.py
-C:\Python312\python.exe test_profile_preview_and_auto_apply.py
-C:\Python312\python.exe test_profile_editor_lock_settings.py
+C:\Python312\python.exe tests\test_close_to_tray.py
+C:\Python312\python.exe tests\test_profile_button_bar_layout.py
+C:\Python312\python.exe tests\test_profile_deletion.py
+C:\Python312\python.exe tests\test_profile_preview_and_auto_apply.py
+C:\Python312\python.exe tests\test_profile_editor_lock_settings.py
 ```
 
 ## 문서
@@ -56,4 +57,5 @@ C:\Python312\python.exe test_profile_editor_lock_settings.py
 - `run_gui.py`: 개발 실행 진입점
 - `final_build.py`: PyInstaller 빌드 스크립트
 - `requirements.txt`: Python 의존성
+- `tests/`: 공개 회귀 테스트
 - `docs/`: 공개 사용 문서

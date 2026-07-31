@@ -24,9 +24,9 @@
 
 ### 검증
 
-- `test_profile_editor_lock_settings.py`: 3개 테스트 통과
-- `test_profile_preview_and_auto_apply.py`: 8개 테스트 통과
-- `test_profile_deletion.py`: 1개 테스트 통과
-- `test_close_to_tray.py`: 1개 테스트 통과
-- `test_profile_button_bar_layout.py`: 1개 테스트 통과
+- `tests/test_profile_editor_lock_settings.py`: 3개 테스트 통과
+- `tests/test_profile_preview_and_auto_apply.py`: 8개 테스트 통과
+- `tests/test_profile_deletion.py`: 1개 테스트 통과
+- `tests/test_close_to_tray.py`: 1개 테스트 통과
+- `tests/test_profile_button_bar_layout.py`: 1개 테스트 통과
 - `final_build.py`: `dist/WindowResizer.exe` 빌드 성공
