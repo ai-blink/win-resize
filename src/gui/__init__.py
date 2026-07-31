@@ -5,5 +5,5 @@ WindowResizer GUI Package
 PyQt5-based graphical user interface for WindowResizer application.
 """
 
-__version__ = "0.01"
+__version__ = "0.01.1"
 __author__ = "WindowResizer Team"
