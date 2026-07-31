@@ -6,6 +6,7 @@
 
 ### 개선
 
+- 프로필 작업 표시줄의 버튼과 상태 라벨 높이를 늘려 테마 패딩으로 인한 글자 하단 잘림을 없앴습니다.
 - 제목 표시줄의 닫기 동작을 시스템 트레이 숨김으로 바꾸고, 상태 표시줄과 트레이 메뉴에 명시적인 `프로그램 종료` 동작을 추가했습니다.
 - 창을 프로필로 추가한 뒤 새 행을 자동 선택해 곧바로 삭제할 수 있도록 보완했습니다.
 - 프로필 삭제가 저장소에서 실패하면 원인을 숨기지 않고 안내하도록 보완했습니다.
@@ -27,4 +28,5 @@
 - `test_profile_preview_and_auto_apply.py`: 8개 테스트 통과
 - `test_profile_deletion.py`: 1개 테스트 통과
 - `test_close_to_tray.py`: 1개 테스트 통과
+- `test_profile_button_bar_layout.py`: 1개 테스트 통과
 - `final_build.py`: `dist/WindowResizer.exe` 빌드 성공

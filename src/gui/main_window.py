@@ -4237,50 +4237,54 @@ class WindowResizerMainWindow(QMainWindow):
         # Add table with maximum stretch - this should consume ALL available space
         profile_layout.addWidget(self.profile_table_widget, 1)  # stretch=1
         
-        # Create ultra-compact button bar
+        # Keep enough room for the theme button padding and text baseline.
+        profile_button_height = 34
+        profile_button_bar_height = 46
         button_widget = QFrame()
-        button_widget.setMaximumHeight(40)  # Increased height for better button visibility
-        button_widget.setMinimumHeight(40)
+        button_widget.setFixedHeight(profile_button_bar_height)
+        self.profile_button_bar = button_widget
         button_layout = QHBoxLayout(button_widget)
-        button_layout.setContentsMargins(4, 7, 4, 7)  # More vertical padding for 40px height
+        button_layout.setContentsMargins(4, 6, 4, 6)
         button_layout.setSpacing(4)
         
         # Create buttons with fixed size
         self.edit_profile_button = QPushButton("편집")
         self.edit_profile_button.setToolTip("선택된 프로필을 편집합니다")
         self.edit_profile_button.setEnabled(False)
-        self.edit_profile_button.setFixedHeight(26)  # Slightly taller
+        self.edit_profile_button.setFixedHeight(profile_button_height)
         
         self.delete_profile_button = QPushButton("삭제")
         self.delete_profile_button.setToolTip("선택된 프로필을 삭제합니다")
         self.delete_profile_button.setEnabled(False)
-        self.delete_profile_button.setFixedHeight(26)
+        self.delete_profile_button.setFixedHeight(profile_button_height)
         
         self.apply_profile_button = QPushButton("적용")
         self.apply_profile_button.setToolTip("선택된 프로필을 현재 창에 적용합니다")
         self.apply_profile_button.setEnabled(False)
-        self.apply_profile_button.setFixedHeight(26)
+        self.apply_profile_button.setFixedHeight(profile_button_height)
         
         self.apply_all_profiles_button = QPushButton("전체 적용")
         self.apply_all_profiles_button.setToolTip("모든 자동적용 프로필을 해당 창에 적용합니다")
-        self.apply_all_profiles_button.setFixedHeight(26)
+        self.apply_all_profiles_button.setFixedHeight(profile_button_height)
 
         self.profile_preview_button = QPushButton("미리보기")
         self.profile_preview_button.setToolTip("저장된 위치와 크기를 3초 동안 표시합니다")
         self.profile_preview_button.setEnabled(False)
-        self.profile_preview_button.setFixedHeight(26)
+        self.profile_preview_button.setFixedHeight(profile_button_height)
         self.profile_preview_button.clicked.connect(self.show_selected_profile_preview)
 
         self.auto_apply_monitor_button = QPushButton("자동 감지 켜기")
         self.auto_apply_monitor_button.setToolTip("자동 적용 프로필과 일치하는 새 창을 감지합니다")
-        self.auto_apply_monitor_button.setFixedHeight(26)
+        self.auto_apply_monitor_button.setFixedHeight(profile_button_height)
         self.auto_apply_monitor_button.clicked.connect(self.toggle_auto_apply_monitor)
 
         self.auto_apply_monitor_status_label = QLabel("자동 감지 꺼짐")
-        self.auto_apply_monitor_status_label.setFixedHeight(26)
+        self.auto_apply_monitor_status_label.setFixedHeight(profile_button_height)
+        self.auto_apply_monitor_status_label.setAlignment(Qt.AlignVCenter)
         
         self.profile_count_label = QLabel("프로필 0개")
-        self.profile_count_label.setFixedHeight(26)
+        self.profile_count_label.setFixedHeight(profile_button_height)
+        self.profile_count_label.setAlignment(Qt.AlignVCenter)
         
         # Add buttons to layout
         for widget in [self.edit_profile_button, self.delete_profile_button,
