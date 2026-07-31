@@ -35,6 +35,7 @@ __pycache__/
 venv/
 build/
 dist/
+release-dist/
 WindowResizer/
 
 # Local runtime data and generated diagnostics

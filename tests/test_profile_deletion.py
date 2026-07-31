@@ -29,18 +29,24 @@ class MemoryProfileManager:
         self.profiles = {}
         self.deleted_ids = []
 
-    def create_profile(self, name, description, window_info, window_config):
+    def create_profile(self, name, description, window_config, window_info=None,
+                       matching_criteria=None, auto_apply=False, enabled=True):
         profile = Profile(
             name=name,
             description=description,
             window_config=window_config,
-            matching_criteria=MatchingCriteria(
+            matching_criteria=matching_criteria or MatchingCriteria(
                 strategy=MatchingStrategy.PROCESS_NAME,
                 process_name_pattern=window_info["process_name"],
             ),
+            auto_apply=auto_apply,
+            enabled=enabled,
         )
         self.profiles[profile.id] = profile
         return profile
+
+    def save_profiles(self):
+        return True
 
     def list_profiles(self):
         return list(self.profiles.values())
@@ -96,14 +102,32 @@ class ProfileDeletionTest(unittest.TestCase):
             pid=101,
             executable_path=r"C:\\Apps\\DeleteTarget\\delete-target.exe",
         )
-        self.window.show_themed_input_dialog = lambda *args: ("Delete profile", True)
         self.window.show_themed_information = lambda *args: None
 
     def tearDown(self):
         self.window.close()
 
     def test_new_profile_is_selected_and_can_be_deleted(self):
-        self.window.save_current_as_profile()
+        self.window.on_profile_created({
+            "name": "Delete profile",
+            "description": "Created from selected window",
+            "auto_apply": False,
+            "enabled": True,
+            "window_config": {
+                "x": 10,
+                "y": 20,
+                "width": 400,
+                "height": 300,
+            },
+            "matching_criteria": {
+                "strategy": "executable_path",
+                "window_title_pattern": "Delete target",
+                "process_name_pattern": "delete-target.exe",
+                "executable_path_pattern": r"C:\Apps\DeleteTarget\delete-target.exe",
+                "case_sensitive": False,
+                "priority": 50,
+            },
+        })
         profile = self.window.get_selected_profile()
 
         self.assertIsNotNone(profile)

@@ -102,6 +102,10 @@ def create_build_command(project_root, main_script):
     if icon_path.is_file():
         cmd.insert(-1, f"--icon={icon_path}")
 
+    version_file = project_root / "version_info.txt"
+    if version_file.is_file():
+        cmd.insert(-1, f"--version-file={version_file}")
+
     return cmd, icon_path
 
 def build_windowresizer():

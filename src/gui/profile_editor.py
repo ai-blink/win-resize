@@ -13,7 +13,7 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, 
     QLabel, QLineEdit, QSpinBox, QCheckBox, QPushButton, QComboBox,
-    QMessageBox, QTabWidget, QWidget, QFormLayout, QTextEdit,
+    QMessageBox, QTabWidget, QWidget, QFormLayout, QTextEdit, QScrollArea,
     QButtonGroup, QRadioButton
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
@@ -249,9 +249,12 @@ class ProfileEditorDialog(QDialog):
     
     profile_saved = pyqtSignal(dict)  # 프로필 저장 시그널
     
-    def __init__(self, profile: Profile = None, parent=None):
+    def __init__(self, profile: Profile = None, parent=None, window_info=None,
+                 save_handler=None):
         super().__init__(parent)
         self.profile = profile
+        self.window_info = window_info
+        self.save_handler = save_handler
         self.is_new_profile = profile is None
         
         # Initialize theme manager
@@ -264,9 +267,14 @@ class ProfileEditorDialog(QDialog):
         self.setup_ui()
         self.theme_manager.theme_changed.connect(self.apply_theme_styling)
         self.apply_theme_styling()  # Apply theme after UI setup
+        self.window_settings_content.setMinimumHeight(
+            self.window_settings_content.sizeHint().height()
+        )
         
         if profile:
             self.load_profile_data()
+        elif window_info:
+            self.populate_from_window_info(window_info)
     
     def setup_ui(self):
         """Setup the user interface."""
@@ -348,7 +356,18 @@ class ProfileEditorDialog(QDialog):
     def create_window_settings_tab(self):
         """Create window settings tab."""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        tab_layout.addWidget(scroll_area)
+
+        content = QWidget()
+        self.window_settings_content = content
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
+        scroll_area.setWidget(content)
         
         # 창 매칭 설정
         matching_group = QGroupBox("창 매칭 설정")
@@ -538,6 +557,38 @@ class ProfileEditorDialog(QDialog):
         layout.addWidget(position_group)
         
         self.tab_widget.addTab(tab, "창 설정")
+
+    def populate_from_window_info(self, window_info):
+        """Fill a new profile form from the selected main-window entry."""
+        def value(name, default=None):
+            if isinstance(window_info, dict):
+                return window_info.get(name, default)
+            return getattr(window_info, name, default)
+
+        rect = value("rect")
+        title = value("title", "")
+        process_name = value("process_name", "")
+        executable_path = value("executable_path", "")
+
+        if title:
+            self.name_edit.setText(f"{title} 프로필")
+            self.description_edit.setPlainText(f"선택한 창에서 생성됨: {title}")
+            self.window_title_edit.setText(title)
+        if process_name:
+            self.process_name_edit.setText(process_name)
+        if executable_path:
+            self.executable_path_edit.setText(executable_path)
+
+        if rect:
+            self.x_spin.setValue(rect.left)
+            self.y_spin.setValue(rect.top)
+            self.width_spin.setValue(rect.width)
+            self.height_spin.setValue(rect.height)
+
+        preferred_strategy = "executable_path" if executable_path else "process_name"
+        strategy_index = self.matching_strategy_combo.findData(preferred_strategy)
+        if strategy_index >= 0:
+            self.matching_strategy_combo.setCurrentIndex(strategy_index)
 
     def update_matching_controls(self):
         """Keep the active matching inputs clear and focused for the user."""
@@ -875,8 +926,11 @@ class ProfileEditorDialog(QDialog):
                 }
             }
             
-            # 프로필 저장 시그널 발송
-            self.profile_saved.emit(profile_data)
+            if self.save_handler is not None:
+                if not self.save_handler(profile_data):
+                    return
+            else:
+                self.profile_saved.emit(profile_data)
             
             # 저장 후 자동 적용
             apply_result = self._apply_saved_profile(profile_data)
@@ -1266,7 +1320,7 @@ class ProfileEditorDialog(QDialog):
                     }}
                     QPushButton {{
                         background-color: {button}; color: {text}; border: 1px solid {border};
-                        border-radius: 3px; padding: 8px 15px; font-weight: bold;
+                        border-radius: 3px; padding: 4px 8px; font-weight: bold;
                     }}
                     QPushButton:hover {{ background-color: {button_hover}; }}
                     QPushButton:pressed {{ background-color: {button_pressed}; }}
@@ -1274,7 +1328,7 @@ class ProfileEditorDialog(QDialog):
                     QTabWidget::pane {{ background-color: {fg}; border: 1px solid {border}; }}
                     QTabBar::tab {{
                         background-color: {button}; color: {text}; border: 1px solid {border};
-                        padding: 8px 15px; margin-right: 2px;
+                        padding: 5px 8px; margin-right: 2px;
                     }}
                     QTabBar::tab:selected {{ background-color: {accent}; color: {bg}; }}
                     QTabBar::tab:hover {{ background-color: {button_hover}; }}
