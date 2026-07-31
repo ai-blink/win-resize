@@ -4,6 +4,10 @@ Windows 창의 위치와 크기를 관리하는 PyQt 데스크톱 앱입니다.
 
 버전 0.01 최초 릴리스입니다.
 
+## 앱 화면
+
+![WindowResizer 메인 화면](docs/images/windowresizer-main-window.png)
+
 ## 주요 기능
 
 - 실행 중인 창 선택, 이동, 크기 조절
