@@ -1,0 +1,20 @@
+# WindowResizer Dependencies
+# Core GUI Framework
+PyQt5>=5.15.0
+
+# Windows API Integration
+pywin32>=306
+
+# System Information
+psutil>=5.9.0
+
+# Build and Packaging
+PyInstaller>=5.0.0
+
+# Development Dependencies (optional)
+pytest>=7.0.0
+pytest-qt>=4.0.0
+
+# Documentation (optional)
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0

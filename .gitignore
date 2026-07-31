@@ -1,0 +1,58 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+
+# Dependency directories
+node_modules/
+
+# Environment variables
+.env
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS specific
+.DS_Store
+
+# Task files
+# tasks.json
+# tasks/ 
+
+# Python and PyInstaller outputs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+build/
+dist/
+WindowResizer/
+
+# Local runtime data and generated diagnostics
+profiles/
+test_profiles/
+test_profiles_*/
+test_native_*/
+final_test_*/
+process_test_*/
+test_screenshots/
+*.jsonl
+compatibility_report.json
+final_integration_test_report.json
+integration_test_summary.txt
+
+# Local editor and tool state
+.claude/
+.cursor/
+.codex/
+notes/transfers/
+WinReform/

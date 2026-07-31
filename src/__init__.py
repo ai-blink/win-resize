@@ -1,0 +1,14 @@
+"""
+WindowResizer - Advanced Window Management Tool
+===============================================
+
+A comprehensive window management application that allows users to:
+- Resize and reposition windows programmatically
+- Save and load window profiles
+- Automatically apply window configurations
+- Support multi-monitor setups
+- Provide hotkey controls and advanced features
+"""
+
+__version__ = "1.0.0"
+__author__ = "WindowResizer Team"
