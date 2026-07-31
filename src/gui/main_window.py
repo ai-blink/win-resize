@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
     QFrame, QApplication, QTableWidget, QTableWidgetItem, QDoubleSpinBox,
     QSizePolicy, QSystemTrayIcon, QMenu, QStyle
 )
-from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QSize
+from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QSize, QPoint, QRect
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
 
 # Import Phase 1 components
@@ -71,7 +71,12 @@ class ProfilePreviewOverlay(QWidget):
         self.setWindowOpacity(0.72)
 
         config = profile.window_config
-        self.setGeometry(config.x, config.y, config.width, config.height)
+        screens = QApplication.screens()
+        self.setGeometry(
+            self.native_geometry_to_qt_geometry(
+                config, screens, self.native_screen_geometries(screens)
+            )
+        )
 
         accent = theme_manager.get_color_string(ThemeElement.ACCENT)
         foreground = theme_manager.get_color_string(ThemeElement.FOREGROUND)
@@ -89,6 +94,77 @@ class ProfilePreviewOverlay(QWidget):
         label.setAlignment(Qt.AlignCenter)
         label.setWordWrap(True)
         layout.addWidget(label)
+
+    @staticmethod
+    def native_screen_geometries(screens):
+        """Return Win32 physical monitor rectangles in the Qt screen order."""
+        monitor_bounds = {}
+        try:
+            import win32api
+
+            for monitor, _, _ in win32api.EnumDisplayMonitors():
+                monitor_info = win32api.GetMonitorInfo(monitor)
+                device_name = monitor_info.get("Device", "").casefold()
+                monitor_bounds[device_name] = QRect(*monitor_info["Monitor"][:2],
+                                                    monitor_info["Monitor"][2] - monitor_info["Monitor"][0],
+                                                    monitor_info["Monitor"][3] - monitor_info["Monitor"][1])
+        except Exception as error:
+            logger.debug(f"Could not read native monitor geometry: {error}")
+
+        native_geometries = []
+        for screen in screens:
+            screen_name = screen.name().casefold()
+            matching_geometry = next(
+                (bounds for device, bounds in monitor_bounds.items()
+                 if device.endswith(screen_name)),
+                None,
+            )
+            if matching_geometry is None:
+                geometry = screen.geometry()
+                scale_factor = screen.devicePixelRatio()
+                matching_geometry = QRect(
+                    round(geometry.x() * scale_factor),
+                    round(geometry.y() * scale_factor),
+                    round(geometry.width() * scale_factor),
+                    round(geometry.height() * scale_factor),
+                )
+            native_geometries.append(matching_geometry)
+        return native_geometries
+
+    @staticmethod
+    def native_geometry_to_qt_geometry(config, screens, native_geometries=None) -> QRect:
+        """Convert a Win32 physical rectangle to the matching Qt screen geometry."""
+        if native_geometries is None:
+            native_geometries = []
+            for screen in screens:
+                geometry = screen.geometry()
+                scale_factor = screen.devicePixelRatio()
+                native_geometries.append(QRect(
+                    round(geometry.x() * scale_factor),
+                    round(geometry.y() * scale_factor),
+                    round(geometry.width() * scale_factor),
+                    round(geometry.height() * scale_factor),
+                ))
+
+        fallback_screen = screens[0] if screens else None
+        fallback_native_geometry = native_geometries[0] if native_geometries else None
+        for screen, native_geometry in zip(screens, native_geometries):
+            if native_geometry.contains(QPoint(config.x, config.y)):
+                fallback_screen = screen
+                fallback_native_geometry = native_geometry
+                break
+
+        if fallback_screen is None or fallback_native_geometry is None:
+            return QRect(config.x, config.y, config.width, config.height)
+
+        geometry = fallback_screen.geometry()
+        scale_factor = fallback_screen.devicePixelRatio()
+        return QRect(
+            geometry.x() + round((config.x - fallback_native_geometry.x()) / scale_factor),
+            geometry.y() + round((config.y - fallback_native_geometry.y()) / scale_factor),
+            max(1, round(config.width / scale_factor)),
+            max(1, round(config.height / scale_factor)),
+        )
 
 
 class WindowUpdateThread(QThread):
@@ -652,9 +728,7 @@ class WindowResizerMainWindow(QMainWindow):
     
     def setup_ui(self):
         """Setup the user interface."""
-        self.setWindowTitle("창모드 리사이저 0.1 version")
-        self.setMinimumSize(1400, 950)  # 최소 크기
-        self.resize(1600, 1300)  # 기본 크기
+        self.setWindowTitle("창모드 리사이저 0.01.2")
         
         # Create central widget
         central_widget = QWidget()
@@ -690,7 +764,7 @@ class WindowResizerMainWindow(QMainWindow):
         
         # Row 0: Window list (40% height)
         self.window_section = QWidget()
-        self.window_section.setMinimumHeight(500)  # Increased by 100px from 400 to 500
+        self.window_section.setMinimumHeight(340)
         self.window_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         window_section_layout = QVBoxLayout(self.window_section)
         window_section_layout.setContentsMargins(0, 0, 0, 0)
@@ -699,7 +773,7 @@ class WindowResizerMainWindow(QMainWindow):
         
         # Row 1: Profile list (40% height)
         self.profile_section = QWidget()
-        self.profile_section.setMinimumHeight(400)
+        self.profile_section.setMinimumHeight(280)
         self.profile_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         profile_section_layout = QVBoxLayout(self.profile_section)
         profile_section_layout.setContentsMargins(0, 0, 0, 0)
@@ -1735,39 +1809,84 @@ class WindowResizerMainWindow(QMainWindow):
             self.auto_refresh_timer.start()
     
     def setup_window_constraints(self):
-        """Set window size constraints to prevent excessive empty space while maintaining usability."""
-        # Calculate optimal window dimensions with balanced height
-        min_width = 1200  # Minimum width for proper layout
-        min_height = 1000  # Reduced since controls section is hidden (500+400+margins)
-        
-        # Maximum dimensions to prevent excessive empty space
-        # Based on panel max heights with extreme-compact total height
-        max_width = 1800  # Allow reasonable maximum width
-        max_height = 1400  # Reduced since controls section is hidden
-        
-        # Set size constraints
+        """Fit the initial main window within the primary screen work area."""
+        screen = QApplication.primaryScreen()
+        if screen is None:
+            return
+
+        available_geometry = screen.availableGeometry()
+        min_width, min_height, max_width, max_height, default_width, default_height = (
+            self.calculate_window_size_constraints(available_geometry)
+        )
         self.setMinimumSize(min_width, min_height)
         self.setMaximumSize(max_width, max_height)
-        
-        # Set optimal default size - balanced for improved visibility without gaps
-        default_width = 1400
-        default_height = 1150  # 적정 기본 높이
         self.resize(default_width, default_height)
-        
-        # Center window on screen
-        self.center_on_screen()
+
+        self.center_on_screen(available_geometry)
+
+    @staticmethod
+    def calculate_window_size_constraints(available_geometry: QRect):
+        """Return screen-safe minimum, maximum, and initial window dimensions."""
+        min_width = min(900, available_geometry.width())
+        min_height = min(720, available_geometry.height())
+        max_width = max(min_width, min(1600, available_geometry.width()))
+        max_height = max(min_height, min(1000, available_geometry.height()))
+        default_width = min(max_width, max(min_width, 1150))
+        default_height = min(max_height, max(min_height, 800))
+        return min_width, min_height, max_width, max_height, default_width, default_height
     
-    def center_on_screen(self):
+    def center_on_screen(self, available_geometry: Optional[QRect] = None):
         """Center the window on the screen."""
         try:
-            from PyQt5.QtWidgets import QDesktopWidget
-            screen = QDesktopWidget().screenGeometry()
-            window = self.geometry()
-            x = (screen.width() - window.width()) // 2
-            y = (screen.height() - window.height()) // 2
+            if available_geometry is None:
+                screen = QApplication.primaryScreen()
+                if screen is None:
+                    return
+                available_geometry = screen.availableGeometry()
+
+            x = available_geometry.x() + max(0, (available_geometry.width() - self.width()) // 2)
+            y = available_geometry.y() + max(0, (available_geometry.height() - self.height()) // 2)
             self.move(x, y)
         except Exception as e:
             logger.debug(f"Could not center window: {e}")
+
+    @staticmethod
+    def calculate_position_in_work_area(position: str, width: int, height: int,
+                                        work_area, margin: int = 0):
+        """Calculate an edge preset in one Win32 monitor work area."""
+        left, top, right, bottom = work_area
+        available_width = right - left
+        available_height = bottom - top
+        horizontal_margin = min(margin, max(0, available_width // 2))
+        vertical_margin = min(margin, max(0, available_height // 2))
+
+        if position in ("top", "up"):
+            x = left + (available_width - width) // 2
+            y = top + vertical_margin
+        elif position in ("bottom", "down"):
+            x = left + (available_width - width) // 2
+            y = bottom - height - vertical_margin
+        elif position == "left":
+            x = left + horizontal_margin
+            y = top + (available_height - height) // 2
+        elif position == "right":
+            x = right - width - horizontal_margin
+            y = top + (available_height - height) // 2
+        else:
+            raise ValueError(f"Unsupported position preset: {position}")
+
+        max_x = max(left, right - width)
+        max_y = max(top, bottom - height)
+        return max(left, min(x, max_x)), max(top, min(y, max_y))
+
+    @staticmethod
+    def get_work_area_for_window(hwnd: int):
+        """Return the target window monitor work area in Win32 native coordinates."""
+        import win32api
+        import win32con
+
+        monitor = win32api.MonitorFromWindow(hwnd, win32con.MONITOR_DEFAULTTONEAREST)
+        return win32api.GetMonitorInfo(monitor)["Work"]
 
     def apply_styling(self):
         """Apply theme-based styling to the GUI."""
@@ -2756,33 +2875,14 @@ class WindowResizerMainWindow(QMainWindow):
             return
         
         try:
-            import win32api
-            
-            # Get primary monitor resolution
-            screen_width = win32api.GetSystemMetrics(0)
-            screen_height = win32api.GetSystemMetrics(1)
-            
-            # Get current window size or use defaults
             current_width = getattr(self, 'width_spinbox', None)
             current_height = getattr(self, 'height_spinbox', None)
-            
             window_width = current_width.value() if current_width else 800
             window_height = current_height.value() if current_height else 600
-            
-            if position == "top":
-                x = (screen_width - window_width) // 2
-                y = 0
-            elif position == "bottom":
-                x = (screen_width - window_width) // 2
-                y = screen_height - window_height
-            elif position == "left":
-                x = 0
-                y = (screen_height - window_height) // 2
-            elif position == "right":
-                x = screen_width - window_width
-                y = (screen_height - window_height) // 2
-            else:
-                return
+            work_area = self.get_work_area_for_window(self.current_window.hwnd)
+            x, y = self.calculate_position_in_work_area(
+                position, window_width, window_height, work_area
+            )
             
             # Update spinboxes if they exist
             if hasattr(self, 'x_spinbox'):
@@ -2953,7 +3053,7 @@ class WindowResizerMainWindow(QMainWindow):
     def show_about(self):
         """Show about dialog."""
         QMessageBox.about(self, "About WindowResizer", 
-                         "WindowResizer v0.01.1\n\n"
+                         "WindowResizer v0.01.2\n\n"
                          "Advanced window management tool with comprehensive error handling.\n\n"
                          "Features:\n"
                          "• Window enumeration and manipulation\n"
@@ -3716,80 +3816,84 @@ class WindowResizerMainWindow(QMainWindow):
             QMessageBox.critical(self, "오류", f"프로필 불러오기 중 오류가 발생했습니다:\n{str(e)}")
     
     def save_current_as_profile(self):
-        """Save current settings as a new profile."""
+        """Open a prefilled editor for a profile based on the selected window."""
         try:
             if not self.current_window:
                 self.show_themed_warning("경고", "프로필을 저장하려면 먼저 창을 선택해주세요.")
                 return
-            
-            # Get profile name
-            name, ok = self.show_themed_input_dialog("프로필 저장", 
-                                          "프로필 이름을 입력하세요:",
-                                          f"{self.current_window.title} 프로필")
-            
-            if not ok or not name.strip():
-                return
-            
-            # Create window configuration from current settings
-            from core.profile_manager import WindowConfiguration
-            
-            # Get coordinates from spinboxes if they exist, otherwise use current window
-            if hasattr(self, 'x_spinbox') and hasattr(self, 'y_spinbox') and hasattr(self, 'width_spinbox') and hasattr(self, 'height_spinbox'):
-                x = self.x_spinbox.value()
-                y = self.y_spinbox.value()
-                width = self.width_spinbox.value()
-                height = self.height_spinbox.value()
-            else:
-                rect = self.current_window.rect
-                x, y, width, height = rect.left, rect.top, rect.width, rect.height
-            
-            window_config = WindowConfiguration(
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                is_maximized=False,
-                is_minimized=False
-            )
-            
-            # Create window info
             window_info = {
                 'hwnd': self.current_window.hwnd,
                 'title': self.current_window.title,
                 'process_name': self.current_window.process_name,
+                'pid': self.current_window.pid,
                 'executable_path': self.current_window.executable_path,
-                'rect': self.current_window.rect
+                'rect': self.current_profile_rect(),
             }
-            
-            # Create profile
-            profile = self.profile_manager.create_profile(
-                name=name.strip(),
-                description=f"Created from window: {self.current_window.title}",
+
+            dialog = ProfileEditorDialog(
+                parent=self,
                 window_info=window_info,
-                window_config=window_config
+                save_handler=self.on_profile_created,
             )
-            
-            # Refresh profile list and select new profile
-            self.refresh_profile_list()
-            
-            # Also refresh profile table if it exists
-            if hasattr(self, 'profile_table_widget'):
-                self.refresh_profile_table()
-                self._reselect_profile(profile.id)
-            
-            # Find and select the new profile (only if profile_combo exists)
-            if hasattr(self, 'profile_combo'):
-                for i in range(self.profile_combo.count()):
-                    if self.profile_combo.itemText(i) == profile.name:
-                        self.profile_combo.setCurrentIndex(i)
-                        break
-            
-            self.status_label.setText(f"프로필 '{profile.name}'을 저장했습니다")
-            self.show_themed_information("성공", f"프로필 '{profile.name}'을 성공적으로 저장했습니다.")
+            dialog.exec_()
             
         except Exception as e:
             logger.error(f"Error saving profile: {e}")
             self.show_themed_critical("오류", f"프로필 저장 중 오류가 발생했습니다:\n{str(e)}")
+
+    def current_profile_rect(self):
+        """Return the coordinates currently shown in the main window controls."""
+        if all(hasattr(self, name) for name in (
+            'x_spinbox', 'y_spinbox', 'width_spinbox', 'height_spinbox'
+        )):
+            x = self.x_spinbox.value()
+            y = self.y_spinbox.value()
+            width = self.width_spinbox.value()
+            height = self.height_spinbox.value()
+            return WindowRect(x, y, x + width, y + height)
+        return self.current_window.rect
+
+    def on_profile_created(self, profile_data: dict):
+        """Persist the profile data emitted by a new profile editor dialog."""
+        try:
+            from core.profile_manager import MatchingCriteria, MatchingStrategy, WindowConfiguration
+
+            matching_data = profile_data['matching_criteria']
+            criteria = MatchingCriteria(
+                strategy=MatchingStrategy(matching_data['strategy']),
+                window_title_pattern=matching_data.get('window_title_pattern'),
+                process_name_pattern=matching_data.get('process_name_pattern'),
+                executable_path_pattern=matching_data.get('executable_path_pattern'),
+                case_sensitive=matching_data.get('case_sensitive', False),
+                priority=matching_data.get('priority', 50),
+            )
+            profile = self.profile_manager.create_profile(
+                name=profile_data['name'],
+                description=profile_data.get('description', ''),
+                matching_criteria=criteria,
+                auto_apply=profile_data.get('auto_apply', False),
+                enabled=profile_data.get('enabled', True),
+                window_config=WindowConfiguration(**profile_data['window_config']),
+            )
+
+            for field_name in (
+                'hotkey_enabled', 'hotkey_combination', 'hotkey_action', 'lock_position',
+                'mouse_constraint', 'constraint_mode', 'constraint_escape_key', 'auto_restore',
+            ):
+                if field_name in profile_data:
+                    setattr(profile, field_name, profile_data[field_name])
+            self.profile_manager.save_profiles()
+
+            self.refresh_profile_list()
+            if hasattr(self, 'profile_table_widget'):
+                self.refresh_profile_table()
+                self._reselect_profile(profile.id)
+            self.status_label.setText(f"프로필 '{profile.name}'을 저장했습니다")
+            return profile
+        except Exception as e:
+            logger.error(f"Error creating profile from editor data: {e}")
+            self.show_themed_critical("오류", f"프로필 저장 중 오류가 발생했습니다:\n{str(e)}")
+            return None
     
     def update_selected_profile(self):
         """Update the selected profile with current settings."""
@@ -4680,30 +4784,15 @@ class WindowResizerMainWindow(QMainWindow):
         # Get current window info
         hwnd = int(self.window_list_widget.item(current_row, 1).text())
         
-        # Get screen dimensions
-        from PyQt5.QtWidgets import QApplication
-        screen = QApplication.desktop().screenGeometry()
-        screen_width = screen.width()
-        screen_height = screen.height()
-        
-        # Get current window size
         current_width = self.width_spinbox.value() or 800
         current_height = self.height_spinbox.value() or 600
-        
-        # Calculate position based on preset
-        if position == "up":
-            x = (screen_width - current_width) // 2
-            y = 50
-        elif position == "down":
-            x = (screen_width - current_width) // 2
-            y = screen_height - current_height - 50
-        elif position == "left":
-            x = 50
-            y = (screen_height - current_height) // 2
-        elif position == "right":
-            x = screen_width - current_width - 50
-            y = (screen_height - current_height) // 2
-        else:
+        try:
+            work_area = self.get_work_area_for_window(hwnd)
+            x, y = self.calculate_position_in_work_area(
+                position, current_width, current_height, work_area, margin=50
+            )
+        except (KeyError, ValueError) as e:
+            logger.error(f"Could not calculate {position} position preset: {e}")
             return
             
         # Update spinboxes
@@ -4719,7 +4808,7 @@ class WindowResizerMainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("WindowResizer")
-    app.setApplicationVersion("0.01.1")
+    app.setApplicationVersion("0.01.2")
     app.setQuitOnLastWindowClosed(False)
     
     window = WindowResizerMainWindow()

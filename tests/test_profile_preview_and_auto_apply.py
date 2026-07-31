@@ -22,8 +22,9 @@ from core.profile_manager import (
     ProfileManager,
     WindowConfiguration,
 )
+from core.windows_api import WindowRect
 from core.window_monitor import MonitoringConfig, WindowEvent, WindowMonitor
-from gui.main_window import ProfilePreviewOverlay
+from gui.main_window import ProfilePreviewOverlay, WindowInfo, WindowResizerMainWindow
 from gui.profile_editor import ProfileEditorDialog
 from gui.theme_manager import get_theme_manager
 
@@ -185,6 +186,112 @@ class ProfilePreviewAndAutoApplyTest(unittest.TestCase):
         try:
             self.assertFalse(dialog.auto_apply_check.isChecked())
             self.assertEqual(dialog.auto_apply_check.text(), "새 창 감지 시 자동 적용")
+        finally:
+            dialog.close()
+
+    def test_new_profile_editor_prefills_selected_window(self):
+        dialog = ProfileEditorDialog(
+            window_info={
+                "title": "Target window",
+                "process_name": "target.exe",
+                "executable_path": r"C:\Apps\Target\target.exe",
+                "rect": WindowRect(10, 20, 810, 620),
+            }
+        )
+        try:
+            self.assertEqual(dialog.name_edit.text(), "Target window 프로필")
+            self.assertEqual(dialog.window_title_edit.text(), "Target window")
+            self.assertEqual(dialog.process_name_edit.text(), "target.exe")
+            self.assertEqual(dialog.executable_path_edit.text(), r"C:\Apps\Target\target.exe")
+            self.assertEqual(
+                (dialog.x_spin.value(), dialog.y_spin.value(),
+                 dialog.width_spin.value(), dialog.height_spin.value()),
+                (10, 20, 800, 600),
+            )
+            self.assertEqual(dialog.matching_strategy_combo.currentData(), "executable_path")
+            self.assertGreaterEqual(
+                dialog.window_settings_content.minimumHeight(),
+                dialog.window_settings_content.sizeHint().height(),
+            )
+        finally:
+            dialog.close()
+
+    def test_prefilled_editor_payload_creates_profile(self):
+        with tempfile.TemporaryDirectory() as storage_path:
+            window = WindowResizerMainWindow()
+            window.profile_manager = ProfileManager(storage_path)
+            try:
+                created_profile = window.on_profile_created({
+                    "name": "Target window 프로필",
+                    "description": "선택한 창에서 생성됨: Target window",
+                    "auto_apply": False,
+                    "enabled": True,
+                    "window_config": {
+                        "x": 10,
+                        "y": 20,
+                        "width": 800,
+                        "height": 600,
+                    },
+                    "matching_criteria": {
+                        "strategy": "executable_path",
+                        "window_title_pattern": "Target window",
+                        "process_name_pattern": "target.exe",
+                        "executable_path_pattern": r"C:\Apps\Target\target.exe",
+                        "case_sensitive": False,
+                        "priority": 50,
+                    },
+                })
+
+                self.assertIsNotNone(created_profile)
+                profile = window.profile_manager.list_profiles()[0]
+                self.assertEqual(profile.window_config.to_rect(), WindowRect(10, 20, 810, 620))
+                self.assertEqual(
+                    profile.matching_criteria.executable_path_pattern,
+                    r"C:\Apps\Target\target.exe",
+                )
+            finally:
+                window._quit_requested = True
+                window.close()
+
+    def test_selected_window_profile_keeps_current_coordinate_inputs(self):
+        window = WindowResizerMainWindow()
+        try:
+            window.current_window = WindowInfo(
+                hwnd=42,
+                title="Target window",
+                rect=WindowRect(10, 20, 810, 620),
+                process_name="target.exe",
+                executable_path=r"C:\\Apps\\Target\\target.exe",
+            )
+            window.x_spinbox.setValue(100)
+            window.y_spinbox.setValue(200)
+            window.width_spinbox.setValue(1200)
+            window.height_spinbox.setValue(700)
+
+            rect = window.current_profile_rect()
+
+            self.assertEqual(rect, WindowRect(100, 200, 1300, 900))
+        finally:
+            window._quit_requested = True
+            window.close()
+
+    def test_failed_new_profile_handler_keeps_editor_open(self):
+        saved_payloads = []
+        dialog = ProfileEditorDialog(
+            window_info={
+                "title": "Target window",
+                "process_name": "target.exe",
+                "executable_path": r"C:\\Apps\\Target\\target.exe",
+                "rect": WindowRect(10, 20, 810, 620),
+            },
+            save_handler=lambda _profile_data: None,
+        )
+        dialog.profile_saved.connect(saved_payloads.append)
+        try:
+            dialog.save_profile()
+
+            self.assertEqual(saved_payloads, [])
+            self.assertEqual(dialog.result(), 0)
         finally:
             dialog.close()
 
