@@ -28,8 +28,9 @@ def main():
         # Create application
         app = QApplication(sys.argv)
         app.setApplicationName("WindowResizer")
-        app.setApplicationVersion("2.0.0")
+        app.setApplicationVersion("0.01")
         app.setOrganizationName("WindowResizer Team")
+        app.setQuitOnLastWindowClosed(False)
         
         # Import and create main window
         from gui.main_window import WindowResizerMainWindow

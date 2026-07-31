@@ -49,7 +49,7 @@ def main():
     # Create QApplication
     app = QApplication(sys.argv)
     app.setApplicationName("WindowResizer")
-    app.setApplicationVersion("2.0")
+    app.setApplicationVersion("0.01")
     app.setOrganizationName("WindowResizer")
     app.setQuitOnLastWindowClosed(False)
     

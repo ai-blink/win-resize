@@ -2953,7 +2953,7 @@ class WindowResizerMainWindow(QMainWindow):
     def show_about(self):
         """Show about dialog."""
         QMessageBox.about(self, "About WindowResizer", 
-                         "WindowResizer v2.0\n\n"
+                         "WindowResizer v0.01\n\n"
                          "Advanced window management tool with comprehensive error handling.\n\n"
                          "Features:\n"
                          "• Window enumeration and manipulation\n"
@@ -4711,7 +4711,8 @@ class WindowResizerMainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("WindowResizer")
-    app.setApplicationVersion("2.0")
+    app.setApplicationVersion("0.01")
+    app.setQuitOnLastWindowClosed(False)
     
     window = WindowResizerMainWindow()
     window.show()
