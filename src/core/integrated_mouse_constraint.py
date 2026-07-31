@@ -335,12 +335,8 @@ class IntegratedMouseConstraint:
                 # 모든 제약 제거
                 logger.info("모든 마우스 가둠 제거")
                 
-                # ClipCursor 해제 (전체 화면으로)
-                screen_width = win32api.GetSystemMetrics(0)
-                screen_height = win32api.GetSystemMetrics(1)
-                full_screen = (0, 0, screen_width, screen_height)
-                
-                result = win32api.ClipCursor(full_screen)
+                if not self._release_clip_cursor():
+                    return False
                 
                 self.constraints.clear()
                 self.current_constraint = None
@@ -361,11 +357,8 @@ class IntegratedMouseConstraint:
                     
                     # 현재 활성 제약이었다면 해제
                     if self.current_constraint == hwnd:
-                        screen_width = win32api.GetSystemMetrics(0)
-                        screen_height = win32api.GetSystemMetrics(1)
-                        full_screen = (0, 0, screen_width, screen_height)
-                        
-                        win32api.ClipCursor(full_screen)
+                        if not self._release_clip_cursor():
+                            return False
                         self.current_constraint = None
                         self.state = ConstraintState.INACTIVE
                         
@@ -380,6 +373,14 @@ class IntegratedMouseConstraint:
                     
         except Exception as e:
             logger.error(f"마우스 가둠 제거 오류: {e}")
+            return False
+
+    def _release_clip_cursor(self) -> bool:
+        """Release the Win32 cursor clip rectangle for every monitor."""
+        try:
+            return bool(windll.user32.ClipCursor(None))
+        except Exception as e:
+            logger.error(f"ClipCursor 해제 오류: {e}")
             return False
     
     def _play_sound_notification(self, event_type: str):

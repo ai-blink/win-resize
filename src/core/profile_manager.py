@@ -17,6 +17,7 @@ Key Features:
 
 import json
 import os
+import shutil
 import time
 import re
 import logging
@@ -1100,8 +1101,11 @@ class ProfileManager:
         
         return results
     
-    def save_profiles(self):
+    def save_profiles(self) -> bool:
         """Save profiles to persistent storage."""
+        temporary_file = self.profiles_file.with_suffix('.json.tmp')
+        backup_file = self.profiles_file.with_suffix('.json.backup')
+
         try:
             profiles_data = {
                 "version": "1.0",
@@ -1111,46 +1115,67 @@ class ProfileManager:
                     for profile_id, profile in self.profiles.items()
                 }
             }
-            
-            # Create backup of existing file
+
+            self.profiles_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(temporary_file, 'w', encoding='utf-8') as file:
+                json.dump(profiles_data, file, indent=2, ensure_ascii=False)
+                file.flush()
+                os.fsync(file.fileno())
+
+            # Keep the last known-good file before replacing it atomically.
             if self.profiles_file.exists():
-                backup_file = self.profiles_file.with_suffix('.json.backup')
-                self.profiles_file.replace(backup_file)
-            
-            # Write new file
-            with open(self.profiles_file, 'w', encoding='utf-8') as f:
-                json.dump(profiles_data, f, indent=2, ensure_ascii=False)
-            
+                shutil.copy2(self.profiles_file, backup_file)
+
+            os.replace(temporary_file, self.profiles_file)
             logger.debug(f"Saved {len(self.profiles)} profiles to {self.profiles_file}")
-            
+            return True
+
         except Exception as e:
             logger.error(f"Error saving profiles: {e}")
-    
+            return False
+
+        finally:
+            if temporary_file.exists():
+                try:
+                    temporary_file.unlink()
+                except OSError:
+                    logger.warning(f"Could not remove temporary profile file: {temporary_file}")
+
     def load_profiles(self):
         """Load profiles from persistent storage."""
-        if not self.profiles_file.exists():
+        backup_file = self.profiles_file.with_suffix('.json.backup')
+        candidate_files = [self.profiles_file, backup_file]
+
+        if not any(candidate.exists() for candidate in candidate_files):
             logger.info("No existing profiles file found")
             return
-        
-        try:
-            with open(self.profiles_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            profiles_data = data.get("profiles", {})
-            loaded_count = 0
-            
-            for profile_id, profile_dict in profiles_data.items():
-                try:
-                    profile = Profile.from_dict(profile_dict)
-                    self.profiles[profile_id] = profile
-                    loaded_count += 1
-                except Exception as e:
-                    logger.error(f"Error loading profile {profile_id}: {e}")
-            
-            logger.info(f"Loaded {loaded_count} profiles from {self.profiles_file}")
-            
-        except Exception as e:
-            logger.error(f"Error loading profiles: {e}")
+
+        for source_file in candidate_files:
+            if not source_file.exists():
+                continue
+
+            try:
+                with open(source_file, 'r', encoding='utf-8') as file:
+                    data = json.load(file)
+
+                profiles_data = data.get("profiles", {})
+                loaded_count = 0
+
+                for profile_id, profile_dict in profiles_data.items():
+                    try:
+                        profile = Profile.from_dict(profile_dict)
+                        self.profiles[profile_id] = profile
+                        loaded_count += 1
+                    except Exception as e:
+                        logger.error(f"Error loading profile {profile_id}: {e}")
+
+                if source_file == backup_file:
+                    logger.warning(f"Recovered profiles from backup: {backup_file}")
+                logger.info(f"Loaded {loaded_count} profiles from {source_file}")
+                return
+
+            except Exception as e:
+                logger.error(f"Error loading profiles from {source_file}: {e}")
     
     def export_profiles(self, export_path: str, profile_ids: List[str] = None) -> bool:
         """Export profiles to file."""

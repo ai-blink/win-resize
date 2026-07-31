@@ -3620,8 +3620,9 @@ class WindowResizerMainWindow(QMainWindow):
                     matching_windows.append(window_info)
             
             if not matching_windows:
-                # 매칭되는 창이 없으면 조용히 로그만 남기고 진행하지 않음
-                logger.info(f"프로필 '{profile.name}'과 일치하는 창을 찾을 수 없습니다")
+                message = f"프로필 '{profile.name}'과 일치하는 창을 찾지 못했습니다"
+                self.status_label.setText(message)
+                logger.info(message)
                 return
             
             # Apply profile to all matching windows
