@@ -2,7 +2,7 @@
 
 ## Current
 
-- 2026-07-31: 전체 코드 리뷰 후 프로필 원자 저장·백업 복구, 부드러운 투명도, 멀티 모니터 커서 해제, 시스템 테마, 무매칭 피드백, DPI 초기화, 깨끗한 빌드 명령을 보완했다. 회귀 테스트 23건은 통과했으며, 공식 빌드는 실행 중인 `dist\WindowResizer.exe` 파일 잠금 해제 후 다시 확인한다.
+- 2026-07-31: 전체 코드 리뷰 후 프로필 원자 저장·백업 복구, 부드러운 투명도, 멀티 모니터 커서 해제, 시스템 테마, 무매칭 피드백, DPI 초기화, 깨끗한 빌드 명령을 보완했다. 회귀 테스트 23건, 공식 PyInstaller 빌드, 패키지 EXE 10초 기동 검사가 통과했다.
 
 ## Recently Completed
 
@@ -18,10 +18,9 @@
 
 ## Next
 
-- Close the running packaged executable and rerun `C:\Python312\python.exe final_build.py`.
 - Manually verify the preview overlay on each monitor and executable-path automatic application against a real application launch.
-- Manually confirm tray restore and explicit exit in the rebuilt packaged executable on a Windows desktop session.
+- Manually confirm light/dark theme visibility, tray restore, and explicit exit in the packaged executable on a Windows desktop session.
 
 ## Blockers
 
-- `dist\WindowResizer.exe` is currently locked by a running process, preventing the final PyInstaller replacement step.
+- None.

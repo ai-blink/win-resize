@@ -8,5 +8,5 @@
 | Profile create and delete flow | Done | Added-profile deletion regression test passed | 2026-07-31 | Regress on future profile list changes |
 | Close-to-tray lifecycle | Done | Focused close-to-tray regression test passed | 2026-07-31 | Manually confirm tray restore and explicit exit in the packaged app |
 | Theme visibility baseline | Done | Focused test and executable build passed | 2026-07-31 | Check light and dark UI reports |
-| Review hardening | In progress | 23 public tests passed; native cursor release passed; PyInstaller blocked only by locked existing EXE | 2026-07-31 | Close running EXE and rerun official build |
-| Release smoke test | Planned | No packaged release smoke record | 2026-07-31 | Run a manual light/dark confirmation flow before release |
+| Review hardening | Done | 23 public tests passed; native cursor release passed; official PyInstaller build and packaged startup smoke passed | 2026-07-31 | Regress only on a new report |
+| Release smoke test | Done | Rebuilt EXE started for 10 seconds and exited cleanly; SHA-256 recorded | 2026-07-31 | Perform light/dark and tray visual QA post-release |
