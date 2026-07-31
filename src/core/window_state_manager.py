@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 import threading
 from pathlib import Path
+from math import cos, pi
 
 try:
     import win32api
@@ -285,6 +286,7 @@ class WindowStateManager(QObject):
             if current_step >= step_count:
                 # Animation complete
                 self._set_transparency_direct(hwnd, end)
+                timer.stop()
                 if hwnd in self.transparency_timers:
                     del self.transparency_timers[hwnd]
                 return
@@ -305,11 +307,10 @@ class WindowStateManager(QObject):
             current_step += 1
         
         # Create and start timer
-        timer = QTimer()
+        timer = QTimer(self)
         timer.timeout.connect(animate_step)
-        timer.start(step_duration)
-        
         self.transparency_timers[hwnd] = timer
+        timer.start(step_duration)
         
         return True
     

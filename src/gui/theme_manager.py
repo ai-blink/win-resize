@@ -269,16 +269,21 @@ class ThemeManager(QObject):
         # Load saved theme preference
         saved_theme = self.settings.value("theme", "system")
         saved_scheme = self.settings.value("color_scheme", "Light")
-        follow_system = self.settings.value("follow_system", False, type=bool)  # 기본값을 False로
-        
-        self.follow_system = follow_system
-        
-        if saved_theme == "system" or follow_system:
-            # 시스템 테마 추적이 비활성화되어 있으므로 다크 테마를 기본으로 설정
-            self.current_theme = ThemeType.DARK
-            scheme_name = "Dark"
-            
-            # 시스템 테마 모니터링을 시작하지 않음
+        follow_system = self.settings.value("follow_system", False, type=bool)
+        should_follow_system = saved_theme == ThemeType.SYSTEM.value or follow_system
+
+        self.follow_system = should_follow_system
+
+        if should_follow_system:
+            detected_theme = self._detect_system_theme()
+            self.last_system_theme = detected_theme
+            if detected_theme == ThemeType.DARK.value:
+                self.current_theme = ThemeType.DARK
+                scheme_name = "Dark"
+            else:
+                self.current_theme = ThemeType.LIGHT
+                scheme_name = "Light"
+            self.system_theme_timer.start(5000)
         else:
             try:
                 self.current_theme = ThemeType(saved_theme)
@@ -396,8 +401,9 @@ class ThemeManager(QObject):
             palette.setColor(QPalette.ButtonText, self.current_scheme.get_color(ThemeElement.TEXT))
             
             # Selection colors
-            palette.setColor(QPalette.Highlight, self.current_scheme.get_color(ThemeElement.SELECTION))
-            palette.setColor(QPalette.HighlightedText, self.current_scheme.get_color(ThemeElement.BACKGROUND))
+            selection_color = self.current_scheme.get_color(ThemeElement.SELECTION)
+            palette.setColor(QPalette.Highlight, selection_color)
+            palette.setColor(QPalette.HighlightedText, self._get_selection_text_color(selection_color))
             
             # Disabled colors
             disabled_color = self.current_scheme.get_color(ThemeElement.DISABLED)
@@ -413,6 +419,13 @@ class ThemeManager(QObject):
             
         except Exception as e:
             logger.error(f"Error applying theme to application: {e}")
+
+    @staticmethod
+    def _get_selection_text_color(selection_color: QColor) -> QColor:
+        """Return a readable text color for the active selection color."""
+        if selection_color.lightness() > 127:
+            return QColor("#000000")
+        return QColor("#ffffff")
     
     def _apply_custom_stylesheets(self):
         """Apply custom stylesheets for enhanced theming."""

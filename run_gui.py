@@ -38,6 +38,12 @@ def setup_logging():
         ]
     )
 
+
+def configure_high_dpi():
+    """Configure Qt high-DPI behavior before creating QApplication."""
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
 def main():
     """Main application entry point."""
     # Setup logging
@@ -46,16 +52,14 @@ def main():
     
     logger.info("Starting WindowResizer GUI Application")
     
+    configure_high_dpi()
+
     # Create QApplication
     app = QApplication(sys.argv)
     app.setApplicationName("WindowResizer")
     app.setApplicationVersion("0.01")
     app.setOrganizationName("WindowResizer")
     app.setQuitOnLastWindowClosed(False)
-    
-    # Set application properties
-    app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     
     try:
         # Create and show main window

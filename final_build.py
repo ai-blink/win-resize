@@ -6,25 +6,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-def build_windowresizer():
-    """완전한 WindowResizer 빌드"""
-    
-    project_root = Path(__file__).parent
-    main_script = project_root / "run_gui.py"
-    
-    if not main_script.exists():
-        print(f"오류: 메인 스크립트를 찾을 수 없습니다: {main_script}")
-        return False
-    
-    print("WindowResizer 최종 빌드 시작...")
-    print(f"메인 스크립트: {main_script}")
-    
-    # 아이콘 파일 확인
-    icon_path = project_root / "dist" / "icon.ico"
-    if not icon_path.exists():
-        print(f"경고: 아이콘 파일을 찾을 수 없습니다: {icon_path}")
-    
-    # 완전한 PyInstaller 명령어
+
+def create_build_command(project_root, main_script):
+    """Create a build command using only optional, source-controlled assets."""
+    icon_path = project_root / "src" / "img" / "windowresizer.ico"
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",           # 단일 실행 파일
@@ -32,8 +17,8 @@ def build_windowresizer():
         "--name=WindowResizer", # 실행 파일 이름
         "--clean",             # 이전 빌드 정리
         "--noconfirm",         # 확인 없이 진행
+        "--paths=src",         # src 패키지를 hidden import 분석 경로에 추가
         "--add-data=src;src",  # src 디렉토리 포함
-        f"--icon={icon_path}",  # 아이콘 추가
         
         # 핵심 Python 모듈들
         "--hidden-import=concurrent.futures",  # 새로 추가
@@ -110,10 +95,34 @@ def build_windowresizer():
         "--exclude-module=notebook",
         "--exclude-module=sphinx",
         "--exclude-module=setuptools",
-        
+
         str(main_script)
     ]
-    
+
+    if icon_path.is_file():
+        cmd.insert(-1, f"--icon={icon_path}")
+
+    return cmd, icon_path
+
+def build_windowresizer():
+    """완전한 WindowResizer 빌드"""
+
+    project_root = Path(__file__).parent
+    main_script = project_root / "run_gui.py"
+
+    if not main_script.exists():
+        print(f"오류: 메인 스크립트를 찾을 수 없습니다: {main_script}")
+        return False
+
+    print("WindowResizer 최종 빌드 시작...")
+    print(f"메인 스크립트: {main_script}")
+
+    cmd, icon_path = create_build_command(project_root, main_script)
+    if icon_path.is_file():
+        print(f"소스 아이콘 사용: {icon_path}")
+    else:
+        print("소스 아이콘이 없어 기본 실행 파일 아이콘으로 빌드합니다.")
+
     print("빌드 명령어 실행 중...")
     
     try:
