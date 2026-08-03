@@ -232,6 +232,90 @@ class StartupAndBuildRegressionTest(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertTrue(all(value for _attribute, value in calls))
 
+    def test_existing_instance_is_rejected_and_its_mutex_handle_is_closed(self):
+        class FakeKernel32:
+            def __init__(self):
+                self.created_names = []
+                self.closed_handles = []
+
+            def CreateMutexW(self, _attributes, _initial_owner, name):
+                self.created_names.append(name)
+                return 101
+
+            def CloseHandle(self, handle):
+                self.closed_handles.append(handle)
+                return True
+
+        kernel32 = FakeKernel32()
+        guard = run_gui.SingleInstanceGuard(kernel32=kernel32)
+
+        with patch.object(
+            run_gui.ctypes,
+            "get_last_error",
+            return_value=run_gui.ERROR_ALREADY_EXISTS,
+        ):
+            self.assertFalse(guard.acquire())
+
+        self.assertEqual(kernel32.created_names, [run_gui.MUTEX_NAME])
+        self.assertEqual(kernel32.closed_handles, [101])
+
+    def test_main_instance_releases_its_mutex_handle(self):
+        class FakeKernel32:
+            def __init__(self):
+                self.closed_handles = []
+
+            def CreateMutexW(self, _attributes, _initial_owner, _name):
+                return 202
+
+            def CloseHandle(self, handle):
+                self.closed_handles.append(handle)
+                return True
+
+        kernel32 = FakeKernel32()
+        guard = run_gui.SingleInstanceGuard(kernel32=kernel32)
+
+        with patch.object(run_gui.ctypes, "get_last_error", return_value=0):
+            self.assertTrue(guard.acquire())
+
+        guard.release()
+
+        self.assertEqual(kernel32.closed_handles, [202])
+
+    def test_duplicate_launch_exits_before_opening_main_window(self):
+        class FakeApplication:
+            def __init__(self, _arguments):
+                pass
+
+            def setApplicationName(self, _name):
+                pass
+
+            def setApplicationVersion(self, _version):
+                pass
+
+            def setOrganizationName(self, _name):
+                pass
+
+            def setQuitOnLastWindowClosed(self, _enabled):
+                pass
+
+        guard = SimpleNamespace(acquire=lambda: False, release=lambda: None)
+
+        with patch.object(run_gui, "setup_logging"), patch.object(
+            run_gui,
+            "configure_high_dpi",
+        ), patch.object(run_gui, "QApplication", FakeApplication), patch.object(
+            run_gui,
+            "SingleInstanceGuard",
+            return_value=guard,
+        ), patch.object(run_gui.QMessageBox, "information") as information, patch.object(
+            run_gui,
+            "WindowResizerMainWindow",
+        ) as main_window:
+            self.assertEqual(run_gui.main(), 0)
+
+        information.assert_called_once()
+        main_window.assert_not_called()
+
     def test_build_command_does_not_require_generated_icon(self):
         with tempfile.TemporaryDirectory() as project_path:
             project_root = Path(project_path)
