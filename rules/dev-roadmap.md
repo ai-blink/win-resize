@@ -10,3 +10,4 @@
 | Theme visibility baseline | Done | Focused test and executable build passed | 2026-07-31 | Check light and dark UI reports |
 | Review hardening | Done | 23 public tests passed; native cursor release passed; official PyInstaller build and packaged startup smoke passed | 2026-07-31 | Regress only on a new report |
 | Release smoke test | Done | Rebuilt EXE started for 10 seconds and exited cleanly; SHA-256 recorded | 2026-07-31 | Perform light/dark and tray visual QA post-release |
+| Single-instance startup protection | Done | Focused regression tests, 35-test discovery, native mutex check, and official EXE rebuild passed | 2026-08-04 | Regress on a future launcher change |

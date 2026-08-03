@@ -728,7 +728,7 @@ class WindowResizerMainWindow(QMainWindow):
     
     def setup_ui(self):
         """Setup the user interface."""
-        self.setWindowTitle("창모드 리사이저 0.01.2")
+        self.setWindowTitle("창모드 리사이저 0.01.3")
         
         # Create central widget
         central_widget = QWidget()
@@ -3053,7 +3053,7 @@ class WindowResizerMainWindow(QMainWindow):
     def show_about(self):
         """Show about dialog."""
         QMessageBox.about(self, "About WindowResizer", 
-                         "WindowResizer v0.01.2\n\n"
+                         "WindowResizer v0.01.3\n\n"
                          "Advanced window management tool with comprehensive error handling.\n\n"
                          "Features:\n"
                          "• Window enumeration and manipulation\n"
@@ -4808,7 +4808,7 @@ class WindowResizerMainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("WindowResizer")
-    app.setApplicationVersion("0.01.2")
+    app.setApplicationVersion("0.01.3")
     app.setQuitOnLastWindowClosed(False)
     
     window = WindowResizerMainWindow()
