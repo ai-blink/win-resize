@@ -330,6 +330,24 @@ class Profile:
             logger.info(f"   대상 창: {hwnd} ({window_info.get('title', 'Unknown')})")
             logger.info(f"   목표 위치: ({self.window_config.x}, {self.window_config.y})")
             logger.info(f"   목표 크기: {self.window_config.width}x{self.window_config.height}")
+
+            # A maximized window ignores its saved normal-window geometry.
+            # Restore it before moving unless the profile explicitly keeps it maximized.
+            is_maximized = False
+            if not self.window_config.is_maximized:
+                try:
+                    import win32con
+                    placement = win32gui.GetWindowPlacement(hwnd)
+                    is_maximized = placement[1] == win32con.SW_SHOWMAXIMIZED
+                except Exception as state_error:
+                    logger.warning(f"Could not determine maximized state for window {hwnd}: {state_error}")
+
+            if is_maximized:
+                restore_result = manipulator.enhanced_restore_window(hwnd)
+                restore_success = getattr(restore_result, 'success', bool(restore_result))
+                if not restore_success:
+                    logger.error(f"Failed to restore maximized window {hwnd} before applying geometry")
+                    return False
             
             # Apply window configuration
             result = manipulator.enhanced_move_window(

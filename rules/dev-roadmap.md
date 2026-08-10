@@ -12,3 +12,4 @@
 | Release smoke test | Done | Rebuilt EXE started for 10 seconds and exited cleanly; SHA-256 recorded | 2026-07-31 | Perform light/dark and tray visual QA post-release |
 | Single-instance startup protection | Done | Focused regression tests, 35-test discovery, native mutex check, and official EXE rebuild passed | 2026-08-04 | Regress on a future launcher change |
 | Apply All refresh sequencing | Done | Focused two-test regression, 36-test discovery, and official EXE rebuild passed | 2026-08-10 | Manually verify one-click application against a newly opened target window |
+| Realtime profile application | Done | Focused toggle regression tests passed; official EXE build and package log confirmed new-window monitoring starts for one active real-time profile | 2026-08-11 | Manually verify one newly launched Blender window restores after move or resize |

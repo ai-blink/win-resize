@@ -2,6 +2,7 @@
 
 ## Current
 
+- 2026-08-11: 프로필의 실시간 위치/크기 유지 토글이 켜진 활성 프로필이 있으면, 앱 시작과 프로필 저장·수정 뒤 새 창 감시기를 자동 시작하도록 보완했다. 최대화 창은 `GetWindowPlacement`로 상태를 확인해 복원 후 저장된 좌표를 적용한다. 집중 회귀 테스트, 공식 EXE 빌드, 활성 프로필이 있는 패키지의 자동 감시 기동 로그를 확인했다.
 - 2026-08-10: Fixed the manual Apply All action so it waits for the asynchronous window refresh before matching profiles. Added a focused two-test regression suite; 36-test discovery and the official EXE rebuild passed.
 - 2026-08-04: Added per-session single-instance protection to the packaged and development application entry point. A second launch now reports that WindowResizer is already running and exits without opening another main window. Focused regression coverage, 35-test discovery, native mutex validation, and an official EXE rebuild passed.
 - 2026-07-31: 전체 코드 리뷰 후 프로필 원자 저장·백업 복구, 부드러운 투명도, 멀티 모니터 커서 해제, 시스템 테마, 무매칭 피드백, DPI 초기화, 깨끗한 빌드 명령을 보완했다. 회귀 테스트 23건, 공식 PyInstaller 빌드, 패키지 EXE 10초 기동 검사가 통과했다.
@@ -21,6 +22,7 @@
 ## Next
 
 - Manually verify the preview overlay on each monitor and executable-path automatic application against a real application launch.
+- Manually verify one newly launched Blender window returns to its saved position and size after a move or resize.
 - Manually confirm light/dark theme visibility, tray restore, and explicit exit in the packaged executable on a Windows desktop session.
 
 ## Blockers
