@@ -2,6 +2,7 @@
 
 ## Current
 
+- 2026-08-10: Fixed the manual Apply All action so it waits for the asynchronous window refresh before matching profiles. Added a focused two-test regression suite; 36-test discovery and the official EXE rebuild passed.
 - 2026-08-04: Added per-session single-instance protection to the packaged and development application entry point. A second launch now reports that WindowResizer is already running and exits without opening another main window. Focused regression coverage, 35-test discovery, native mutex validation, and an official EXE rebuild passed.
 - 2026-07-31: 전체 코드 리뷰 후 프로필 원자 저장·백업 복구, 부드러운 투명도, 멀티 모니터 커서 해제, 시스템 테마, 무매칭 피드백, DPI 초기화, 깨끗한 빌드 명령을 보완했다. 회귀 테스트 23건, 공식 PyInstaller 빌드, 패키지 EXE 10초 기동 검사가 통과했다.
 

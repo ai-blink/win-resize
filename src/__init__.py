@@ -10,5 +10,5 @@ A comprehensive window management application that allows users to:
 - Provide hotkey controls and advanced features
 """
 
-__version__ = "0.01.3"
+__version__ = "0.01.4"
 __author__ = "WindowResizer Team"
