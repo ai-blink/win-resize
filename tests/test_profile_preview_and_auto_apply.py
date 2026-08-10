@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -45,6 +46,26 @@ class ListingProfileManager(RecordingProfileManager):
 
     def list_profiles(self):
         return self.profiles
+
+
+class RecordingWindowMonitor:
+    def __init__(self, is_running=False):
+        self.is_running = is_running
+        self.start_calls = 0
+        self.stop_calls = 0
+
+    def get_statistics(self):
+        return {"is_running": self.is_running}
+
+    def start(self):
+        self.start_calls += 1
+        self.is_running = True
+        return True
+
+    def stop(self):
+        self.stop_calls += 1
+        self.is_running = False
+        return True
 
 
 class ProfilePreviewAndAutoApplyTest(unittest.TestCase):
@@ -173,6 +194,105 @@ class ProfilePreviewAndAutoApplyTest(unittest.TestCase):
 
         self.assertEqual(applied_profiles, [auto_profile.id])
 
+    def test_enabled_realtime_profile_starts_new_window_monitor(self):
+        monitor = RecordingWindowMonitor()
+        window = SimpleNamespace(
+            profile_manager=ListingProfileManager([self.make_profile()]),
+            window_monitor=monitor,
+        )
+
+        self.assertTrue(WindowResizerMainWindow._sync_auto_apply_monitor(window))
+        self.assertEqual(monitor.start_calls, 1)
+
+    def test_disabled_realtime_profile_does_not_start_new_window_monitor(self):
+        profile = self.make_profile()
+        profile.auto_apply = False
+        monitor = RecordingWindowMonitor()
+        window = SimpleNamespace(
+            profile_manager=ListingProfileManager([profile]),
+            window_monitor=monitor,
+        )
+
+        self.assertTrue(WindowResizerMainWindow._sync_auto_apply_monitor(window))
+        self.assertEqual(monitor.start_calls, 0)
+
+    def test_auto_apply_profile_starts_realtime_geometry_monitor(self):
+        profile = self.make_profile()
+        monitoring_calls = []
+
+        class RecordingManipulator:
+            def enhanced_move_window(self, *_args):
+                return SimpleNamespace(success=True)
+
+        profile._set_always_on_top = lambda *_args: True
+        profile._apply_advanced_features = lambda _hwnd: True
+        profile._start_auto_monitoring = (
+            lambda hwnd, window_info: monitoring_calls.append((hwnd, window_info)) or True
+        )
+        fake_win32gui = SimpleNamespace(
+            IsWindow=lambda _hwnd: True,
+            GetWindowPlacement=lambda _hwnd: (0, 1, None, None, None),
+        )
+        fake_win32con = SimpleNamespace(SW_SHOWMAXIMIZED=3)
+        window_info = {"hwnd": 101, "title": "Target window"}
+
+        with patch.dict(sys.modules, {
+            "win32gui": fake_win32gui,
+            "win32con": fake_win32con,
+        }), patch(
+            "core.enhanced_window_manipulator.EnhancedWindowManipulator",
+            return_value=RecordingManipulator(),
+        ):
+            self.assertTrue(profile.apply_to_window(window_info))
+
+        self.assertEqual(monitoring_calls, [(101, window_info)])
+
+    def test_maximized_target_is_restored_before_normal_geometry_is_applied(self):
+        profile = Profile(
+            name="Restore geometry",
+            window_config=WindowConfiguration(x=30, y=40, width=500, height=300),
+            matching_criteria=MatchingCriteria(
+                strategy=MatchingStrategy.EXACT_TITLE,
+                window_title_pattern="Target window",
+            ),
+        )
+        operations = []
+
+        class RecordingManipulator:
+            def enhanced_restore_window(self, hwnd):
+                operations.append(("restore", hwnd))
+                return SimpleNamespace(success=True)
+
+            def enhanced_move_window(self, hwnd, x, y, width, height):
+                operations.append(("move", hwnd, x, y, width, height))
+                return SimpleNamespace(success=True)
+
+        profile._set_always_on_top = lambda *_args: True
+        profile._apply_advanced_features = lambda _hwnd: True
+        profile._stop_auto_monitoring = lambda _hwnd: True
+        fake_win32gui = SimpleNamespace(
+            IsWindow=lambda _hwnd: True,
+            GetWindowPlacement=lambda _hwnd: (0, 3, None, None, None),
+        )
+        fake_win32con = SimpleNamespace(SW_SHOWMAXIMIZED=3)
+
+        with patch.dict(sys.modules, {
+            "win32gui": fake_win32gui,
+            "win32con": fake_win32con,
+        }), patch(
+            "core.enhanced_window_manipulator.EnhancedWindowManipulator",
+            return_value=RecordingManipulator(),
+        ):
+            self.assertTrue(profile.apply_to_window({"hwnd": 101, "title": "Target window"}))
+
+        self.assertEqual(
+            operations,
+            [
+                ("restore", 101),
+                ("move", 101, 30, 40, 500, 300),
+            ],
+        )
+
     def test_preview_overlay_uses_saved_profile_geometry(self):
         profile = self.make_profile()
         overlay = ProfilePreviewOverlay(profile, get_theme_manager())
@@ -185,7 +305,10 @@ class ProfilePreviewAndAutoApplyTest(unittest.TestCase):
         dialog = ProfileEditorDialog()
         try:
             self.assertFalse(dialog.auto_apply_check.isChecked())
-            self.assertEqual(dialog.auto_apply_check.text(), "새 창 감지 시 자동 적용")
+            self.assertEqual(
+                dialog.auto_apply_check.text(),
+                "새 창 감지 및 실시간 위치/크기 유지",
+            )
         finally:
             dialog.close()
 

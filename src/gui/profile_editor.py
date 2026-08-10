@@ -344,10 +344,11 @@ class ProfileEditorDialog(QDialog):
         self.enabled_check.setToolTip("이 프로필의 사용 여부를 설정합니다")
         layout.addRow("", self.enabled_check)
         
-        # 새 창 감지 자동 적용
-        self.auto_apply_check = QCheckBox("새 창 감지 시 자동 적용")
+        # 새 창 감지와 적용 뒤 위치/크기 유지
+        self.auto_apply_check = QCheckBox("새 창 감지 및 실시간 위치/크기 유지")
         self.auto_apply_check.setToolTip(
-            "이 프로필과 일치하는 새 창이 열릴 때 자동 감지가 켜져 있으면 프로필을 적용합니다"
+            "켜면 이 프로필이 적용된 창의 위치와 크기를 계속 유지합니다. "
+            "새 창에도 적용하려면 메인 화면에서 자동 감지를 켜세요."
         )
         layout.addRow("", self.auto_apply_check)
         

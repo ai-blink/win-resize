@@ -266,6 +266,8 @@ class WindowResizerMainWindow(QMainWindow):
         # Initialize profile list (only if profile_combo exists)
         if hasattr(self, 'profile_combo'):
             self.refresh_profile_list()
+
+        self._sync_auto_apply_monitor()
         
         logger.info("WindowResizerMainWindow initialized")
     
@@ -3624,6 +3626,7 @@ class WindowResizerMainWindow(QMainWindow):
             
             # Save the updated profile
             default_profile_manager.save_profiles()
+            self._sync_auto_apply_monitor()
             
             # Force refresh the profile table to show updated values
             self.refresh_profile_table()
@@ -3902,6 +3905,7 @@ class WindowResizerMainWindow(QMainWindow):
                 if field_name in profile_data:
                     setattr(profile, field_name, profile_data[field_name])
             self.profile_manager.save_profiles()
+            self._sync_auto_apply_monitor()
 
             self.refresh_profile_list()
             if hasattr(self, 'profile_table_widget'):
@@ -3988,6 +3992,44 @@ class WindowResizerMainWindow(QMainWindow):
         self.save_current_as_profile()
     
     # Phase 2: Auto-apply system methods
+    def _sync_auto_apply_monitor(self) -> bool:
+        """Run new-window detection only while an active profile enables real-time apply."""
+        try:
+            enabled_profiles = [
+                profile for profile in self.profile_manager.list_profiles()
+                if profile.enabled and profile.auto_apply
+            ]
+            is_running = self.window_monitor.get_statistics().get('is_running', False)
+
+            if enabled_profiles and not is_running:
+                if not self.window_monitor.start():
+                    logger.error("Failed to start new-window monitoring for real-time profiles")
+                    return False
+                logger.info(
+                    "Started new-window monitoring for %s real-time profile(s)",
+                    len(enabled_profiles),
+                )
+
+            if not enabled_profiles and is_running:
+                if not self.window_monitor.stop():
+                    logger.error("Failed to stop new-window monitoring without real-time profiles")
+                    return False
+                logger.info("Stopped new-window monitoring because no real-time profiles are enabled")
+
+            if hasattr(self, 'auto_apply_monitor_button'):
+                self.auto_apply_monitor_button.setText(
+                    "자동 감지 끄기" if enabled_profiles else "자동 감지 켜기"
+                )
+            if hasattr(self, 'auto_apply_monitor_status_label'):
+                self.auto_apply_monitor_status_label.setText(
+                    f"자동 감지 중: {len(enabled_profiles)}개 프로필"
+                    if enabled_profiles else "자동 감지 꺼짐"
+                )
+            return True
+        except Exception as e:
+            logger.error(f"Error synchronizing automatic new-window monitoring: {e}")
+            return False
+
     def toggle_auto_apply(self, enabled: bool):
         """Toggle automatic profile application system."""
         try:
