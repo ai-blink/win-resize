@@ -6,6 +6,7 @@
 - `src/core/`: profiles and application rules.
 - `src/utils/`: Windows discovery and native manipulation helpers.
 - `src/gui/theme_manager.py`: the single runtime source for Qt theme palette and global dialog styling.
+- `src/gui/ui_scale_manager.py`: persisted application UI scale and main-window geometry settings.
 - `src/core/window_state_manager.py`: transparency animation state and timers.
 - `src/core/integrated_mouse_constraint.py`: Win32 cursor clipping and release.
 
@@ -15,6 +16,9 @@
 - `Profile` applies stored geometry before optional position locking.
 - Position lock and mouse constraint are independent profile flags.
 - Theme-specific colors must come from `ThemeManager` rather than fixed dark or light literals.
+- UI scale changes apply only to WindowResizer visuals; saved profile geometry and
+  native target-window operations remain unscaled. The main window restores its
+  saved size and position only when that geometry remains visible on a current screen.
 - Profile persistence writes a temporary file, retains a backup, then atomically replaces the primary file.
 - The build command uses `src` as its analysis path and treats a source-controlled `.ico` file as optional.
 
@@ -26,7 +30,9 @@
 | Profile editor | `src/gui/profile_editor.py` |
 | Profile persistence and locking | `src/core/profile_manager.py` |
 | Theme palette and global Qt styles | `src/gui/theme_manager.py` |
+| UI scale and main-window geometry persistence | `src/gui/ui_scale_manager.py` |
 | Current UI regression test | `tests/test_profile_editor_lock_settings.py` |
+| UI scale regression test | `tests/test_ui_scale.py` |
 | Review hardening regression test | `tests/test_review_hardening.py` |
 | Build entry point | `final_build.py` |
 

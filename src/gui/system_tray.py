@@ -35,6 +35,7 @@ from core.process_monitor import default_process_monitor, MonitoringConfig
 from core.profile_manager import default_profile_manager
 from gui.main_window import WindowResizerMainWindow
 from gui.profile_dialog import ProfileManagerDialog
+from gui.ui_scale_manager import get_ui_scale_manager
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,14 @@ class TraySettingsDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.ui_scale_manager = get_ui_scale_manager()
         self.setWindowTitle("Background Service Settings")
         self.setModal(True)
         self.resize(400, 300)
         
         self.setup_ui()
         self.load_settings()
+        self.ui_scale_manager.register_window(self)
     
     def setup_ui(self):
         """Setup settings dialog UI."""
@@ -133,12 +136,16 @@ class TrayStatusDialog(QDialog):
     
     def __init__(self, tray_manager, parent=None):
         super().__init__(parent)
+        self.ui_scale_manager = get_ui_scale_manager()
         self.tray_manager = tray_manager
         self.setWindowTitle("Service Status")
         self.setModal(False)
         self.resize(500, 400)
         
         self.setup_ui()
+        self.ui_scale_manager.register_window(self)
+        self.ui_scale_manager.scale_changed.connect(self.apply_ui_scale)
+        self.apply_ui_scale(self.ui_scale_manager.scale_percent)
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_status)
         self.update_timer.start(2000)  # Update every 2 seconds
@@ -150,7 +157,7 @@ class TrayStatusDialog(QDialog):
         # Status display
         self.status_text = QTextEdit()
         self.status_text.setReadOnly(True)
-        self.status_text.setFont(QFont("Consolas", 9))
+        self.status_text.setFont(QFont("Consolas", self.ui_scale_manager.scale_value(9)))
         layout.addWidget(self.status_text)
         
         # Control buttons
@@ -175,6 +182,10 @@ class TrayStatusDialog(QDialog):
         layout.addLayout(button_layout)
         
         self.update_status()
+
+    def apply_ui_scale(self, _scale_percent):
+        """Keep the explicit monospaced status font in sync with UI scale."""
+        self.status_text.setFont(QFont("Consolas", self.ui_scale_manager.scale_value(9)))
     
     def update_status(self):
         """Update status display."""
