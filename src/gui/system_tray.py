@@ -182,7 +182,7 @@ class TrayStatusDialog(QDialog):
             stats = default_process_monitor.get_statistics()
             profile_stats = default_profile_manager.get_statistics()
             
-            status_text = f"""창모드 리사이저 0.01.3 상태
+            status_text = f"""창모드 리사이저 0.01.4 상태
 {'=' * 50}
 
 Process Monitor:
@@ -266,7 +266,7 @@ class SystemTrayManager:
         # Create tray icon
         self.tray_icon = QSystemTrayIcon()
         self.tray_icon.setIcon(self.create_tray_icon("idle"))
-        self.tray_icon.setToolTip("창모드 리사이저 0.01.3")
+        self.tray_icon.setToolTip("창모드 리사이저 0.01.4")
         
         # Create context menu
         self.create_context_menu()
@@ -399,16 +399,16 @@ class SystemTrayManager:
             if stats['is_running']:
                 if stats['errors'] > stats.get('last_error_count', 0):
                     self.tray_icon.setIcon(self.create_tray_icon("error"))
-                    self.tray_icon.setToolTip("창모드 리사이저 0.01.3 (오류)")
+                    self.tray_icon.setToolTip("창모드 리사이저 0.01.4 (오류)")
                 else:
                     self.tray_icon.setIcon(self.create_tray_icon("active"))
-                    self.tray_icon.setToolTip("창모드 리사이저 0.01.3 (작동 중)")
+                    self.tray_icon.setToolTip("창모드 리사이저 0.01.4 (작동 중)")
                 
                 self.start_action.setEnabled(False)
                 self.stop_action.setEnabled(True)
             else:
                 self.tray_icon.setIcon(self.create_tray_icon("idle"))
-                self.tray_icon.setToolTip("창모드 리사이저 0.01.3 (중지됨)")
+                self.tray_icon.setToolTip("창모드 리사이저 0.01.4 (중지됨)")
                 
                 self.start_action.setEnabled(True)
                 self.stop_action.setEnabled(False)

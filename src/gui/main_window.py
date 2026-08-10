@@ -728,7 +728,7 @@ class WindowResizerMainWindow(QMainWindow):
     
     def setup_ui(self):
         """Setup the user interface."""
-        self.setWindowTitle("창모드 리사이저 0.01.3")
+        self.setWindowTitle("창모드 리사이저 0.01.4")
         
         # Create central widget
         central_widget = QWidget()
@@ -2309,8 +2309,8 @@ class WindowResizerMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error applying theme styling: {e}")
     
-    def refresh_window_list(self):
-        """Refresh the window list."""
+    def refresh_window_list(self, on_complete=None):
+        """Refresh the window list and optionally continue with the fresh results."""
         self.status_label.setText("창 목록을 새로고침 중...")
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)  # Indeterminate
@@ -2321,12 +2321,18 @@ class WindowResizerMainWindow(QMainWindow):
             self.update_thread.wait()
         
         self.update_thread = WindowUpdateThread()
+        self.update_thread.on_complete = on_complete
         self.update_thread.windows_updated.connect(self.on_windows_updated)
         self.update_thread.error_occurred.connect(self.on_update_error)
         self.update_thread.start()
     
     def on_windows_updated(self, windows: List[WindowInfo]):
         """Handle window list update."""
+        update_thread = self.sender()
+        on_complete = getattr(update_thread, "on_complete", None)
+        if update_thread is not None:
+            update_thread.on_complete = None
+
         # Store current selection if any
         current_hwnd = self.current_window.hwnd if self.current_window else None
         
@@ -2342,9 +2348,16 @@ class WindowResizerMainWindow(QMainWindow):
         self.status_label.setText(f"창 {len(windows)}개를 찾았습니다")
         
         logger.info(f"Window list updated: {len(windows)} windows")
+
+        if on_complete:
+            on_complete(windows)
     
     def on_update_error(self, error_message: str):
         """Handle window update error."""
+        update_thread = self.sender()
+        if update_thread is not None:
+            update_thread.on_complete = None
+
         self.progress_bar.setVisible(False)
         self.status_label.setText(f"Error: {error_message}")
         
@@ -3053,7 +3066,7 @@ class WindowResizerMainWindow(QMainWindow):
     def show_about(self):
         """Show about dialog."""
         QMessageBox.about(self, "About WindowResizer", 
-                         "WindowResizer v0.01.3\n\n"
+                         "WindowResizer v0.01.4\n\n"
                          "Advanced window management tool with comprehensive error handling.\n\n"
                          "Features:\n"
                          "• Window enumeration and manipulation\n"
@@ -3118,13 +3131,19 @@ class WindowResizerMainWindow(QMainWindow):
     
     def auto_apply_profiles(self):
         """Auto-apply all matching profiles to current windows."""
+        # Window enumeration is asynchronous. Apply only after the refreshed
+        # list arrives so a single click includes newly opened windows.
         try:
-            # Refresh window list first to ensure we have current handles
-            self.refresh_window_list()
-            
+            self.refresh_window_list(self._apply_all_profiles_to_windows)
+        except Exception as e:
+            QMessageBox.critical(self, "오류", f"프로필 자동 적용 실패:\n{str(e)}")
+
+    def _apply_all_profiles_to_windows(self, windows: List[WindowInfo]):
+        """Apply every matching profile to a freshly enumerated window list."""
+        try:
             # Get all current windows and validate handles
             windows_info = []
-            for window in self.window_list:
+            for window in windows:
                 # Validate window handle before processing
                 try:
                     import win32gui
@@ -4808,7 +4827,7 @@ class WindowResizerMainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("WindowResizer")
-    app.setApplicationVersion("0.01.3")
+    app.setApplicationVersion("0.01.4")
     app.setQuitOnLastWindowClosed(False)
     
     window = WindowResizerMainWindow()
