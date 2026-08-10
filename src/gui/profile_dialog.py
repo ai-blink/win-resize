@@ -37,6 +37,7 @@ from core.profile_manager import (
     MatchingStrategy, ProfileType, default_profile_manager
 )
 from gui.theme_manager import get_theme_manager, ThemeElement
+from gui.ui_scale_manager import get_ui_scale_manager
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def create_themed_message_box_dialog(parent, icon, title, text, buttons=QMessage
             border_color = theme_manager.get_color_string(ThemeElement.BORDER)
             
             # Apply enhanced styling for dark mode
-            msg_box.setStyleSheet(f"""
+            msg_box.setStyleSheet(get_ui_scale_manager().scale_stylesheet(f"""
                 QMessageBox {{
                     background-color: {bg_color};
                     color: {text_color};
@@ -103,7 +104,7 @@ def create_themed_message_box_dialog(parent, icon, title, text, buttons=QMessage
                     color: {bg_color};
                     border: 2px solid {accent_color};
                 }}
-            """)
+            """))
         
         return msg_box
         
@@ -161,6 +162,7 @@ class ProfileEditDialog(QDialog):
         self.setWindowTitle(title)
         self.setModal(True)
         self.resize(500, 600)
+        get_ui_scale_manager().register_window(self)
     
     def setup_ui(self):
         """Setup the user interface."""
@@ -554,6 +556,7 @@ class ProfileManagerDialog(QDialog):
         self.setWindowTitle("Profile Manager")
         self.setModal(False)
         self.resize(800, 600)
+        get_ui_scale_manager().register_window(self)
     
     def setup_ui(self):
         """Setup the user interface."""

@@ -21,6 +21,7 @@ from PyQt5.QtGui import QFont, QKeySequence
 
 from core.profile_manager import Profile, WindowConfiguration, MatchingCriteria, MatchingStrategy, ProfileType
 from gui.theme_manager import get_theme_manager, ThemeElement
+from gui.ui_scale_manager import get_ui_scale_manager
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def create_themed_message_box(parent, icon, title, text, buttons=QMessageBox.Ok)
             border_color = theme_manager.get_color_string(ThemeElement.BORDER)
             
             # Apply enhanced styling for dark mode
-            msg_box.setStyleSheet(f"""
+            msg_box.setStyleSheet(get_ui_scale_manager().scale_stylesheet(f"""
                 QMessageBox {{
                     background-color: {bg_color};
                     color: {text_color};
@@ -87,7 +88,7 @@ def create_themed_message_box(parent, icon, title, text, buttons=QMessageBox.Ok)
                     color: {bg_color};
                     border: 2px solid {accent_color};
                 }}
-            """)
+            """))
         
         return msg_box
         
@@ -259,6 +260,7 @@ class ProfileEditorDialog(QDialog):
         
         # Initialize theme manager
         self.theme_manager = get_theme_manager()
+        self.ui_scale_manager = get_ui_scale_manager()
         
         self.setWindowTitle("프로필 편집" if profile else "새 프로필")
         self.setMinimumSize(600, 700)
@@ -267,14 +269,15 @@ class ProfileEditorDialog(QDialog):
         self.setup_ui()
         self.theme_manager.theme_changed.connect(self.apply_theme_styling)
         self.apply_theme_styling()  # Apply theme after UI setup
-        self.window_settings_content.setMinimumHeight(
-            self.window_settings_content.sizeHint().height()
-        )
         
         if profile:
             self.load_profile_data()
         elif window_info:
             self.populate_from_window_info(window_info)
+
+        self.ui_scale_manager.register_window(self)
+        self.ui_scale_manager.scale_changed.connect(self.apply_ui_scale)
+        self.apply_ui_scale(self.ui_scale_manager.scale_percent)
     
     def setup_ui(self):
         """Setup the user interface."""
@@ -1334,6 +1337,7 @@ class ProfileEditorDialog(QDialog):
                     QTabBar::tab:selected {{ background-color: {accent}; color: {bg}; }}
                     QTabBar::tab:hover {{ background-color: {button_hover}; }}
                 """)
+                self.ui_scale_manager.refresh_stylesheet(self)
                 return
             
             # Convert to string if it's an enum
@@ -1478,7 +1482,16 @@ class ProfileEditorDialog(QDialog):
             else:
                 # Light theme - remove custom styling to use default
                 self.setStyleSheet("")
+
+            self.ui_scale_manager.refresh_stylesheet(self)
                 
         except Exception as e:
             logger.error(f"Error applying theme to profile editor: {e}")
+
+    def apply_ui_scale(self, _scale_percent):
+        """Reapply the dialog stylesheet from unscaled theme values."""
+        self.apply_theme_styling()
+        self.window_settings_content.setMinimumHeight(
+            self.window_settings_content.sizeHint().height()
+        )
     

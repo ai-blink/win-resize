@@ -35,6 +35,7 @@ from PyQt5.QtWidgets import QApplication, QWidget
 from PyQt5.QtCore import QObject, pyqtSignal, QSettings, QTimer
 from PyQt5.QtGui import QPalette, QColor, QFont, QIcon, QPixmap, QPainter
 from PyQt5.QtCore import Qt
+from gui.ui_scale_manager import get_ui_scale_manager
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,8 @@ class ThemeManager(QObject):
         
         # Settings
         self.settings = QSettings("WindowResizer", "ThemeManager")
+        self.ui_scale_manager = get_ui_scale_manager()
+        self.ui_scale_manager.scale_changed.connect(self._apply_custom_stylesheets)
         
         # System theme monitoring
         self.system_theme_timer = QTimer()
@@ -682,6 +685,7 @@ class ThemeManager(QObject):
             }}
             """
             
+            stylesheet = self.ui_scale_manager.scale_stylesheet(stylesheet)
             app = QApplication.instance()
             if app:
                 app.setStyleSheet(stylesheet)
@@ -716,7 +720,7 @@ class ThemeManager(QObject):
         accent = self.get_color_string(ThemeElement.ACCENT)
         border = self.get_color_string(ThemeElement.BORDER)
         
-        return f"""
+        stylesheet = f"""
         QMessageBox {{
             background-color: {fg};
             color: {text};
@@ -768,6 +772,7 @@ class ThemeManager(QObject):
             border: 2px solid {text};
         }}
         """
+        return self.ui_scale_manager.scale_stylesheet(stylesheet)
     
     def set_follow_system(self, follow: bool):
         """Set whether to follow system theme."""

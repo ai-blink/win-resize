@@ -46,6 +46,7 @@ from gui.profile_dialog import ProfileManagerDialog, ProfileEditDialog
 from gui.theme_manager import get_theme_manager, ThemeElement, ThemeType
 from gui.profile_editor import ProfileEditorDialog
 from gui.preset_controls import PresetControlsWidget
+from gui.ui_scale_manager import UiScaleSettingsDialog, get_ui_scale_manager
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +220,13 @@ class WindowResizerMainWindow(QMainWindow):
     def __init__(self):
         """Initialize the main window."""
         super().__init__()
+
+        self.ui_scale_manager = get_ui_scale_manager()
+        self.ui_scale_manager.initialize_application()
+        self._window_size_persistence_ready = False
+        self._window_geometry_save_timer = QTimer(self)
+        self._window_geometry_save_timer.setSingleShot(True)
+        self._window_geometry_save_timer.timeout.connect(self._save_main_window_geometry)
         
         # Initialize Phase 1 components
         self.window_manipulator = EnhancedWindowManipulator()
@@ -259,6 +267,11 @@ class WindowResizerMainWindow(QMainWindow):
         self.setup_timers()
         self.setup_connections()
         self.setup_system_tray()
+        self.ui_scale_manager.register_window(self, scale_root_geometry=False)
+        self.ui_scale_manager.scale_changed.connect(self.apply_ui_scale)
+        self.apply_ui_scale(self.ui_scale_manager.scale_percent)
+        self._restore_main_window_size()
+        self._window_size_persistence_ready = True
         
         # Initial window list update
         self.refresh_window_list()
@@ -367,6 +380,7 @@ class WindowResizerMainWindow(QMainWindow):
             # Connect button
             ok_button.clicked.connect(dialog.accept)
             ok_button.setDefault(True)
+            self.ui_scale_manager.register_window(dialog)
             
             # Execute dialog
             return dialog.exec_()
@@ -473,6 +487,7 @@ class WindowResizerMainWindow(QMainWindow):
             # Connect button
             ok_button.clicked.connect(dialog.accept)
             ok_button.setDefault(True)
+            self.ui_scale_manager.register_window(dialog)
             
             # Execute dialog
             return dialog.exec_()
@@ -578,6 +593,7 @@ class WindowResizerMainWindow(QMainWindow):
             # Connect button
             ok_button.clicked.connect(dialog.accept)
             ok_button.setDefault(True)
+            self.ui_scale_manager.register_window(dialog)
             
             # Execute dialog
             return dialog.exec_()
@@ -717,6 +733,7 @@ class WindowResizerMainWindow(QMainWindow):
             # Focus on input field
             input_field.setFocus()
             input_field.selectAll()
+            self.ui_scale_manager.register_window(dialog)
             
             # Execute dialog
             result = dialog.exec_()
@@ -1514,6 +1531,11 @@ class WindowResizerMainWindow(QMainWindow):
         self.safe_mode_action.setToolTip('안전 모드를 활성화합니다 (읽기 전용)')
         self.safe_mode_action.triggered.connect(self.toggle_safe_mode)
         view_menu.addAction(self.safe_mode_action)
+
+        ui_scale_action = QAction('UI 크기...', self)
+        ui_scale_action.setToolTip('전체 화면 크기를 조정합니다')
+        ui_scale_action.triggered.connect(self.show_ui_scale_dialog)
+        view_menu.addAction(ui_scale_action)
         
         # Theme menu
         theme_menu = menubar.addMenu('테마')
@@ -1810,21 +1832,36 @@ class WindowResizerMainWindow(QMainWindow):
         if hasattr(self, 'auto_refresh_checkbox') and self.auto_refresh_checkbox.isChecked():
             self.auto_refresh_timer.start()
     
-    def setup_window_constraints(self):
+    def setup_window_constraints(self, resize_to_default=True):
         """Fit the initial main window within the primary screen work area."""
         screen = QApplication.primaryScreen()
         if screen is None:
             return
 
         available_geometry = screen.availableGeometry()
-        min_width, min_height, max_width, max_height, default_width, default_height = (
-            self.calculate_window_size_constraints(available_geometry)
-        )
+        scale_value = getattr(self, 'ui_scale_manager', None)
+        if scale_value is not None:
+            min_width = min(available_geometry.width(), scale_value.scale_value(900))
+            min_height = min(available_geometry.height(), scale_value.scale_value(720))
+            max_width = max(min_width, min(available_geometry.width(), scale_value.scale_value(1600)))
+            max_height = max(min_height, min(available_geometry.height(), scale_value.scale_value(1000)))
+            default_width = min(max_width, max(min_width, scale_value.scale_value(1150)))
+            default_height = min(max_height, max(min_height, scale_value.scale_value(800)))
+        else:
+            min_width, min_height, max_width, max_height, default_width, default_height = (
+                self.calculate_window_size_constraints(available_geometry)
+            )
         self.setMinimumSize(min_width, min_height)
         self.setMaximumSize(max_width, max_height)
-        self.resize(default_width, default_height)
-
-        self.center_on_screen(available_geometry)
+        if resize_to_default:
+            self.resize(default_width, default_height)
+            self.center_on_screen(available_geometry)
+        else:
+            current_size = self.size()
+            self.resize(
+                min(max_width, max(min_width, current_size.width())),
+                min(max_height, max(min_height, current_size.height())),
+            )
 
     @staticmethod
     def calculate_window_size_constraints(available_geometry: QRect):
@@ -1851,6 +1888,122 @@ class WindowResizerMainWindow(QMainWindow):
             self.move(x, y)
         except Exception as e:
             logger.debug(f"Could not center window: {e}")
+
+    def show_ui_scale_dialog(self):
+        """Show the persistent live UI scale slider."""
+        dialog = getattr(self, 'ui_scale_dialog', None)
+        if dialog is None:
+            dialog = UiScaleSettingsDialog(self.ui_scale_manager, self)
+            dialog.destroyed.connect(lambda *_args: setattr(self, 'ui_scale_dialog', None))
+            self.ui_scale_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def apply_ui_scale(self, _scale_percent: int):
+        """Refresh dimensions that are not represented by widget size constraints."""
+        scale_value = self.ui_scale_manager.scale_value
+
+        if hasattr(self, 'window_list_widget'):
+            header = self.window_list_widget.horizontalHeader()
+            header.setDefaultSectionSize(scale_value(80))
+            for column, width in enumerate((300, 80, 200, 80, 80, 80, 80)):
+                self.window_list_widget.setColumnWidth(column, scale_value(width))
+
+        if hasattr(self, 'profile_table_widget'):
+            header = self.profile_table_widget.horizontalHeader()
+            header.setDefaultSectionSize(scale_value(80))
+            for column, width in enumerate((150, 200, 120, 110, 80, 80, 80, 80, 104)):
+                self.profile_table_widget.setColumnWidth(column, scale_value(width))
+
+        self.setup_window_constraints(
+            resize_to_default=not self._window_size_persistence_ready
+        )
+        self.apply_theme_styling()
+        self.ui_scale_manager.refresh_stylesheet(self)
+
+    def _restore_main_window_size(self):
+        """Restore the last main window size and visible position."""
+        saved_size = self.ui_scale_manager.load_main_window_size()
+        if saved_size is not None:
+            self.resize(saved_size)
+            self.setup_window_constraints(resize_to_default=False)
+
+        saved_position = self.ui_scale_manager.load_main_window_position()
+        if saved_position is None:
+            self.center_on_screen()
+            return
+
+        self.move(self._visible_main_window_position(saved_position))
+
+    @staticmethod
+    def clamp_main_window_position(position: QPoint, size: QSize, available_geometry: QRect) -> QPoint:
+        """Keep a top-left window position entirely within one screen work area."""
+        maximum_x = max(available_geometry.left(), available_geometry.right() - size.width() + 1)
+        maximum_y = max(available_geometry.top(), available_geometry.bottom() - size.height() + 1)
+        return QPoint(
+            min(maximum_x, max(available_geometry.left(), position.x())),
+            min(maximum_y, max(available_geometry.top(), position.y())),
+        )
+
+    def _visible_main_window_position(self, position: QPoint) -> QPoint:
+        """Choose the saved screen when available, otherwise use the primary screen."""
+        window_geometry = QRect(position, self.size())
+        screens = QApplication.screens()
+        target_screen = next(
+            (screen for screen in screens if screen.availableGeometry().contains(position)),
+            None,
+        )
+        if target_screen is None:
+            target_screen = next(
+                (screen for screen in screens if screen.availableGeometry().intersects(window_geometry)),
+                None,
+            )
+        if target_screen is None:
+            target_screen = QApplication.primaryScreen()
+        if target_screen is None:
+            return QPoint(position)
+
+        return self.clamp_main_window_position(
+            position,
+            self.size(),
+            target_screen.availableGeometry(),
+        )
+
+    def _save_main_window_size(self):
+        """Persist the user-selected main window size after resize activity settles."""
+        if self.isMinimized() or self.isMaximized():
+            return
+        self.ui_scale_manager.save_main_window_size(self.size())
+
+    def _save_main_window_geometry(self):
+        """Persist the current visible size and position together."""
+        if self.isMinimized() or self.isMaximized():
+            return
+        self._save_main_window_size()
+        self.ui_scale_manager.save_main_window_position(self.pos())
+
+    def resizeEvent(self, event):
+        """Remember the last visible main window size without writing on every pixel."""
+        super().resizeEvent(event)
+        if (
+            self._window_size_persistence_ready
+            and self.isVisible()
+            and not self.isMinimized()
+            and not self.isMaximized()
+        ):
+            self._window_geometry_save_timer.start(250)
+
+    def moveEvent(self, event):
+        """Remember the last visible main window position without writing on every pixel."""
+        super().moveEvent(event)
+        if (
+            self._window_size_persistence_ready
+            and self.isVisible()
+            and not self.isMinimized()
+            and not self.isMaximized()
+        ):
+            self._window_geometry_save_timer.start(250)
 
     @staticmethod
     def calculate_position_in_work_area(position: str, width: int, height: int,
@@ -4633,6 +4786,9 @@ class WindowResizerMainWindow(QMainWindow):
                 )
                 self._tray_notification_shown = True
             return
+
+        if self.isVisible():
+            self._save_main_window_geometry()
 
         # Stop timers
         self.auto_refresh_timer.stop()
