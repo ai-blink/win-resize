@@ -18,6 +18,8 @@ Key Features:
 import sys
 import os
 import logging
+import ctypes
+from ctypes import wintypes
 from typing import Dict, List, Optional, Callable, Tuple, Set
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag
@@ -35,7 +37,7 @@ try:
 except ImportError:
     WIN32_AVAILABLE = False
 
-from PyQt5.QtCore import QObject, pyqtSignal, QTimer
+from PyQt5.QtCore import QObject, pyqtSignal, QAbstractNativeEventFilter
 from PyQt5.QtWidgets import QApplication
 
 from core.profile_manager import default_profile_manager
@@ -54,7 +56,9 @@ class ModifierKeys(IntFlag):
 class HotkeyAction(Enum):
     """Available hotkey actions."""
     APPLY_PROFILE = "apply_profile"
+    RELEASE_PROFILE = "release_profile"
     TOGGLE_ALWAYS_ON_TOP = "toggle_always_on_top"
+    TOGGLE_AUTO_APPLY = "toggle_auto_apply"
     MINIMIZE_WINDOW = "minimize_window"
     MAXIMIZE_WINDOW = "maximize_window"
     RESTORE_WINDOW = "restore_window"
@@ -145,6 +149,92 @@ class HotkeyDefinition:
         
         return key_names.get(key_code, f"Key{key_code}")
 
+
+def parse_hotkey_combination(combination: str) -> Tuple[ModifierKeys, int]:
+    """Convert a profile editor shortcut string into Win32 registration values."""
+    if not isinstance(combination, str) or not combination.strip():
+        raise ValueError("Hotkey combination is empty")
+
+    modifier_names = {
+        "ctrl": ModifierKeys.CTRL,
+        "alt": ModifierKeys.ALT,
+        "shift": ModifierKeys.SHIFT,
+        "win": ModifierKeys.WIN,
+    }
+    special_key_codes = {
+        "space": 0x20,
+        "enter": 0x0D,
+        "tab": 0x09,
+        "backspace": 0x08,
+        "delete": 0x2E,
+        "home": 0x24,
+        "end": 0x23,
+        "page up": 0x21,
+        "page down": 0x22,
+        "left": 0x25,
+        "up": 0x26,
+        "right": 0x27,
+        "down": 0x28,
+        "insert": 0x2D,
+        "escape": 0x1B,
+        "esc": 0x1B,
+    }
+
+    modifiers = ModifierKeys.NONE
+    key_code = None
+    for part in combination.split("+"):
+        key_name = part.strip()
+        normalized_name = key_name.casefold()
+        modifier = modifier_names.get(normalized_name)
+        if modifier is not None:
+            if modifiers & modifier:
+                raise ValueError(f"Duplicate modifier in hotkey: {key_name}")
+            modifiers |= modifier
+            continue
+
+        if key_code is not None:
+            raise ValueError("A hotkey must contain exactly one main key")
+
+        if len(key_name) == 1 and key_name.isalnum():
+            key_code = ord(key_name.upper())
+        elif normalized_name.startswith("f") and normalized_name[1:].isdigit():
+            function_key = int(normalized_name[1:])
+            if 1 <= function_key <= 24:
+                key_code = 0x6F + function_key
+            else:
+                raise ValueError(f"Unsupported function key: {key_name}")
+        elif normalized_name in special_key_codes:
+            key_code = special_key_codes[normalized_name]
+        else:
+            raise ValueError(f"Unsupported hotkey key: {key_name}")
+
+    if key_code is None:
+        raise ValueError("A hotkey must include a main key")
+
+    return modifiers, key_code
+
+
+class WindowsHotkeyEventFilter(QAbstractNativeEventFilter):
+    """Dispatch thread-level WM_HOTKEY messages before Qt consumes them."""
+
+    def __init__(self, manager):
+        super().__init__()
+        self.manager = manager
+
+    def nativeEventFilter(self, event_type, message):
+        if event_type not in (b"windows_generic_MSG", b"windows_dispatcher_MSG"):
+            return False, 0
+
+        native_message = ctypes.cast(
+            int(message),
+            ctypes.POINTER(wintypes.MSG),
+        ).contents
+        if native_message.message != win32con.WM_HOTKEY:
+            return False, 0
+
+        self.manager._dispatch_registered_hotkey(native_message.wParam)
+        return True, 0
+
 class HotkeyManager(QObject):
     """Manages global hotkeys for the application."""
     
@@ -154,7 +244,7 @@ class HotkeyManager(QObject):
     hotkey_unregistered = pyqtSignal(str)    # hotkey_id
     hotkey_error = pyqtSignal(str, str)      # hotkey_id, error_message
     
-    def __init__(self):
+    def __init__(self, include_default_hotkeys: bool = True):
         """Initialize hotkey manager."""
         super().__init__()
         
@@ -170,8 +260,9 @@ class HotkeyManager(QObject):
         # Initialize window manipulator for actions
         self.window_manipulator = EnhancedWindowManipulator()
         
-        # Setup default hotkeys
-        self._setup_default_hotkeys()
+        # Profile shortcuts use a dedicated manager without these fixed defaults.
+        if include_default_hotkeys:
+            self._setup_default_hotkeys()
         
         # Setup message handling
         self._setup_message_handling()
@@ -235,38 +326,24 @@ class HotkeyManager(QObject):
             self.hotkeys[hotkey.id] = hotkey
     
     def _setup_message_handling(self):
-        """Setup Windows message handling for hotkeys."""
+        """Install a Qt native event filter for thread-level hotkey messages."""
         if not WIN32_AVAILABLE:
             return
-        
-        # Create a timer to periodically check for hotkey messages
-        self.message_timer = QTimer()
-        self.message_timer.timeout.connect(self._process_messages)
-        self.message_timer.start(50)  # Check every 50ms
-    
-    def _process_messages(self):
-        """Process Windows messages for hotkey events."""
-        if not WIN32_AVAILABLE:
+
+        app = QApplication.instance()
+        if app is None:
+            logger.warning("QApplication is required before registering hotkeys")
+            self.native_event_filter = None
             return
-        
-        try:
-            # Check for WM_HOTKEY messages
-            msg = win32gui.PeekMessage(None, win32con.WM_HOTKEY, win32con.WM_HOTKEY, win32con.PM_REMOVE)
-            
-            while msg and msg[1]:  # While there are messages
-                hwnd, message, wparam, lparam, time, pt = msg
-                
-                if message == win32con.WM_HOTKEY:
-                    atom_id = wparam
-                    if atom_id in self.registered_hotkeys:
-                        hotkey_id = self.registered_hotkeys[atom_id]
-                        self._handle_hotkey_activation(hotkey_id)
-                
-                # Get next message
-                msg = win32gui.PeekMessage(None, win32con.WM_HOTKEY, win32con.WM_HOTKEY, win32con.PM_REMOVE)
-                
-        except Exception as e:
-            logger.debug(f"Message processing error: {e}")
+
+        self.native_event_filter = WindowsHotkeyEventFilter(self)
+        app.installNativeEventFilter(self.native_event_filter)
+
+    def _dispatch_registered_hotkey(self, atom_id):
+        """Look up and execute a profile or application hotkey by its atom ID."""
+        hotkey_id = self.registered_hotkeys.get(int(atom_id))
+        if hotkey_id is not None:
+            self._handle_hotkey_activation(hotkey_id)
     
     def register_hotkey(self, hotkey_id: str) -> bool:
         """Register a hotkey for global activation."""
@@ -283,23 +360,24 @@ class HotkeyManager(QObject):
             self.next_atom_id += 1
             
             # Register the hotkey
-            success = RegisterHotKey(
+            registration_result = RegisterHotKey(
                 None,  # Use NULL window handle for global hotkeys
                 atom_id,
                 int(hotkey.modifiers),
                 hotkey.key_code
             )
             
-            if success:
-                self.registered_hotkeys[atom_id] = hotkey_id
-                logger.info(f"Registered hotkey: {hotkey.name} ({hotkey.get_key_combination_text()})")
-                self.hotkey_registered.emit(hotkey_id)
-                return True
-            else:
+            if registration_result is False:
                 error_msg = f"Failed to register hotkey: {hotkey.name}"
                 logger.error(error_msg)
                 self.hotkey_error.emit(hotkey_id, error_msg)
                 return False
+
+            # pywin32 reports Win32 API success with None and raises on failure.
+            self.registered_hotkeys[atom_id] = hotkey_id
+            logger.info(f"Registered hotkey: {hotkey.name} ({hotkey.get_key_combination_text()})")
+            self.hotkey_registered.emit(hotkey_id)
+            return True
                 
         except Exception as e:
             error_msg = f"Error registering hotkey: {e}"
@@ -320,18 +398,18 @@ class HotkeyManager(QObject):
             if atom_id is None:
                 return True  # Already unregistered
             
-            success = UnregisterHotKey(None, atom_id)
+            unregistration_result = UnregisterHotKey(None, atom_id)
             
-            if success:
-                del self.registered_hotkeys[atom_id]
-                logger.info(f"Unregistered hotkey: {hotkey_id}")
-                self.hotkey_unregistered.emit(hotkey_id)
-                return True
-            else:
+            if unregistration_result is False:
                 error_msg = f"Failed to unregister hotkey: {hotkey_id}"
                 logger.error(error_msg)
                 self.hotkey_error.emit(hotkey_id, error_msg)
                 return False
+
+            del self.registered_hotkeys[atom_id]
+            logger.info(f"Unregistered hotkey: {hotkey_id}")
+            self.hotkey_unregistered.emit(hotkey_id)
+            return True
                 
         except Exception as e:
             error_msg = f"Error unregistering hotkey: {e}"
@@ -610,6 +688,11 @@ class HotkeyManager(QObject):
         del self.hotkeys[hotkey_id]
         logger.info(f"Removed hotkey: {hotkey_id}")
         return True
+
+    def clear_hotkeys(self):
+        """Unregister and remove every managed hotkey definition."""
+        self.unregister_all_hotkeys()
+        self.hotkeys.clear()
     
     def _has_conflict(self, new_hotkey: HotkeyDefinition) -> bool:
         """Check if a hotkey conflicts with existing ones."""
@@ -634,6 +717,14 @@ class HotkeyManager(QObject):
         self.enabled = False
         self.unregister_all_hotkeys()
         logger.info("Hotkeys disabled")
+
+    def shutdown(self):
+        """Release registrations and remove the native event filter."""
+        self.unregister_all_hotkeys()
+        app = QApplication.instance()
+        if app is not None and getattr(self, 'native_event_filter', None) is not None:
+            app.removeNativeEventFilter(self.native_event_filter)
+        self.native_event_filter = None
     
     def get_hotkey_list(self) -> List[HotkeyDefinition]:
         """Get list of all hotkeys."""
@@ -713,6 +804,7 @@ class HotkeyManager(QObject):
 
 # Global hotkey manager instance
 default_hotkey_manager = None
+profile_hotkey_manager = None
 
 def get_hotkey_manager() -> HotkeyManager:
     """Get or create the global hotkey manager."""
@@ -725,6 +817,19 @@ def get_hotkey_manager() -> HotkeyManager:
             logger.warning("win32api not available, hotkeys disabled")
     
     return default_hotkey_manager
+
+
+def get_profile_hotkey_manager() -> Optional[HotkeyManager]:
+    """Get the dedicated manager used for profile-defined shortcuts."""
+    global profile_hotkey_manager
+
+    if profile_hotkey_manager is None:
+        if WIN32_AVAILABLE:
+            profile_hotkey_manager = HotkeyManager(include_default_hotkeys=False)
+        else:
+            logger.warning("win32api not available, profile hotkeys disabled")
+
+    return profile_hotkey_manager
 
 if __name__ == "__main__":
     # Test hotkey manager

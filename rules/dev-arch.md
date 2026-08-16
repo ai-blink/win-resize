@@ -9,6 +9,7 @@
 - `src/gui/ui_scale_manager.py`: persisted application UI scale and main-window geometry settings.
 - `src/core/window_state_manager.py`: transparency animation state and timers.
 - `src/core/integrated_mouse_constraint.py`: Win32 cursor clipping and release.
+- `src/core/hotkey_manager.py`: Windows global shortcut registration and native `WM_HOTKEY` dispatch.
 
 ## Responsibilities
 
@@ -20,6 +21,7 @@
   native target-window operations remain unscaled. The main window restores its
   saved size and position only when that geometry remains visible on a current screen.
 - Profile persistence writes a temporary file, retains a backup, then atomically replaces the primary file.
+- Profile shortcuts persist their enabled sets on the profile and are registered again after startup or profile changes. Their native messages are handled through Qt's native event filter.
 - The build command uses `src` as its analysis path and treats a source-controlled `.ico` file as optional.
 
 ## Key Paths
@@ -29,10 +31,12 @@
 | Main window | `src/gui/main_window.py` |
 | Profile editor | `src/gui/profile_editor.py` |
 | Profile persistence and locking | `src/core/profile_manager.py` |
+| Profile hotkey registration | `src/core/hotkey_manager.py` |
 | Theme palette and global Qt styles | `src/gui/theme_manager.py` |
 | UI scale and main-window geometry persistence | `src/gui/ui_scale_manager.py` |
 | Current UI regression test | `tests/test_profile_editor_lock_settings.py` |
 | UI scale regression test | `tests/test_ui_scale.py` |
+| Profile hotkey regression test | `tests/test_profile_hotkeys.py` |
 | Review hardening regression test | `tests/test_review_hardening.py` |
 | Build entry point | `final_build.py` |
 

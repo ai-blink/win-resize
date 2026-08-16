@@ -40,6 +40,12 @@ from core.windows_api import WindowRect
 
 # Import Phase 3 components
 from core.profile_manager import default_profile_manager
+from core.hotkey_manager import (
+    HotkeyAction,
+    HotkeyDefinition,
+    get_profile_hotkey_manager,
+    parse_hotkey_combination,
+)
 from gui.profile_dialog import ProfileManagerDialog, ProfileEditDialog
 
 # Import Phase 6 components
@@ -235,6 +241,20 @@ class WindowResizerMainWindow(QMainWindow):
         # Initialize Phase 3 components first (needed by Phase 2)
         self.profile_manager = default_profile_manager
         self.profile_manager_dialog = None
+        self.profile_hotkey_manager = get_profile_hotkey_manager()
+        if self.profile_hotkey_manager is not None:
+            self.profile_hotkey_manager.set_action_callback(
+                HotkeyAction.APPLY_PROFILE,
+                self._on_apply_profile_hotkey,
+            )
+            self.profile_hotkey_manager.set_action_callback(
+                HotkeyAction.RELEASE_PROFILE,
+                self._on_release_profile_hotkey,
+            )
+            self.profile_hotkey_manager.set_action_callback(
+                HotkeyAction.TOGGLE_AUTO_APPLY,
+                self._on_toggle_profile_auto_apply_hotkey,
+            )
         
         # Initialize Phase 2 - Auto-apply system
         from core.window_monitor import WindowMonitor, MonitoringConfig
@@ -281,6 +301,7 @@ class WindowResizerMainWindow(QMainWindow):
             self.refresh_profile_list()
 
         self._sync_auto_apply_monitor()
+        self._sync_profile_hotkeys()
         
         logger.info("WindowResizerMainWindow initialized")
     
@@ -3714,6 +3735,7 @@ class WindowResizerMainWindow(QMainWindow):
             current_profile.hotkey_action = hotkey_data.get(
                 'action', hotkey_data.get('hotkey_action', 'apply_profile')
             )
+            current_profile.hotkey_sets = profile_data.get('hotkey_sets', [])
             
             advanced_data = profile_data.get('advanced_features')
             if advanced_data is None:
@@ -3780,6 +3802,7 @@ class WindowResizerMainWindow(QMainWindow):
             # Save the updated profile
             default_profile_manager.save_profiles()
             self._sync_auto_apply_monitor()
+            self._sync_profile_hotkeys()
             
             # Force refresh the profile table to show updated values
             self.refresh_profile_table()
@@ -3840,6 +3863,7 @@ class WindowResizerMainWindow(QMainWindow):
                     )
                     return
 
+                self._sync_profile_hotkeys()
                 # Refresh profile table and list
                 if hasattr(self, 'profile_table_widget'):
                     self.refresh_profile_table()
@@ -3857,25 +3881,42 @@ class WindowResizerMainWindow(QMainWindow):
             if not profile:
                 self.show_themed_warning("경고", "적용할 프로필을 선택해주세요.")
                 return
-            
+
             logger.info(f"Applying profile '{profile.name}' to matching windows")
-            
-            # Refresh window list to get current windows
-            self.refresh_window_list()
-            
-            # Get all current windows for pattern matching
-            windows_info = []
-            for window in self.window_list:
-                # Validate window handle before processing
-                try:
-                    import win32gui
-                    if not win32gui.IsWindow(window.hwnd):
-                        logger.warning(f"Skipping invalid window handle: {window.hwnd} ({window.title})")
-                        continue
-                except Exception as e:
-                    logger.warning(f"Cannot validate window handle {window.hwnd}: {e}")
+            known_windows_match = any(
+                profile.matches_window({
+                    'hwnd': window.hwnd,
+                    'title': window.title,
+                    'process_name': window.process_name,
+                    'executable_path': window.executable_path,
+                })
+                for window in self.window_list
+            )
+            if not known_windows_match:
+                message = f"프로필 '{profile.name}'과 일치하는 창을 찾지 못했습니다"
+                logger.info(message)
+            self.refresh_window_list(
+                lambda windows: self._apply_profile_to_matching_windows(profile, windows)
+            )
+            if not known_windows_match:
+                self.status_label.setText(message)
+        except Exception as e:
+            logger.error(f"Error applying profile: {e}")
+            self.show_themed_critical("오류", f"프로필 적용 중 오류가 발생했습니다:\n{str(e)}")
+
+    def _apply_profile_to_matching_windows(self, profile, windows: List[WindowInfo]):
+        """Apply one profile to the freshly enumerated matching windows."""
+        try:
+            import win32gui
+
+            matching_windows = []
+            for window in windows:
+                if not win32gui.IsWindow(window.hwnd):
+                    logger.warning(
+                        f"Skipping invalid window handle: {window.hwnd} ({window.title})"
+                    )
                     continue
-                    
+
                 window_info = {
                     'hwnd': window.hwnd,
                     'title': window.title,
@@ -3884,67 +3925,51 @@ class WindowResizerMainWindow(QMainWindow):
                     'rect': window.rect,
                     'is_maximized': window.is_maximized,
                     'is_minimized': window.is_minimized,
-                    'is_visible': window.is_visible
+                    'is_visible': window.is_visible,
                 }
-                windows_info.append(window_info)
-            
-            # Find windows that match this profile's pattern
-            matching_windows = []
-            for window_info in windows_info:
                 if profile.matches_window(window_info):
                     matching_windows.append(window_info)
-            
+
             if not matching_windows:
                 message = f"프로필 '{profile.name}'과 일치하는 창을 찾지 못했습니다"
                 self.status_label.setText(message)
                 logger.info(message)
-                return
-            
-            # Apply profile to all matching windows
+                return 0, 0
+
             applied_count = 0
             failed_count = 0
-            
             for window_info in matching_windows:
                 try:
-                    success = self.profile_manager.apply_profile(profile.id, window_info)
-                    if success:
+                    if self.profile_manager.apply_profile(profile.id, window_info):
                         applied_count += 1
-                        logger.info(f"Successfully applied profile to window: {window_info['title']}")
+                        logger.info(
+                            f"Successfully applied profile to window: {window_info['title']}"
+                        )
                     else:
                         failed_count += 1
-                        logger.warning(f"Failed to apply profile to window: {window_info['title']}")
+                        logger.warning(
+                            f"Failed to apply profile to window: {window_info['title']}"
+                        )
                 except Exception as e:
                     failed_count += 1
-                    logger.error(f"Error applying profile to window {window_info['title']}: {e}")
-            
-            # Show results to user
+                    logger.error(
+                        f"Error applying profile to window {window_info['title']}: {e}"
+                    )
+
             if applied_count > 0:
                 message = f"프로필 '{profile.name}'이 {applied_count}개 창에 적용되었습니다."
                 if failed_count > 0:
                     message += f"\n({failed_count}개 창 적용 실패)"
                 self.status_label.setText(message)
-                # 알림창 대신 콘솔 로그와 소리 알림 사용
                 logger.info(f"프로필 적용 완료: {message}")
-                # 소리 알림 비활성화 (사용자 요청)
-                # try:
-                #     import winsound
-                #     winsound.Beep(800, 200)  # 성공 알림음
-                # except:
-                #     pass
             else:
                 logger.warning(f"프로필 적용 실패: 프로필 '{profile.name}' 적용에 실패했습니다.")
-                # 소리 알림 비활성화 (사용자 요청)
-                # try:
-                #     import winsound
-                #     winsound.Beep(400, 300)  # 실패 알림음
-                # except:
-                #     pass
-                
+
+            return applied_count, failed_count
         except Exception as e:
-            logger.error(f"Error applying profile: {e}")
-            import traceback
-            traceback.print_exc()
-            self.show_themed_critical("오류", f"프로필 적용 중 오류가 발생했습니다:\n{str(e)}")
+            logger.error(f"Error applying profile to matching windows: {e}")
+            self.status_label.setText(f"프로필 '{profile.name}' 적용 중 오류가 발생했습니다")
+            return 0, 0
     
     def load_selected_profile(self):
         """Load the selected profile into the coordinate controls."""
@@ -4052,13 +4077,14 @@ class WindowResizerMainWindow(QMainWindow):
             )
 
             for field_name in (
-                'hotkey_enabled', 'hotkey_combination', 'hotkey_action', 'lock_position',
+                'hotkey_enabled', 'hotkey_combination', 'hotkey_action', 'hotkey_sets', 'lock_position',
                 'mouse_constraint', 'constraint_mode', 'constraint_escape_key', 'auto_restore',
             ):
                 if field_name in profile_data:
                     setattr(profile, field_name, profile_data[field_name])
             self.profile_manager.save_profiles()
             self._sync_auto_apply_monitor()
+            self._sync_profile_hotkeys()
 
             self.refresh_profile_list()
             if hasattr(self, 'profile_table_widget'):
@@ -4145,6 +4171,134 @@ class WindowResizerMainWindow(QMainWindow):
         self.save_current_as_profile()
     
     # Phase 2: Auto-apply system methods
+    def _sync_profile_hotkeys(self):
+        """Replace registered shortcuts with the enabled profile shortcut sets."""
+        result = {"registered": [], "failed": []}
+        manager = self.profile_hotkey_manager
+        if manager is None:
+            return result
+
+        action_mapping = {
+            'apply_profile': HotkeyAction.APPLY_PROFILE,
+            'release_profile': HotkeyAction.RELEASE_PROFILE,
+            'always_on_top_toggle': HotkeyAction.TOGGLE_ALWAYS_ON_TOP,
+            'auto_apply_toggle': HotkeyAction.TOGGLE_AUTO_APPLY,
+        }
+
+        manager.clear_hotkeys()
+        for profile in self.profile_manager.list_profiles():
+            if not profile.enabled or not profile.hotkey_enabled:
+                continue
+
+            hotkey_sets = getattr(profile, 'hotkey_sets', []) or []
+            if not hotkey_sets and profile.hotkey_combination:
+                hotkey_sets = [{
+                    'enabled': True,
+                    'combination': profile.hotkey_combination,
+                    'action': profile.hotkey_action,
+                }]
+
+            for index, hotkey_set in enumerate(hotkey_sets):
+                if not hotkey_set.get('enabled', True):
+                    continue
+
+                combination = hotkey_set.get('combination', '').strip()
+                action_value = hotkey_set.get('action', 'apply_profile')
+                try:
+                    modifiers, key_code = parse_hotkey_combination(combination)
+                    action = action_mapping[action_value]
+                except (KeyError, ValueError) as e:
+                    result['failed'].append((profile.id, combination, str(e)))
+                    logger.warning(
+                        "Skipping invalid profile hotkey for '%s': %s",
+                        profile.name,
+                        e,
+                    )
+                    continue
+
+                hotkey_id = f"profile_{profile.id}_{index}"
+                definition = HotkeyDefinition(
+                    id=hotkey_id,
+                    name=f"Profile {profile.name} shortcut {index + 1}",
+                    modifiers=modifiers,
+                    key_code=key_code,
+                    action=action,
+                    parameters={'profile_id': profile.id},
+                    description=f"Profile shortcut for {profile.name}",
+                )
+                if not manager.add_hotkey(definition):
+                    result['failed'].append((profile.id, combination, 'duplicate'))
+                    continue
+                if manager.register_hotkey(hotkey_id):
+                    result['registered'].append(hotkey_id)
+                else:
+                    result['failed'].append((profile.id, combination, 'registration failed'))
+
+        logger.info(
+            "Profile hotkeys synchronized: %s registered, %s failed",
+            len(result['registered']),
+            len(result['failed']),
+        )
+        return result
+
+    def _get_hotkey_profile(self, parameters):
+        """Find the profile referenced by a registered profile shortcut."""
+        profile_id = parameters.get('profile_id') if parameters else None
+        profile = self.profile_manager.get_profile(profile_id) if profile_id else None
+        if profile is None:
+            logger.warning("Shortcut references an unavailable profile: %s", profile_id)
+        return profile
+
+    def _on_apply_profile_hotkey(self, parameters):
+        """Apply a profile when its global shortcut is activated."""
+        profile = self._get_hotkey_profile(parameters)
+        if profile is not None:
+            self.refresh_window_list(
+                lambda windows: self._apply_profile_to_matching_windows(profile, windows)
+            )
+
+    def _on_release_profile_hotkey(self, parameters):
+        """Release active locking and cursor constraints for matching profile windows."""
+        profile = self._get_hotkey_profile(parameters)
+        if profile is None:
+            return
+        self.refresh_window_list(
+            lambda windows: self._release_profile_from_matching_windows(profile, windows)
+        )
+
+    def _release_profile_from_matching_windows(self, profile, windows: List[WindowInfo]):
+        """Release the reversible advanced settings for all matching profile windows."""
+        released_count = 0
+        for window in windows:
+            window_info = {
+                'hwnd': window.hwnd,
+                'title': window.title,
+                'process_name': window.process_name,
+                'executable_path': window.executable_path,
+            }
+            if not profile.matches_window(window_info):
+                continue
+            profile.release_size_position_lock(window.hwnd)
+            profile.release_mouse_constraint(window.hwnd)
+            released_count += 1
+
+        self.status_label.setText(
+            f"프로필 '{profile.name}'의 {released_count}개 창 설정을 해제했습니다"
+        )
+
+    def _on_toggle_profile_auto_apply_hotkey(self, parameters):
+        """Toggle automatic application for the shortcut's profile."""
+        profile = self._get_hotkey_profile(parameters)
+        if profile is None:
+            return
+
+        profile.auto_apply = not profile.auto_apply
+        profile.modified_at = time.time()
+        self.profile_manager.save_profiles()
+        self._sync_auto_apply_monitor()
+        state_text = "켰습니다" if profile.auto_apply else "껐습니다"
+        self.status_label.setText(f"프로필 '{profile.name}' 자동 적용을 {state_text}")
+
     def _sync_auto_apply_monitor(self) -> bool:
         """Run new-window detection only while an active profile enables real-time apply."""
         try:
@@ -4801,6 +4955,8 @@ class WindowResizerMainWindow(QMainWindow):
 
         if hasattr(self, 'window_monitor'):
             self.window_monitor.stop()
+        if self.profile_hotkey_manager is not None:
+            self.profile_hotkey_manager.unregister_all_hotkeys()
         self._close_profile_preview()
         if self.tray_icon is not None:
             self.tray_icon.hide()
