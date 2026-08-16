@@ -882,6 +882,9 @@ class ProfileEditorDialog(QDialog):
                 )
                 return
             
+            hotkey_sets = self._collect_hotkey_sets()
+            primary_hotkey = hotkey_sets[0] if hotkey_sets else {}
+
             # 프로필 데이터 수집
             profile_data = {
                 'name': self.name_edit.text().strip(),
@@ -909,8 +912,9 @@ class ProfileEditorDialog(QDialog):
                 },
                 # Hotkey fields (individual fields for Profile class compatibility)
                 'hotkey_enabled': self.hotkey_enabled_check.isChecked(),
-                'hotkey_combination': '',  # 레거시 호환성을 위해 빈 문자열
-                'hotkey_action': 'apply_profile',
+                'hotkey_combination': primary_hotkey.get('combination', ''),
+                'hotkey_action': primary_hotkey.get('action', 'apply_profile'),
+                'hotkey_sets': hotkey_sets,
                 # Advanced feature fields (individual fields for Profile class compatibility)
                 'lock_position': self.lock_position_check.isChecked(),
                 'mouse_constraint': self.mouse_constraint_check.isChecked(),

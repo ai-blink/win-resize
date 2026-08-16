@@ -259,6 +259,7 @@ class Profile:
     hotkey_enabled: bool = False
     hotkey_combination: str = ""
     hotkey_action: str = "apply_profile"  # apply_profile, toggle_window, minimize_restore
+    hotkey_sets: List[Dict[str, Any]] = field(default_factory=list)
     
     # Size and position locking
     lock_size: bool = False
