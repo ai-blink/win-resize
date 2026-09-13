@@ -66,9 +66,13 @@ C:\Python312\python.exe -m unittest discover -s tests -p 'test_*.py'
 
 ## 문서
 
+설치와 사용 문서는 현재 한국어이며, 패치 노트는 영어·한국어·중국어 간체·일본어로
+제공됩니다.
+
 - [설치와 실행 안내](docs/INSTALLATION.md)
 - [사용 안내](docs/USER_GUIDE.md)
-- [변경 기록](docs/CHANGELOG.md)
+- [변경 기록: English](docs/CHANGELOG.md) | [한국어](docs/CHANGELOG.ko.md) |
+  [中文](docs/CHANGELOG.zh-CN.md) | [日本語](docs/CHANGELOG.ja.md)
 
 ## 저장소 구성
 

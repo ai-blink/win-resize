@@ -68,11 +68,13 @@ C:\Python312\python.exe -m unittest discover -s tests -p 'test_*.py'
 
 ## Documentation
 
-The detailed documentation currently available in this repository is Korean:
+The installation and user guides are currently Korean. Patch notes are available
+in English, Korean, Simplified Chinese, and Japanese:
 
-- [Installation and running guide](docs/INSTALLATION.md)
-- [User guide](docs/USER_GUIDE.md)
-- [Changelog](docs/CHANGELOG.md)
+- [Installation and running guide (Korean)](docs/INSTALLATION.md)
+- [User guide (Korean)](docs/USER_GUIDE.md)
+- [Changelog: English](docs/CHANGELOG.md) | [한국어](docs/CHANGELOG.ko.md) |
+  [中文](docs/CHANGELOG.zh-CN.md) | [日本語](docs/CHANGELOG.ja.md)
 
 ## Repository layout
 

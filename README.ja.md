@@ -70,11 +70,13 @@ C:\Python312\python.exe -m unittest discover -s tests -p 'test_*.py'
 
 ## ドキュメント
 
-このリポジトリで利用できる詳細ドキュメントは現在韓国語です。
+インストールガイドとユーザーガイドは現在韓国語です。パッチノートは英語、韓国語、
+簡体字中国語、日本語で提供しています。
 
-- [インストールと実行ガイド](docs/INSTALLATION.md)
-- [ユーザーガイド](docs/USER_GUIDE.md)
-- [変更履歴](docs/CHANGELOG.md)
+- [インストールと実行ガイド（韓国語）](docs/INSTALLATION.md)
+- [ユーザーガイド（韓国語）](docs/USER_GUIDE.md)
+- [変更履歴: English](docs/CHANGELOG.md) | [한국어](docs/CHANGELOG.ko.md) |
+  [中文](docs/CHANGELOG.zh-CN.md) | [日本語](docs/CHANGELOG.ja.md)
 
 ## リポジトリ構成
 

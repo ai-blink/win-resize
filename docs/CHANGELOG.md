@@ -1,73 +1,95 @@
-# 변경 기록
+# Changelog
+
+[English](CHANGELOG.md) | [한국어](CHANGELOG.ko.md) | [中文](CHANGELOG.zh-CN.md) | [日本語](CHANGELOG.ja.md)
+
+This file records notable user-visible changes in WindowResizer. English is the
+canonical source for release notes; the Korean, Simplified Chinese, and Japanese
+versions carry the same release facts.
 
 ## 0.01.4 - 2026-08-10
 
-### 핫픽스
+### Hotfixes
 
-- `전체 적용`이 비동기 창 목록 새로고침을 기다린 뒤 최신 목록에 프로필을 적용하도록 수정했습니다.
-- 새로 열린 창도 한 번의 `전체 적용` 클릭으로 매칭·적용됩니다.
+- Apply All now waits for asynchronous window-list refresh to complete before
+  applying profiles to the current window list.
+- Windows opened after WindowResizer starts can be matched and updated with one
+  Apply All action.
 
-### 검증
+### Verification
 
-- `tests/test_apply_all_profiles.py`: 2개 테스트 통과
-- 전체 공개 회귀 테스트: 36개 통과
-- `final_build.py`: `dist/WindowResizer.exe` 빌드 성공
+- tests/test_apply_all_profiles.py: 2 tests passed.
+- Full tracked regression suite: 36 tests passed.
+- final_build.py: dist/WindowResizer.exe built successfully.
 
 ## 0.01.3 - 2026-08-04
 
-### 핫픽스
+### Hotfixes
 
-- Windows 세션별 named mutex로 앱의 중복 실행을 막았습니다.
-- 이미 실행 중인 상태에서 다시 실행하면 메인 창을 추가로 만들지 않고 안내 후 종료합니다.
-- 정상 종료와 시작 중 예외 발생 시 mutex 핸들을 해제하도록 처리했습니다.
+- Added a per-Windows-session named mutex to prevent duplicate application
+  instances.
+- Starting the app while it is already running shows a message and exits without
+  creating another main window.
+- Released the mutex handle on normal shutdown and when startup fails.
 
-### 검증
+### Verification
 
-- `tests/test_review_hardening.py`: 11개 테스트 통과
-- 전체 공개 회귀 테스트: 35개 통과
-- native mutex 획득, 중복 거부, 해제 후 재획득 확인
-- `final_build.py`: `dist/WindowResizer.exe` 빌드 성공
+- tests/test_review_hardening.py: 11 tests passed.
+- Full tracked regression suite: 35 tests passed.
+- Verified native mutex acquisition, duplicate rejection, and reacquisition after
+  release.
+- final_build.py: dist/WindowResizer.exe built successfully.
 
 ## 0.01.1 - 2026-07-31
 
-### 핫픽스
+### Hotfixes
 
-- 프로필 저장을 원자적으로 처리하고 마지막 정상 백업에서 복구할 수 있게 했습니다.
-- 위치 고정 또는 마우스 커서 제한을 해제할 때 활성 제약도 함께 해제하도록 보완했습니다.
-- 다중 모니터 환경에서 Win32 커서 제한을 올바르게 해제하도록 수정했습니다.
-- 시스템 테마를 첫 실행부터 감지하고, 사용자 지정 선택 색상의 텍스트 대비를 보장하도록 개선했습니다.
-- 일치하는 창이 없는 프로필 적용 결과를 상태 표시줄에 표시하도록 개선했습니다.
-- 고해상도 DPI 설정을 `QApplication` 생성 전에 적용하고, 소스 아이콘이 없어도 공식 빌드가 동작하도록 보완했습니다.
+- Made profile saves atomic and added recovery from the last valid backup.
+- Releasing position lock or cursor confinement now also releases the active
+  restriction.
+- Corrected Win32 cursor-confinement release behavior on multi-monitor systems.
+- Detected the system theme on first launch and ensured readable text for custom
+  selection colors.
+- Showed a status-bar result when a profile has no matching window.
+- Applied high-DPI settings before QApplication creation and allowed the
+  official build to succeed when the source icon is unavailable.
 
 ## 0.01 - 2026-07-31
 
-### 최초 릴리스
+### Initial release improvements
 
-### 개선
+- Improved window identity data so Apply All can match profiles by executable
+  path.
+- Increased profile toolbar button and status-label height to prevent text from
+  being clipped by theme padding.
+- Changed title-bar close to hide the app in the system tray and added explicit
+  exit actions in the status bar and tray menu.
+- Select the newly added row after creating a profile from a window so it can be
+  deleted immediately if needed.
+- Report profile-store deletion failures instead of hiding their cause.
+- Added full executable paths as a profile match criterion and made them the
+  recommended identifier instead of process IDs.
+- Enabled only the match inputs relevant to the selected profile strategy and
+  added a command to capture the selected window's executable path.
+- Display the target filename and full path for path-based profiles in the
+  profile list.
+- Added a three-second layout preview that does not move or resize real windows.
+- Added per-profile automatic application for new windows and main-screen
+  controls to start and stop detection.
+- Preserved each profile's selected match strategy when automatic detection
+  applies profiles.
+- Added an optional profile position lock.
+- Preserved existing advanced settings when profiles are edited.
+- Allowed active position locks and cursor constraints to be released.
+- Refreshed the main window and profile editor from the active theme palette.
+- Improved visibility for alternating table rows and standard Qt confirmation
+  dialogs.
 
-- `전체 적용`이 실행 파일 경로 기반 프로필을 매칭할 수 있도록 창 식별 정보를 보완했습니다.
-- 프로필 작업 표시줄의 버튼과 상태 라벨 높이를 늘려 테마 패딩으로 인한 글자 하단 잘림을 없앴습니다.
-- 제목 표시줄의 닫기 동작을 시스템 트레이 숨김으로 바꾸고, 상태 표시줄과 트레이 메뉴에 명시적인 `프로그램 종료` 동작을 추가했습니다.
-- 창을 프로필로 추가한 뒤 새 행을 자동 선택해 곧바로 삭제할 수 있도록 보완했습니다.
-- 프로필 삭제가 저장소에서 실패하면 원인을 숨기지 않고 안내하도록 보완했습니다.
-- 프로필 매칭에 실행 파일 전체 경로를 추가하고, PID 대신 권장 기본 식별자로 사용하도록 했습니다.
-- 프로필 편집기에서 매칭 방식에 맞는 입력만 활성화하고, 선택한 창의 실행 파일 경로를 바로 가져올 수 있게 했습니다.
-- 프로필 목록에서 경로 기반 프로필의 대상 파일명과 전체 경로를 확인할 수 있게 했습니다.
-- 프로필 위치와 크기를 적용 전에 확인할 수 있는 3초 미리보기를 추가했습니다.
-- 프로필별 새 창 자동 적용과 메인 화면의 자동 감지 시작 및 중지 제어를 추가했습니다.
-- 자동 감지가 프로필의 매칭 전략을 그대로 사용하고 전체 프로필 적용 경로를 거치도록 보완했습니다.
-- 프로필 편집기에 선택 가능한 `창 위치 고정` 옵션을 추가했습니다.
-- 프로필 수정 시 기존 고급 설정이 의도치 않게 해제되지 않도록 저장 경로를 보완했습니다.
-- 위치 고정과 마우스 커서 제한을 해제할 수 있도록 적용 로직을 보완했습니다.
-- 메인 화면과 프로필 편집기를 활성 테마 팔레트 기반으로 갱신했습니다.
-- 짝수 표 행과 기본 Qt 확인 대화상자의 가시성을 개선했습니다.
+### Verification
 
-### 검증
-
-- `tests/test_profile_editor_lock_settings.py`: 3개 테스트 통과
-- `tests/test_profile_preview_and_auto_apply.py`: 8개 테스트 통과
-- `tests/test_profile_deletion.py`: 1개 테스트 통과
-- `tests/test_close_to_tray.py`: 1개 테스트 통과
-- `tests/test_profile_button_bar_layout.py`: 1개 테스트 통과
-- `tests/test_apply_all_profiles.py`: 1개 테스트 통과
-- `final_build.py`: `dist/WindowResizer.exe` 빌드 성공
+- tests/test_profile_editor_lock_settings.py: 3 tests passed.
+- tests/test_profile_preview_and_auto_apply.py: 8 tests passed.
+- tests/test_profile_deletion.py: 1 test passed.
+- tests/test_close_to_tray.py: 1 test passed.
+- tests/test_profile_button_bar_layout.py: 1 test passed.
+- tests/test_apply_all_profiles.py: 1 test passed.
+- final_build.py: dist/WindowResizer.exe built successfully.
