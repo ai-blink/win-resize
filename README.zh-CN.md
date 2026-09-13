@@ -65,11 +65,12 @@ C:\Python312\python.exe -m unittest discover -s tests -p 'test_*.py'
 
 ## 文档
 
-仓库中现有的详细文档为韩语：
+安装和用户指南目前为韩语。补丁说明提供英语、韩语、简体中文和日语版本：
 
-- [安装和运行指南](docs/INSTALLATION.md)
-- [用户指南](docs/USER_GUIDE.md)
-- [更新日志](docs/CHANGELOG.md)
+- [安装和运行指南（韩语）](docs/INSTALLATION.md)
+- [用户指南（韩语）](docs/USER_GUIDE.md)
+- [更新日志：English](docs/CHANGELOG.md) | [한국어](docs/CHANGELOG.ko.md) |
+  [中文](docs/CHANGELOG.zh-CN.md) | [日本語](docs/CHANGELOG.ja.md)
 
 ## 仓库结构
 
