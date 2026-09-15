@@ -70,6 +70,7 @@ class HotkeyAction(Enum):
     SHOW_MAIN_WINDOW = "show_main_window"
     SHOW_PROFILE_MANAGER = "show_profile_manager"
     TOGGLE_SERVICE = "toggle_service"
+    APPLY_ALL_PROFILES = "apply_all_profiles"
 
 @dataclass
 class HotkeyDefinition:
@@ -754,6 +755,8 @@ class HotkeyManager(QObject):
                     'description': hotkey.description
                 }
             
+            file_path = Path(file_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(hotkey_data, f, indent=2, ensure_ascii=False)
             
@@ -805,6 +808,18 @@ class HotkeyManager(QObject):
 # Global hotkey manager instance
 default_hotkey_manager = None
 profile_hotkey_manager = None
+application_hotkey_manager = None
+APPLICATION_HOTKEYS_FILE_NAME = "application_hotkeys.json"
+
+
+def get_application_hotkey_config_path() -> Path:
+    """Return the dedicated persistence path for application-level shortcuts."""
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        config_dir = Path(local_app_data) / "WindowResizer"
+    else:
+        config_dir = Path.home() / "AppData" / "Local" / "WindowResizer"
+    return config_dir / APPLICATION_HOTKEYS_FILE_NAME
 
 def get_hotkey_manager() -> HotkeyManager:
     """Get or create the global hotkey manager."""
@@ -830,6 +845,19 @@ def get_profile_hotkey_manager() -> Optional[HotkeyManager]:
             logger.warning("win32api not available, profile hotkeys disabled")
 
     return profile_hotkey_manager
+
+
+def get_application_hotkey_manager() -> Optional[HotkeyManager]:
+    """Get the dedicated manager for application-level configurable shortcuts."""
+    global application_hotkey_manager
+
+    if application_hotkey_manager is None:
+        if WIN32_AVAILABLE:
+            application_hotkey_manager = HotkeyManager(include_default_hotkeys=False)
+        else:
+            logger.warning("win32api not available, application hotkeys disabled")
+
+    return application_hotkey_manager
 
 if __name__ == "__main__":
     # Test hotkey manager

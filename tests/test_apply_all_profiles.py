@@ -3,6 +3,7 @@
 
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,7 @@ sys.path.insert(0, str(SRC_DIR))
 from PyQt5.QtWidgets import QApplication
 
 from core.windows_api import WindowRect
+from core.profile_manager import ProfileManager
 from gui.main_window import WindowInfo, WindowResizerMainWindow
 
 
@@ -39,6 +41,20 @@ class CapturingProfileManager:
             "applied": ["Path profile -> Target"] if matched else [],
             "failed": [],
         }
+
+
+class MatchingProfile:
+    def __init__(self):
+        self.id = "blender-profile"
+        self.name = "Blender profile"
+        self.applied_handles = []
+
+    def matches_window(self, window_info):
+        return window_info.get("process_name") == "blender.exe"
+
+    def apply_to_window(self, window_info):
+        self.applied_handles.append(window_info["hwnd"])
+        return True
 
 
 class ApplyAllProfilesTest(unittest.TestCase):
@@ -122,6 +138,23 @@ class ApplyAllProfilesTest(unittest.TestCase):
                 "is_visible": refreshed_window.is_visible,
             }
         ])
+
+    def test_apply_all_applies_one_matching_profile_to_every_blender_window(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manager = ProfileManager(storage_path=temp_dir)
+            profile = MatchingProfile()
+            manager.profiles = {profile.id: profile}
+            manager.apply_profile = lambda profile_id, window: manager.profiles[
+                profile_id
+            ].apply_to_window(window)
+
+            results = manager.apply_all_profiles([
+                {"hwnd": 101, "title": "Blender", "process_name": "blender.exe"},
+                {"hwnd": 202, "title": "Blender Rendering", "process_name": "blender.exe"},
+            ])
+
+        self.assertEqual(profile.applied_handles, [101, 202])
+        self.assertEqual(len(results["applied"]), 2)
 
 
 if __name__ == "__main__":

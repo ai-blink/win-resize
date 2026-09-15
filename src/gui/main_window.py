@@ -27,9 +27,10 @@ from PyQt5.QtWidgets import (
     QGroupBox, QStatusBar, QMenuBar, QAction, QMessageBox,
     QProgressBar, QCheckBox, QComboBox, QLineEdit, QSplitter,
     QFrame, QApplication, QTableWidget, QTableWidgetItem, QDoubleSpinBox,
-    QSizePolicy, QSystemTrayIcon, QMenu, QStyle
+    QSizePolicy, QSystemTrayIcon, QMenu, QStyle, QDialog, QDialogButtonBox,
+    QActionGroup
 )
-from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QSize, QPoint, QRect
+from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QSize, QPoint, QRect, QSettings
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
 
 # Import Phase 1 components
@@ -43,6 +44,8 @@ from core.profile_manager import default_profile_manager
 from core.hotkey_manager import (
     HotkeyAction,
     HotkeyDefinition,
+    get_application_hotkey_config_path,
+    get_application_hotkey_manager,
     get_profile_hotkey_manager,
     parse_hotkey_combination,
 )
@@ -50,9 +53,16 @@ from gui.profile_dialog import ProfileManagerDialog, ProfileEditDialog
 
 # Import Phase 6 components
 from gui.theme_manager import get_theme_manager, ThemeElement, ThemeType
-from gui.profile_editor import ProfileEditorDialog
+from gui.profile_editor import HotkeyWidget, ProfileEditorDialog
 from gui.preset_controls import PresetControlsWidget
 from gui.ui_scale_manager import UiScaleSettingsDialog, get_ui_scale_manager
+
+# Overlay profile buttons
+from core.foreground_tracker import ForegroundTracker
+from gui.overlay_button import (
+    OverlayButton, MODE_CLICK, MODE_DWELL, DEFAULT_DWELL_MS
+)
+from gui.overlay_toggle_button import OverlayToggleButton
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +78,41 @@ class WindowInfo:
     is_visible: bool = True
     is_minimized: bool = False
     is_maximized: bool = False
+
+
+class ApplyAllProfilesHotkeyDialog(QDialog):
+    """Configure the application-wide shortcut for matching profile batch apply."""
+
+    def __init__(self, enabled: bool, combination: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("전체 프로필 일괄 적용 단축키")
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        description = QLabel(
+            "단축키를 누르면 새로고침된 창 목록에서 모든 일치 프로필을 일괄 적용합니다."
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        self.enabled_check = QCheckBox("전역 단축키 활성화")
+        self.enabled_check.setChecked(enabled)
+        layout.addWidget(self.enabled_check)
+
+        self.hotkey_widget = HotkeyWidget(self)
+        self.hotkey_widget.set_hotkey_string(combination)
+        layout.addWidget(self.hotkey_widget)
+        self.enabled_check.toggled.connect(self.hotkey_widget.setEnabled)
+        self.hotkey_widget.setEnabled(enabled)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_configuration(self):
+        """Return the selected enabled state and shortcut text."""
+        return self.enabled_check.isChecked(), self.hotkey_widget.get_hotkey_string()
 
 class ProfilePreviewOverlay(QWidget):
     """Show the stored profile geometry without changing the target window."""
@@ -241,7 +286,18 @@ class WindowResizerMainWindow(QMainWindow):
         # Initialize Phase 3 components first (needed by Phase 2)
         self.profile_manager = default_profile_manager
         self.profile_manager_dialog = None
+
+        # Overlay profile buttons. 추적기는 첫 오버레이 생성 시에만 켠다.
+        self.foreground_tracker = None
+        self.overlay_buttons = []
+        self.overlay_settings = QSettings("WindowResizer", "Overlay")
+        self.overlay_mode = self._load_overlay_mode()
+        self.overlay_dwell_ms = self._load_overlay_dwell_ms()
+        self.overlay_locked = self.overlay_settings.value("locked", "false") in (True, "true", "True", 1)
+        self.overlays_hidden = self.overlay_settings.value("hidden", "false") in (True, "true", "True", 1)
+        self.overlay_toggle_button = None
         self.profile_hotkey_manager = get_profile_hotkey_manager()
+        self.application_hotkey_manager = get_application_hotkey_manager()
         if self.profile_hotkey_manager is not None:
             self.profile_hotkey_manager.set_action_callback(
                 HotkeyAction.APPLY_PROFILE,
@@ -254,6 +310,11 @@ class WindowResizerMainWindow(QMainWindow):
             self.profile_hotkey_manager.set_action_callback(
                 HotkeyAction.TOGGLE_AUTO_APPLY,
                 self._on_toggle_profile_auto_apply_hotkey,
+            )
+        if self.application_hotkey_manager is not None:
+            self.application_hotkey_manager.set_action_callback(
+                HotkeyAction.APPLY_ALL_PROFILES,
+                self._on_apply_all_profiles_hotkey,
             )
         
         # Initialize Phase 2 - Auto-apply system
@@ -302,7 +363,17 @@ class WindowResizerMainWindow(QMainWindow):
 
         self._sync_auto_apply_monitor()
         self._sync_profile_hotkeys()
-        
+        self._load_apply_all_profiles_hotkey()
+
+        # 지난 세션에 띄워 둔 오버레이 버튼을 되살린다. 이벤트 루프가 돌기
+        # 시작한 뒤에 만들어야 창 배치가 화면 좌표와 어긋나지 않는다.
+        # 타이머는 이 창이 부모다. QTimer.singleShot을 쓰면 창이 먼저 사라진
+        # 뒤에도 콜백이 남아 이미 정리된 객체를 건드린다.
+        self._overlay_restore_timer = QTimer(self)
+        self._overlay_restore_timer.setSingleShot(True)
+        self._overlay_restore_timer.timeout.connect(self.restore_overlay_buttons)
+        self._overlay_restore_timer.start(0)
+
         logger.info("WindowResizerMainWindow initialized")
     
     def show_themed_information(self, title, message):
@@ -1543,6 +1614,93 @@ class WindowResizerMainWindow(QMainWindow):
         apply_all_action.setToolTip('모든 프로필을 일치하는 창에 적용합니다')
         apply_all_action.triggered.connect(self.auto_apply_profiles)
         profile_menu.addAction(apply_all_action)
+
+        profile_menu.addSeparator()
+
+        # 오버레이 버튼
+        create_overlay_action = QAction('오버레이 버튼 만들기', self)
+        create_overlay_action.setToolTip(
+            '선택된 프로필을 화면에 떠 있는 버튼으로 만듭니다. '
+            '버튼을 누르면 직전에 사용하던 창에 프로필이 적용됩니다'
+        )
+        create_overlay_action.triggered.connect(self.create_overlay_button_for_selected_profile)
+        profile_menu.addAction(create_overlay_action)
+
+        close_overlays_action = QAction('오버레이 버튼 모두 닫기', self)
+        close_overlays_action.setToolTip('화면에 떠 있는 오버레이 버튼을 모두 닫습니다')
+        close_overlays_action.triggered.connect(self.close_all_overlay_buttons)
+        profile_menu.addAction(close_overlays_action)
+
+        # 발동 방식은 오버레이 버튼 전체에 한꺼번에 적용된다.
+        overlay_mode_menu = profile_menu.addMenu('오버레이 발동 방식')
+        overlay_mode_group = QActionGroup(self)
+        overlay_mode_group.setExclusive(True)
+
+        click_mode_action = QAction('클릭', self)
+        click_mode_action.setCheckable(True)
+        click_mode_action.setToolTip('버튼을 클릭하면 프로필을 적용합니다')
+        click_mode_action.triggered.connect(lambda: self.set_overlay_mode(MODE_CLICK))
+        overlay_mode_group.addAction(click_mode_action)
+        overlay_mode_menu.addAction(click_mode_action)
+
+        dwell_mode_action = QAction('드웰 (마우스를 올려두면 적용)', self)
+        dwell_mode_action.setCheckable(True)
+        dwell_mode_action.setToolTip('버튼 위에 마우스를 머무르면 클릭 없이 적용합니다')
+        dwell_mode_action.triggered.connect(lambda: self.set_overlay_mode(MODE_DWELL))
+        overlay_mode_group.addAction(dwell_mode_action)
+        overlay_mode_menu.addAction(dwell_mode_action)
+
+        if self.overlay_mode == MODE_DWELL:
+            dwell_mode_action.setChecked(True)
+        else:
+            click_mode_action.setChecked(True)
+
+        # 발동 방식은 메뉴와 트레이 두 곳에서 바꿀 수 있다. 표시를 함께 맞춘다.
+        self.click_mode_action = click_mode_action
+        self.dwell_mode_action = dwell_mode_action
+
+        overlay_mode_menu.addSeparator()
+
+        dwell_time_action = QAction('드웰 시간 설정...', self)
+        dwell_time_action.setToolTip('드웰 발동까지 필요한 시간을 조절합니다')
+        dwell_time_action.triggered.connect(self.show_overlay_dwell_time_dialog)
+        overlay_mode_menu.addAction(dwell_time_action)
+
+        profile_menu.addSeparator()
+
+        hide_overlays_action = QAction('오버레이 버튼 감추기', self)
+        hide_overlays_action.setCheckable(True)
+        hide_overlays_action.setChecked(self.overlays_hidden)
+        hide_overlays_action.setToolTip(
+            '배치는 그대로 두고 화면에서만 감춥니다. 다시 켜면 원래 자리로 돌아옵니다'
+        )
+        hide_overlays_action.toggled.connect(self.set_overlays_hidden)
+        profile_menu.addAction(hide_overlays_action)
+        self.hide_overlays_action = hide_overlays_action
+
+        show_toggle_action = QAction('감추기 스위치 표시', self)
+        show_toggle_action.setCheckable(True)
+        show_toggle_action.setChecked(False)
+        show_toggle_action.setToolTip(
+            '화면에 작은 스위치를 띄웁니다. 본창을 열지 않고 오버레이를 감췄다 꺼냅니다'
+        )
+        show_toggle_action.toggled.connect(self.set_overlay_toggle_visible)
+        profile_menu.addAction(show_toggle_action)
+        self.show_toggle_action = show_toggle_action
+
+        lock_overlay_action = QAction('오버레이 위치 잠금', self)
+        lock_overlay_action.setCheckable(True)
+        lock_overlay_action.setChecked(self.overlay_locked)
+        lock_overlay_action.setToolTip('잠그면 드래그로 위치를 옮길 수 없습니다')
+        lock_overlay_action.toggled.connect(self.set_overlay_locked)
+        profile_menu.addAction(lock_overlay_action)
+
+        settings_menu = menubar.addMenu('설정')
+
+        apply_all_hotkey_action = QAction('전체 프로필 일괄 적용 단축키...', self)
+        apply_all_hotkey_action.setToolTip('모든 일치 프로필을 적용하는 전역 단축키를 설정합니다')
+        apply_all_hotkey_action.triggered.connect(self.show_apply_all_profiles_hotkey_dialog)
+        settings_menu.addAction(apply_all_hotkey_action)
         
         # View menu
         view_menu = menubar.addMenu('보기')
@@ -3355,13 +3513,21 @@ class WindowResizerMainWindow(QMainWindow):
                     message += f", {failed_count}개 실패"
                 # 알림창 대신 콘솔 로그와 소리 알림 사용
                 logger.info(f"프로필 자동 적용 완료: {message}")
-                self.status_label.setText(f"{applied_count}개 프로필 자동 적용됨")
+                status_text = f"{applied_count}개 프로필 자동 적용됨"
+                if failed_count > 0:
+                    status_text += f", {failed_count}개 실패 (권한 또는 창 보호 상태 확인)"
+                self.status_label.setText(status_text)
                 # 소리 알림 비활성화 (사용자 요청)
                 # try:
                 #     import winsound
                 #     winsound.Beep(800, 200)  # 성공 알림음
                 # except:
                 #     pass
+            elif failed_count > 0:
+                logger.warning("프로필 자동 적용 실패: %s개 창의 적용이 실패했습니다", failed_count)
+                self.status_label.setText(
+                    f"{failed_count}개 프로필 적용 실패 (관리자 권한 또는 창 보호 상태 확인)"
+                )
             else:
                 logger.info("프로필 자동 적용: 현재 실행중인 창에 일치하는 프로필이 없습니다")
                 self.status_label.setText("적용할 프로필이 없음")
@@ -3721,6 +3887,10 @@ class WindowResizerMainWindow(QMainWindow):
             current_profile.description = profile_data['description']
             current_profile.auto_apply = profile_data['auto_apply']
             current_profile.enabled = profile_data['enabled']
+
+            # 오버레이 생김새는 저장 즉시 떠 있는 버튼에도 반영한다.
+            self._assign_overlay_style(current_profile, profile_data)
+            self.refresh_overlay_buttons_for_profile(current_profile)
             
             # Update advanced features
             hotkey_data = profile_data.get('hotkey')
@@ -3874,6 +4044,526 @@ class WindowResizerMainWindow(QMainWindow):
             logger.error(f"Error deleting profile: {e}")
             self.show_themed_critical("오류", f"프로필 삭제 중 오류가 발생했습니다:\n{str(e)}")
     
+    # -- 오버레이 프로필 버튼 -------------------------------------------
+
+    def _load_overlay_mode(self) -> str:
+        """저장된 오버레이 발동 방식을 읽는다. 알 수 없는 값이면 클릭으로 되돌린다."""
+        stored = self.overlay_settings.value("interaction_mode", MODE_CLICK)
+        if stored not in (MODE_CLICK, MODE_DWELL):
+            logger.warning(f"알 수 없는 오버레이 발동 방식 '{stored}', 클릭으로 되돌립니다")
+            return MODE_CLICK
+        return stored
+
+    def _load_overlay_dwell_ms(self) -> int:
+        try:
+            value = int(self.overlay_settings.value("dwell_ms", DEFAULT_DWELL_MS))
+        except (TypeError, ValueError):
+            return DEFAULT_DWELL_MS
+        return max(200, value)
+
+    def set_overlay_mode(self, mode: str):
+        """오버레이 버튼 전체의 발동 방식을 바꾼다."""
+        if mode not in (MODE_CLICK, MODE_DWELL):
+            return
+
+        self.overlay_mode = mode
+        self.overlay_settings.setValue("interaction_mode", mode)
+
+        for button in self.overlay_buttons:
+            button.set_interaction_mode(mode)
+
+        self._sync_overlay_mode_controls()
+
+        if mode == MODE_DWELL:
+            message = "오버레이 발동 방식: 드웰 ({0:.1f}초 머무르면 적용)".format(
+                self.overlay_dwell_ms / 1000.0
+            )
+        else:
+            message = "오버레이 발동 방식: 클릭"
+
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(message)
+        logger.info(message)
+
+    def _assign_overlay_style(self, profile, profile_data: dict):
+        """편집기가 보낸 생김새 값을 프로필에 붙인다."""
+        raw = profile_data.get('overlay_style')
+        if not raw:
+            return
+        try:
+            from core.profile_manager import OverlayStyle
+            profile.overlay_style = (
+                raw if isinstance(raw, OverlayStyle) else OverlayStyle.from_dict(raw)
+            )
+        except Exception as exc:
+            logger.warning(f"오버레이 생김새를 적용하지 못했습니다: {exc}")
+
+    def refresh_overlay_buttons_for_profile(self, profile):
+        """프로필 저장 결과를 화면의 오버레이 버튼에 즉시 반영한다.
+
+        생김새만 갱신하는 것이 아니라, 사용 여부에 따라 버튼을 띄우거나 없앤다.
+        편집 창에서 켰는데 화면에 아무 일도 일어나지 않으면 설정이 먹지 않은
+        것으로 보인다.
+        """
+        if not profile:
+            return
+
+        style = profile.effective_overlay_style()
+        existing = [b for b in self.overlay_buttons if b.profile_id == profile.id]
+
+        if style.enabled:
+            if existing:
+                for button in existing:
+                    button.profile_name = profile.name
+                    button.set_style(style)
+            else:
+                self.show_overlay_button_for_profile(profile)
+            return
+
+        # 꺼졌으면 떠 있던 버튼을 치운다.
+        for button in existing:
+            button.close()
+            self._on_overlay_button_closed(button)
+
+    def show_overlay_button_for_profile(self, profile, position=None):
+        """프로필 하나의 오버레이 버튼을 화면에 띄운다."""
+        if not profile:
+            return None
+
+        for button in self.overlay_buttons:
+            if button.profile_id == profile.id:
+                button.raise_()
+                return button
+
+        button = self._create_overlay_button(profile)
+        button.move(position if position is not None else self._next_overlay_position(button))
+        # 감춘 상태여도 한 번은 띄운다. 그래야 창 핸들이 생겨 활성화 방지
+        # 스타일이 붙고 추적 제외 목록에도 들어간다.
+        button.show()
+        if self.overlays_hidden:
+            button.hide()
+        self.overlay_buttons.append(button)
+        self.save_overlay_layout()
+
+        message = (
+            f"'{profile.name}' 오버레이 버튼을 띄웠습니다. "
+            "드래그로 옮기고, 우클릭으로 닫습니다."
+        )
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(message)
+        logger.info(message)
+        return button
+
+    def _sync_overlay_mode_controls(self):
+        """메뉴와 트레이의 발동 방식 표시를 현재 값에 맞춘다.
+
+        두 곳 모두 같은 값을 바꾸므로, 한쪽에서 바꾼 결과가 다른 쪽에 보이지
+        않으면 사용자는 설정이 안 먹었다고 오해한다.
+        """
+        widgets = [
+            (getattr(self, 'click_mode_action', None), self.overlay_mode == MODE_CLICK),
+            (getattr(self, 'dwell_mode_action', None), self.overlay_mode == MODE_DWELL),
+            (getattr(self, 'tray_dwell_action', None), self.overlay_mode == MODE_DWELL),
+        ]
+        for action, should_check in widgets:
+            if action is None:
+                continue
+            was_blocked = action.blockSignals(True)
+            action.setChecked(should_check)
+            action.blockSignals(was_blocked)
+
+    def _on_tray_dwell_toggled(self, checked: bool):
+        self.set_overlay_mode(MODE_DWELL if checked else MODE_CLICK)
+
+    def set_overlay_locked(self, locked: bool):
+        """오버레이 버튼 전체의 위치 잠금을 바꾼다."""
+        self.overlay_locked = bool(locked)
+        self.overlay_settings.setValue("locked", "true" if self.overlay_locked else "false")
+
+        for button in self.overlay_buttons:
+            button.set_locked(self.overlay_locked)
+        if self.overlay_toggle_button is not None:
+            self.overlay_toggle_button.set_locked(self.overlay_locked)
+
+        message = (
+            "오버레이 위치를 잠갔습니다" if self.overlay_locked
+            else "오버레이 위치 잠금을 풀었습니다"
+        )
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(message)
+        logger.info(message)
+
+    def save_overlay_layout(self):
+        """떠 있는 오버레이 버튼의 프로필과 좌표를 저장한다."""
+        import json
+
+        layout = []
+        for button in self.overlay_buttons:
+            position = button.pos()
+            layout.append({
+                'profile_id': button.profile_id,
+                'x': position.x(),
+                'y': position.y(),
+            })
+
+        try:
+            self.overlay_settings.setValue("layout", json.dumps(layout))
+        except Exception as exc:
+            logger.warning(f"오버레이 배치를 저장하지 못했습니다: {exc}")
+
+    def restore_overlay_buttons(self):
+        """오버레이 버튼을 다시 띄운다.
+
+        무엇을 띄울지는 프로필의 사용 여부가 정하고, 어디에 띄울지만 저장된
+        배치에서 가져온다. 두 곳이 각자 목록을 들고 있으면 편집 창에서 끈 버튼이
+        되살아나는 식으로 어긋난다.
+        """
+        # 이 메서드는 타이머 슬롯으로 불린다. 예외가 슬롯 밖으로 나가면
+        # PyQt가 프로세스를 그대로 죽인다. 복원 실패로 앱이 죽어서는 안 된다.
+        try:
+            positions = self._load_overlay_positions()
+            profiles = self.profile_manager.list_profiles()
+        except Exception as exc:
+            logger.warning(f"오버레이 복원을 준비하지 못했습니다: {exc}")
+            return
+
+        restored = 0
+        for profile in profiles:
+            try:
+                if not profile.effective_overlay_style().enabled:
+                    continue
+                if self.show_overlay_button_for_profile(profile, positions.get(profile.id)):
+                    restored += 1
+            except Exception as exc:
+                logger.warning(f"오버레이 버튼 복원 실패: {exc}")
+
+        if restored:
+            try:
+                self.save_overlay_layout()
+            except Exception as exc:
+                logger.warning(f"복원 후 배치를 저장하지 못했습니다: {exc}")
+            logger.info(f"오버레이 버튼 {restored}개를 복원했습니다")
+
+        # 숨김 스위치도 지난 세션 상태를 따라간다.
+        try:
+            toggle_visible = self.overlay_settings.value("toggle_visible", "false")
+            if toggle_visible in (True, "true", "True", 1):
+                self.show_overlay_toggle_button(self._load_overlay_toggle_position())
+        except Exception as exc:
+            logger.warning(f"오버레이 스위치를 복원하지 못했습니다: {exc}")
+
+    def _load_overlay_positions(self) -> dict:
+        """저장된 배치에서 프로필별 좌표만 읽는다."""
+        import json
+
+        raw = self.overlay_settings.value("layout", "")
+        if not raw:
+            return {}
+
+        try:
+            layout = json.loads(raw)
+        except (TypeError, ValueError) as exc:
+            logger.warning(f"저장된 오버레이 배치를 읽지 못했습니다: {exc}")
+            return {}
+
+        positions = {}
+        for entry in layout:
+            try:
+                positions[entry['profile_id']] = QPoint(
+                    int(entry.get('x', 100)), int(entry.get('y', 100))
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+        return positions
+
+    def _create_overlay_button(self, profile):
+        """현재 전역 설정을 반영한 오버레이 버튼을 만든다."""
+        tracker = self._ensure_foreground_tracker()
+        button = OverlayButton(
+            profile.id, profile.name, self.profile_manager, tracker,
+            mode=self.overlay_mode, dwell_ms=self.overlay_dwell_ms,
+            style=profile.effective_overlay_style()
+        )
+        button.set_locked(self.overlay_locked)
+        button.profile_applied.connect(self._on_overlay_profile_applied)
+        button.closed.connect(self._on_overlay_button_closed)
+        button.moved.connect(self._on_overlay_button_moved)
+        return button
+
+    def _on_overlay_button_moved(self, button):
+        self.save_overlay_layout()
+
+    # -- 오버레이 숨김 스위치 -------------------------------------------
+
+    def set_overlays_hidden(self, hidden: bool):
+        """오버레이 버튼 전체를 감추거나 다시 보인다.
+
+        배치와 사용 여부는 건드리지 않는다. 보이기만 끄는 것이라 다시 켜면
+        원래 자리에 그대로 돌아온다.
+        """
+        self.overlays_hidden = bool(hidden)
+        self.overlay_settings.setValue(
+            "hidden", "true" if self.overlays_hidden else "false"
+        )
+
+        for button in self.overlay_buttons:
+            button.setVisible(not self.overlays_hidden)
+
+        if self.overlay_toggle_button is not None:
+            self.overlay_toggle_button.set_overlays_hidden(self.overlays_hidden)
+
+        self._sync_overlay_hidden_controls()
+
+        message = (
+            "오버레이 버튼을 감췄습니다" if self.overlays_hidden
+            else "오버레이 버튼을 다시 표시했습니다"
+        )
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(message)
+        logger.info(message)
+
+    def toggle_overlays_hidden(self):
+        self.set_overlays_hidden(not self.overlays_hidden)
+
+    def _sync_overlay_hidden_controls(self):
+        """메뉴와 트레이의 감춤 표시를 현재 값에 맞춘다."""
+        for name in ('hide_overlays_action', 'tray_hide_overlays_action'):
+            action = getattr(self, name, None)
+            if action is None:
+                continue
+            was_blocked = action.blockSignals(True)
+            action.setChecked(self.overlays_hidden)
+            action.blockSignals(was_blocked)
+
+    def show_overlay_toggle_button(self, position=None):
+        """오버레이를 감췄다 꺼내는 작은 스위치를 띄운다."""
+        if self.overlay_toggle_button is not None:
+            self.overlay_toggle_button.raise_()
+            return self.overlay_toggle_button
+
+        tracker = self._ensure_foreground_tracker()
+        button = OverlayToggleButton(tracker, hidden=self.overlays_hidden)
+        button.set_locked(self.overlay_locked)
+        button.toggled_hidden.connect(self.set_overlays_hidden)
+        button.moved.connect(self._on_overlay_toggle_moved)
+        button.closed.connect(self._on_overlay_toggle_closed)
+
+        button.move(position if position is not None else self._default_toggle_position(button))
+        button.show()
+        self.overlay_toggle_button = button
+
+        self.overlay_settings.setValue("toggle_visible", "true")
+        self._save_overlay_toggle_position()
+        self._sync_overlay_toggle_controls()
+        return button
+
+    def hide_overlay_toggle_button(self):
+        """스위치를 치운다. 감춰 둔 버튼이 있으면 먼저 꺼내 준다."""
+        if self.overlay_toggle_button is None:
+            return
+
+        # 스위치를 없애면서 버튼도 감춰진 채로 두면 되살릴 방법이 사라진다.
+        if self.overlays_hidden:
+            self.set_overlays_hidden(False)
+
+        button = self.overlay_toggle_button
+        self.overlay_toggle_button = None
+        try:
+            if self.foreground_tracker is not None and button.native_hwnd:
+                self.foreground_tracker.unexclude_hwnd(button.native_hwnd)
+            button.close()
+            button.deleteLater()
+        except Exception as exc:
+            logger.warning(f"오버레이 스위치 정리 중 문제: {exc}")
+
+        self.overlay_settings.setValue("toggle_visible", "false")
+        self._sync_overlay_toggle_controls()
+
+    def set_overlay_toggle_visible(self, visible: bool):
+        if visible:
+            self.show_overlay_toggle_button(self._load_overlay_toggle_position())
+        else:
+            self.hide_overlay_toggle_button()
+
+    def _sync_overlay_toggle_controls(self):
+        for name in ('show_toggle_action', 'tray_toggle_switch_action'):
+            action = getattr(self, name, None)
+            if action is None:
+                continue
+            was_blocked = action.blockSignals(True)
+            action.setChecked(self.overlay_toggle_button is not None)
+            action.blockSignals(was_blocked)
+
+    def _default_toggle_position(self, button) -> QPoint:
+        try:
+            available = QApplication.primaryScreen().availableGeometry()
+        except Exception:
+            return QPoint(60, 60)
+        return QPoint(
+            available.right() - button.width() - 40,
+            available.bottom() - button.height() - 30,
+        )
+
+    def _save_overlay_toggle_position(self):
+        if self.overlay_toggle_button is None:
+            return
+        position = self.overlay_toggle_button.pos()
+        self.overlay_settings.setValue("toggle_x", position.x())
+        self.overlay_settings.setValue("toggle_y", position.y())
+
+    def _load_overlay_toggle_position(self):
+        try:
+            x = self.overlay_settings.value("toggle_x", None)
+            y = self.overlay_settings.value("toggle_y", None)
+            if x is None or y is None:
+                return None
+            return QPoint(int(x), int(y))
+        except (TypeError, ValueError):
+            return None
+
+    def _on_overlay_toggle_moved(self, _button):
+        self._save_overlay_toggle_position()
+
+    def _on_overlay_toggle_closed(self, _button):
+        self.hide_overlay_toggle_button()
+
+    def _set_profile_overlay_enabled(self, profile, enabled: bool):
+        """프로필의 오버레이 사용 여부를 바꾸고 저장한다."""
+        if not profile:
+            return
+        try:
+            from core.profile_manager import OverlayStyle
+            style = profile.overlay_style or OverlayStyle()
+            style.enabled = bool(enabled)
+            profile.overlay_style = style
+            self.profile_manager.save_profiles()
+        except Exception as exc:
+            logger.warning(f"오버레이 사용 여부를 저장하지 못했습니다: {exc}")
+
+    def show_overlay_dwell_time_dialog(self):
+        """드웰 발동까지 필요한 시간을 초 단위로 입력받는다."""
+        try:
+            text, accepted = self.show_themed_input_dialog(
+                "드웰 시간 설정",
+                "마우스를 몇 초 올려두면 적용할지 입력하세요 (0.2 ~ 5.0초)",
+                "{0:.1f}".format(self.overlay_dwell_ms / 1000.0),
+            )
+            if not accepted or not text:
+                return
+
+            try:
+                seconds = float(str(text).strip().replace(',', '.'))
+            except ValueError:
+                self.show_themed_warning("알림", "숫자를 입력하세요. 예: 0.8")
+                return
+
+            if not 0.2 <= seconds <= 5.0:
+                self.show_themed_warning("알림", "0.2초에서 5.0초 사이로 입력하세요.")
+                return
+
+            self.overlay_dwell_ms = int(seconds * 1000)
+            self.overlay_settings.setValue("dwell_ms", self.overlay_dwell_ms)
+
+            for button in self.overlay_buttons:
+                button.set_dwell_duration(self.overlay_dwell_ms)
+
+            message = "드웰 시간을 {0:.1f}초로 설정했습니다".format(seconds)
+            if hasattr(self, 'status_label'):
+                self.status_label.setText(message)
+            logger.info(message)
+
+        except Exception as exc:
+            logger.error(f"드웰 시간 설정 실패: {exc}")
+
+    def _ensure_foreground_tracker(self):
+        """foreground 추적기를 준비하고 우리 앱 본창을 대상에서 제외한다."""
+        if self.foreground_tracker is None:
+            self.foreground_tracker = ForegroundTracker(parent=self)
+
+        # 본창이 대상이 되면 자기 자신에게 프로필을 적용하게 된다.
+        try:
+            self.foreground_tracker.exclude_hwnd(int(self.winId()))
+        except Exception as exc:
+            logger.warning(f"본창 핸들을 추적 제외 목록에 넣지 못했습니다: {exc}")
+
+        self.foreground_tracker.start()
+        return self.foreground_tracker
+
+    def create_overlay_button_for_selected_profile(self):
+        """선택된 프로필을 화면에 떠 있는 버튼으로 만든다."""
+        try:
+            profile = self.get_selected_profile()
+            if not profile:
+                self.show_themed_warning("알림", "먼저 프로필을 선택하세요.")
+                return
+
+            for existing in self.overlay_buttons:
+                if existing.profile_id == profile.id:
+                    existing.raise_()
+                    self.show_themed_information(
+                        "알림", f"'{profile.name}' 오버레이 버튼이 이미 있습니다."
+                    )
+                    return
+
+            # 메뉴로 만든 것도 프로필에 기록해야 편집 창의 체크 상태와 맞는다.
+            self._set_profile_overlay_enabled(profile, True)
+            self.show_overlay_button_for_profile(profile)
+
+        except Exception as exc:
+            logger.error(f"오버레이 버튼 생성 실패: {exc}")
+            self.show_themed_critical("오류", f"오버레이 버튼을 만들지 못했습니다:\n{exc}")
+
+    def _next_overlay_position(self, button) -> QPoint:
+        """새 버튼을 화면 우하단에서 계단식으로 배치한다."""
+        try:
+            available = QApplication.primaryScreen().availableGeometry()
+        except Exception:
+            return QPoint(200, 200)
+
+        offset = len(self.overlay_buttons) * (button.height() + 10)
+        x = available.right() - button.width() - 40
+        y = available.bottom() - button.height() - 80 - offset
+
+        # 화면 위로 넘어가면 다시 아래에서 시작한다.
+        if y < available.top():
+            y = available.bottom() - button.height() - 80
+        return QPoint(x, y)
+
+    def _on_overlay_profile_applied(self, success: bool, message: str):
+        """오버레이 버튼의 적용 결과를 상태 표시줄에 알린다."""
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(message)
+
+    def _on_overlay_button_closed(self, button):
+        """사용자가 닫은 오버레이 버튼을 정리한다."""
+        try:
+            if button in self.overlay_buttons:
+                self.overlay_buttons.remove(button)
+                # 닫은 것도 프로필에 남겨야 편집 창의 체크 상태와 어긋나지 않는다.
+                self._set_profile_overlay_enabled(
+                    self.profile_manager.get_profile(button.profile_id), False
+                )
+            if self.foreground_tracker is not None:
+                # 닫힌 창에 winId를 물으면 네이티브 핸들이 다시 만들어지거나
+                # 프로세스가 죽는다. 버튼이 기억해 둔 핸들을 쓴다.
+                if button.native_hwnd:
+                    self.foreground_tracker.unexclude_hwnd(button.native_hwnd)
+                if not self.overlay_buttons:
+                    self.foreground_tracker.stop()
+            button.deleteLater()
+            self.save_overlay_layout()
+        except Exception as exc:
+            logger.warning(f"오버레이 버튼 정리 중 문제: {exc}")
+
+    def close_all_overlay_buttons(self):
+        """화면에 떠 있는 오버레이 버튼을 모두 닫는다."""
+        for button in list(self.overlay_buttons):
+            button.close()
+            self._on_overlay_button_closed(button)
+
+        if hasattr(self, 'status_label'):
+            self.status_label.setText("오버레이 버튼을 모두 닫았습니다")
+
     def apply_selected_profile(self):
         """Apply the selected profile to all matching windows based on stored pattern."""
         try:
@@ -4082,6 +4772,9 @@ class WindowResizerMainWindow(QMainWindow):
             ):
                 if field_name in profile_data:
                     setattr(profile, field_name, profile_data[field_name])
+
+            self._assign_overlay_style(profile, profile_data)
+            self.refresh_overlay_buttons_for_profile(profile)
             self.profile_manager.save_profiles()
             self._sync_auto_apply_monitor()
             self._sync_profile_hotkeys()
@@ -4171,6 +4864,98 @@ class WindowResizerMainWindow(QMainWindow):
         self.save_current_as_profile()
     
     # Phase 2: Auto-apply system methods
+    def _load_apply_all_profiles_hotkey(self):
+        """Load and register the one configurable application-wide batch shortcut."""
+        result = {"registered": False, "error": None}
+        manager = self.application_hotkey_manager
+        if manager is None:
+            return result
+
+        manager.clear_hotkeys()
+        manager.load_hotkeys(str(get_application_hotkey_config_path()))
+        definition = manager.hotkeys.get("apply_all_profiles")
+        if definition is None:
+            return result
+        if definition.action != HotkeyAction.APPLY_ALL_PROFILES:
+            manager.clear_hotkeys()
+            result["error"] = "invalid action"
+            logger.warning("Ignoring invalid application hotkey configuration")
+            return result
+        if definition.enabled:
+            result["registered"] = manager.register_hotkey(definition.id)
+            if not result["registered"]:
+                result["error"] = "registration failed"
+        return result
+
+    def _configure_apply_all_profiles_hotkey(self, enabled: bool, combination: str):
+        """Persist and register the user-selected batch apply shortcut."""
+        result = {"registered": False, "error": None}
+        manager = self.application_hotkey_manager
+        if manager is None:
+            result["error"] = "hotkeys unavailable"
+            return result
+
+        manager.clear_hotkeys()
+        if enabled:
+            try:
+                modifiers, key_code = parse_hotkey_combination(combination)
+            except ValueError as error:
+                result["error"] = str(error)
+                return result
+
+            definition = HotkeyDefinition(
+                id="apply_all_profiles",
+                name="전체 프로필 일괄 적용",
+                modifiers=modifiers,
+                key_code=key_code,
+                action=HotkeyAction.APPLY_ALL_PROFILES,
+                description="모든 일치 프로필을 현재 창 목록에 일괄 적용",
+            )
+            if not manager.add_hotkey(definition):
+                result["error"] = "duplicate"
+                return result
+
+        manager.save_hotkeys(str(get_application_hotkey_config_path()))
+        if enabled:
+            result["registered"] = manager.register_hotkey("apply_all_profiles")
+            if not result["registered"]:
+                result["error"] = "registration failed"
+        return result
+
+    def show_apply_all_profiles_hotkey_dialog(self):
+        """Open the Settings menu dialog for the global batch-apply shortcut."""
+        definition = None
+        if self.application_hotkey_manager is not None:
+            definition = self.application_hotkey_manager.hotkeys.get("apply_all_profiles")
+        dialog = ApplyAllProfilesHotkeyDialog(
+            enabled=definition is not None and definition.enabled,
+            combination=definition.get_key_combination_text() if definition else "",
+            parent=self,
+        )
+        if dialog.exec_() != QDialog.Accepted:
+            return
+
+        enabled, combination = dialog.get_configuration()
+        result = self._configure_apply_all_profiles_hotkey(enabled, combination)
+        if result["error"] and result["error"] != "registration failed":
+            QMessageBox.warning(self, "단축키 설정", f"단축키를 저장할 수 없습니다:\n{result['error']}")
+            return
+        if enabled and not result["registered"]:
+            QMessageBox.warning(
+                self,
+                "단축키 설정",
+                "단축키는 저장되었지만 다른 프로그램에서 사용 중이거나 등록할 수 없습니다.",
+            )
+            return
+
+        self.status_label.setText(
+            f"전체 프로필 일괄 적용 단축키 {'활성화' if enabled else '비활성화'}됨"
+        )
+
+    def _on_apply_all_profiles_hotkey(self, _parameters):
+        """Run the normal fresh-window batch apply path from the global shortcut."""
+        self.auto_apply_profiles()
+
     def _sync_profile_hotkeys(self):
         """Replace registered shortcuts with the enabled profile shortcut sets."""
         result = {"registered": [], "failed": []}
@@ -4898,6 +5683,28 @@ class WindowResizerMainWindow(QMainWindow):
         self.tray_menu = QMenu(self)
         self.tray_menu.addAction("창 열기", self.restore_from_tray)
         self.tray_menu.addSeparator()
+
+        # 본창을 트레이에 숨긴 상태에서도 오버레이를 제어할 수 있어야 한다.
+        self.tray_dwell_action = QAction("오버레이 드웰 모드", self)
+        self.tray_dwell_action.setCheckable(True)
+        self.tray_dwell_action.setChecked(self.overlay_mode == MODE_DWELL)
+        self.tray_dwell_action.toggled.connect(self._on_tray_dwell_toggled)
+        self.tray_menu.addAction(self.tray_dwell_action)
+
+        self.tray_hide_overlays_action = QAction("오버레이 버튼 감추기", self)
+        self.tray_hide_overlays_action.setCheckable(True)
+        self.tray_hide_overlays_action.setChecked(self.overlays_hidden)
+        self.tray_hide_overlays_action.toggled.connect(self.set_overlays_hidden)
+        self.tray_menu.addAction(self.tray_hide_overlays_action)
+
+        self.tray_toggle_switch_action = QAction("감추기 스위치 표시", self)
+        self.tray_toggle_switch_action.setCheckable(True)
+        self.tray_toggle_switch_action.setChecked(self.overlay_toggle_button is not None)
+        self.tray_toggle_switch_action.toggled.connect(self.set_overlay_toggle_visible)
+        self.tray_menu.addAction(self.tray_toggle_switch_action)
+
+        self.tray_menu.addAction("오버레이 버튼 모두 닫기", self.close_all_overlay_buttons)
+        self.tray_menu.addSeparator()
         self.tray_menu.addAction("프로그램 종료", self.quit_application)
         self.tray_icon.setContextMenu(self.tray_menu)
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
@@ -4957,6 +5764,8 @@ class WindowResizerMainWindow(QMainWindow):
             self.window_monitor.stop()
         if self.profile_hotkey_manager is not None:
             self.profile_hotkey_manager.unregister_all_hotkeys()
+        if self.application_hotkey_manager is not None:
+            self.application_hotkey_manager.unregister_all_hotkeys()
         self._close_profile_preview()
         if self.tray_icon is not None:
             self.tray_icon.hide()

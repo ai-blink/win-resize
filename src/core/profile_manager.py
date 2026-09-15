@@ -49,6 +49,97 @@ class ProfileType(Enum):
     APPLICATION = "application"          # Application-specific profile
     WORKSPACE = "workspace"              # Complete workspace setup
 
+# 오버레이 버튼이 가질 수 있는 모양.
+OVERLAY_SHAPES = ("pill", "rounded", "rectangle", "circle")
+
+# 발동 방식. global은 전역 설정을 그대로 따른다는 뜻이다.
+OVERLAY_ACTIVATIONS = ("global", "click", "dwell")
+
+# 드웰 진행 표시 방법.
+OVERLAY_GAUGES = ("outline", "fill", "bar", "none")
+
+# 오버레이 기본 생김새. 편집기와 버튼이 같은 값을 쓴다.
+OVERLAY_DEFAULT_BACKGROUND = "#262A34"
+OVERLAY_DEFAULT_TEXT = "#E8ECF4"
+OVERLAY_DEFAULT_BORDER = "#6E7687"
+OVERLAY_DEFAULT_GAUGE = "#78C8FF"
+
+
+@dataclass
+class OverlayStyle:
+    """오버레이 버튼의 생김새. 프로필마다 따로 가진다.
+
+    버튼이 여러 개 떠 있을 때 생김새가 같으면 어느 것이 어느 프로필인지
+    구분할 수 없다. 색과 모양은 장식이 아니라 식별 수단이다.
+    """
+    shape: str = "pill"
+    label: str = ""                      # 비우면 프로필 이름을 쓴다
+    background_color: str = OVERLAY_DEFAULT_BACKGROUND
+    text_color: str = OVERLAY_DEFAULT_TEXT
+    border_color: str = OVERLAY_DEFAULT_BORDER
+    border_width: float = 1.5
+    width: int = 150
+    height: int = 46
+
+    # 이 프로필의 버튼을 화면에 띄울지. 편집 창에서 켜고 끈다.
+    enabled: bool = False
+
+    # 발동 방식과 드웰 시간. global과 0은 전역 설정을 따른다는 뜻이다.
+    activation: str = "global"
+    dwell_ms: int = 0
+
+    # 드웰 진행 표시 방법과 색.
+    gauge: str = "outline"
+    gauge_color: str = OVERLAY_DEFAULT_GAUGE
+
+    def __post_init__(self):
+        if self.shape not in OVERLAY_SHAPES:
+            logger.warning(f"알 수 없는 오버레이 모양 '{self.shape}', pill로 되돌립니다")
+            self.shape = "pill"
+        if self.activation not in OVERLAY_ACTIVATIONS:
+            logger.warning(f"알 수 없는 발동 방식 '{self.activation}', 전역 설정을 따릅니다")
+            self.activation = "global"
+        if self.gauge not in OVERLAY_GAUGES:
+            logger.warning(f"알 수 없는 게이지 방식 '{self.gauge}', outline으로 되돌립니다")
+            self.gauge = "outline"
+
+        # 색 표기를 한 가지로 맞춘다. 같은 색이 대소문자 때문에 다른 값으로
+        # 보이면 저장 전후 비교가 어긋난다.
+        self.background_color = str(self.background_color).strip().lower()
+        self.text_color = str(self.text_color).strip().lower()
+        self.border_color = str(self.border_color).strip().lower()
+        self.gauge_color = str(self.gauge_color).strip().lower()
+
+        self.border_width = max(0.0, min(8.0, float(self.border_width)))
+        self.width = max(40, min(600, int(self.width)))
+        self.height = max(28, min(200, int(self.height)))
+
+        # 0은 "전역 설정을 쓴다"는 뜻이라 그대로 둔다. 그 외에는 범위로 맞춘다.
+        dwell = int(self.dwell_ms)
+        self.dwell_ms = 0 if dwell <= 0 else max(200, min(5000, dwell))
+
+    def resolved_activation(self, global_mode: str) -> str:
+        """전역 설정과 합쳐 실제 발동 방식을 정한다."""
+        return global_mode if self.activation == "global" else self.activation
+
+    def resolved_dwell_ms(self, global_dwell_ms: int) -> int:
+        """전역 설정과 합쳐 실제 드웰 시간을 정한다."""
+        return self.dwell_ms if self.dwell_ms > 0 else global_dwell_ms
+
+    def resolved_label(self, fallback: str) -> str:
+        """표시할 글자. 라벨이 비어 있으면 프로필 이름을 쓴다."""
+        label = (self.label or "").strip()
+        return label if label else fallback
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'OverlayStyle':
+        """알 수 없는 키가 섞여 있어도 살아남게 필드만 추려 만든다."""
+        if not data:
+            return cls()
+        known = {f for f in cls.__dataclass_fields__}
+        return cls(**{k: v for k, v in data.items() if k in known})
+
+
 @dataclass
 class WindowConfiguration:
     """Configuration for a single window."""
@@ -274,6 +365,9 @@ class Profile:
     
     # Auto restore settings
     auto_restore: Optional[Dict] = None
+
+    # Overlay button appearance
+    overlay_style: Optional[OverlayStyle] = None
     
     def __post_init__(self):
         """Post-initialization validation."""
@@ -292,6 +386,10 @@ class Profile:
         content = f"{self.name}_{self.created_at}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]
     
+    def effective_overlay_style(self) -> 'OverlayStyle':
+        """저장된 오버레이 생김새. 설정한 적이 없으면 기본값을 준다."""
+        return self.overlay_style or OverlayStyle()
+
     def matches_window(self, window_info: Dict[str, Any]) -> bool:
         """Check if profile matches given window."""
         if not self.enabled or not self.matching_criteria:
@@ -861,6 +959,10 @@ class Profile:
         
         if 'window_config' in data and data['window_config']:
             data['window_config'] = WindowConfiguration(**data['window_config'])
+
+        # 오버레이 생김새는 나중에 추가된 필드다. 없는 프로필은 기본값으로 둔다.
+        if data.get('overlay_style'):
+            data['overlay_style'] = OverlayStyle.from_dict(data['overlay_style'])
         
         # Set default values for advanced features if not present
         advanced_fields = {
@@ -1112,8 +1214,7 @@ class ProfileManager:
                             results["applied"].append(f"{profile.name} -> {window_info.get('title', 'Unknown')}")
                         else:
                             results["failed"].append(f"{profile.name} -> {window_info.get('title', 'Unknown')}")
-                        # 한 번 적용하면 다음 창으로
-                        break
+                        # 같은 프로필이 여러 창에 일치할 수 있으므로 계속 검사한다.
                 except Exception as e:
                     logger.error(f"Error applying profile {profile.name}: {e}")
                     results["failed"].append(f"{profile.name} -> Error: {e}")

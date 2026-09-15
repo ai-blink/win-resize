@@ -7,19 +7,25 @@ Comprehensive profile editing dialog with hotkey configuration and advanced feat
 
 import sys
 import logging
+from dataclasses import asdict
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, 
+    QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
     QLabel, QLineEdit, QSpinBox, QCheckBox, QPushButton, QComboBox,
     QMessageBox, QTabWidget, QWidget, QFormLayout, QTextEdit, QScrollArea,
-    QButtonGroup, QRadioButton
+    QButtonGroup, QRadioButton, QDoubleSpinBox, QColorDialog, QSizePolicy,
+    QSlider
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import QFont, QKeySequence
+from PyQt5.QtCore import Qt, QTimer, QRectF, pyqtSignal
+from PyQt5.QtGui import QFont, QKeySequence, QColor, QPainter
 
-from core.profile_manager import Profile, WindowConfiguration, MatchingCriteria, MatchingStrategy, ProfileType
+from core.profile_manager import (
+    Profile, WindowConfiguration, MatchingCriteria, MatchingStrategy, ProfileType,
+    OverlayStyle, OVERLAY_SHAPES
+)
+from gui.overlay_button import paint_overlay_face, DEFAULT_DWELL_MS
 from gui.theme_manager import get_theme_manager, ThemeElement
 from gui.ui_scale_manager import get_ui_scale_manager
 
@@ -245,6 +251,101 @@ class HotkeyWidget(QWidget):
             self.main_key_combo.setCurrentText(main_keys_found[-1])
 
 
+class ColorPickButton(QPushButton):
+    """현재 색을 그대로 보여주고 누르면 색을 고르는 버튼."""
+
+    color_changed = pyqtSignal(str)
+
+    def __init__(self, color_hex: str, title: str, parent=None):
+        super().__init__(parent)
+        self._title = title
+        self._color = QColor(color_hex)
+        if not self._color.isValid():
+            self._color = QColor("#262A34")
+        self.setMinimumWidth(110)
+        self.setCursor(Qt.PointingHandCursor)
+        self.clicked.connect(self._pick_color)
+        self._refresh()
+
+    def color_hex(self) -> str:
+        return self._color.name()
+
+    def set_color_hex(self, color_hex: str):
+        color = QColor(color_hex)
+        if color.isValid():
+            self._color = color
+            self._refresh()
+
+    def _pick_color(self):
+        chosen = QColorDialog.getColor(self._color, self, self._title)
+        if chosen.isValid():
+            self._color = chosen
+            self._refresh()
+            self.color_changed.emit(self._color.name())
+
+    def _refresh(self):
+        self.setText(self._color.name().upper())
+        # 어두운 색 위에는 흰 글자를 올려야 읽힌다.
+        luminance = (
+            0.299 * self._color.red()
+            + 0.587 * self._color.green()
+            + 0.114 * self._color.blue()
+        )
+        text_color = "#FFFFFF" if luminance < 140 else "#202020"
+        self.setStyleSheet(
+            "QPushButton {{ background-color: {0}; color: {1};"
+            " border: 1px solid #808080; padding: 4px; }}".format(
+                self._color.name(), text_color
+            )
+        )
+
+
+class OverlayStylePreview(QWidget):
+    """편집 중인 생김새를 실제 오버레이 버튼과 같은 코드로 그린다.
+
+    미리보기를 따로 그리면 실물과 어긋나고, 사용자는 저장한 뒤에야 다르다는
+    것을 알게 된다. 그래서 `paint_overlay_face`를 그대로 쓴다.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._style = OverlayStyle()
+        self._label = "프로필"
+        self._dwell_progress = 0.0
+        self.setMinimumHeight(120)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def update_preview(self, style: OverlayStyle, label: str, dwell_progress: float = 0.0):
+        self._style = style
+        self._label = label
+        self._dwell_progress = dwell_progress
+        self.setMinimumHeight(max(120, style.height + 40))
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+
+        # 체크무늬 바탕. 반투명한 색을 골랐을 때 실제로 어떻게 보이는지 알 수 있다.
+        painter.fillRect(self.rect(), QColor("#3C3F46"))
+        tile = 10
+        light = QColor("#474B53")
+        for row in range(0, self.height(), tile):
+            for column in range(0, self.width(), tile):
+                if (row // tile + column // tile) % 2 == 0:
+                    painter.fillRect(column, row, tile, tile, light)
+
+        width = min(self._style.width, max(40, self.width() - 20))
+        height = self._style.height
+        left = (self.width() - width) / 2.0
+        top = (self.height() - height) / 2.0
+        rect = QRectF(left, top, width, height)
+
+        paint_overlay_face(
+            painter, rect, self._style, self._label, 'idle', self._dwell_progress
+        )
+
+
 class ProfileEditorDialog(QDialog):
     """Comprehensive profile editing dialog."""
     
@@ -298,7 +399,10 @@ class ProfileEditorDialog(QDialog):
         
         # 부가 기능 탭
         self.create_advanced_features_tab()
-        
+
+        # 오버레이 버튼 생김새 탭
+        self.create_overlay_style_tab()
+
         # 자동 갱신 탭
         
         # 버튼 영역
@@ -739,8 +843,358 @@ class ProfileEditorDialog(QDialog):
         advanced_layout.addRow("모니터 번호:", self.monitor_index_spin)
         
         layout.addWidget(advanced_group)
-        
+
         self.tab_widget.addTab(tab, "부가 기능")
+
+    def create_overlay_style_tab(self):
+        """오버레이 버튼의 생김새를 프로필마다 정하는 탭."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        hint = QLabel(
+            "화면 어디에나 띄워 두고 누르면 직전에 쓰던 창에 이 프로필을 적용하는 버튼입니다. "
+            "버튼이 여러 개일 때 색과 모양으로 구분합니다."
+        )
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+
+        # 사용 여부. 이 체크가 곧 화면에 버튼이 뜨느냐를 결정한다.
+        # 꺼진 상태에서 아래 설정을 만질 수 있으면 사용자는 다 해놓고도
+        # 버튼이 안 뜬다고 느낀다. 그래서 꺼지면 아래를 전부 잠근다.
+        self.overlay_enabled_check = QCheckBox("이 프로필의 오버레이 버튼 사용")
+        enabled_font = QFont()
+        enabled_font.setBold(True)
+        self.overlay_enabled_check.setFont(enabled_font)
+        self.overlay_enabled_check.setToolTip(
+            "체크하고 저장하면 화면에 버튼이 나타납니다. 해제하고 저장하면 사라집니다"
+        )
+        self.overlay_enabled_check.toggled.connect(self._on_overlay_enabled_toggled)
+        layout.addWidget(self.overlay_enabled_check)
+
+        self.overlay_disabled_notice = QLabel(
+            "버튼을 쓰려면 위 항목을 먼저 체크하세요. 체크해야 아래 설정을 바꿀 수 있습니다."
+        )
+        self.overlay_disabled_notice.setWordWrap(True)
+        layout.addWidget(self.overlay_disabled_notice)
+
+        # 발동 방식
+        activation_group = QGroupBox("발동 방식")
+        activation_layout = QFormLayout(activation_group)
+
+        self.overlay_activation_combo = QComboBox()
+        for value, text in (
+            ("global", "전역 설정 따름"),
+            ("click", "클릭"),
+            ("dwell", "드웰 (마우스를 올려두면 적용)"),
+        ):
+            self.overlay_activation_combo.addItem(text, value)
+        self.overlay_activation_combo.setToolTip(
+            "이 프로필만 다른 방식으로 쓰고 싶을 때 바꿉니다"
+        )
+        self.overlay_activation_combo.currentIndexChanged.connect(
+            self._on_overlay_activation_changed
+        )
+        activation_layout.addRow("방식:", self.overlay_activation_combo)
+
+        dwell_time_layout = QHBoxLayout()
+        self.overlay_dwell_global_check = QCheckBox("전역 설정 사용")
+        self.overlay_dwell_global_check.setToolTip(
+            "체크를 풀면 이 프로필만 다른 드웰 시간을 씁니다"
+        )
+        self.overlay_dwell_global_check.toggled.connect(self._on_overlay_dwell_global_toggled)
+        dwell_time_layout.addWidget(self.overlay_dwell_global_check)
+
+        self.overlay_dwell_spin = QDoubleSpinBox()
+        self.overlay_dwell_spin.setRange(0.2, 5.0)
+        self.overlay_dwell_spin.setSingleStep(0.1)
+        self.overlay_dwell_spin.setSuffix(" 초")
+        self.overlay_dwell_spin.setToolTip("이 시간만큼 머무르면 적용됩니다")
+        self.overlay_dwell_spin.valueChanged.connect(self._refresh_overlay_preview)
+        dwell_time_layout.addWidget(self.overlay_dwell_spin)
+        dwell_time_layout.addStretch()
+        activation_layout.addRow("드웰 시간:", dwell_time_layout)
+
+        gauge_layout = QHBoxLayout()
+        self.overlay_gauge_combo = QComboBox()
+        for value, text in (
+            ("outline", "테두리를 따라 도는 선"),
+            ("fill", "왼쪽부터 채우기"),
+            ("bar", "아래쪽 막대"),
+            ("none", "표시 안 함"),
+        ):
+            self.overlay_gauge_combo.addItem(text, value)
+        self.overlay_gauge_combo.setToolTip("드웰이 얼마나 찼는지 보여주는 방법입니다")
+        self.overlay_gauge_combo.currentIndexChanged.connect(self._refresh_overlay_preview)
+        gauge_layout.addWidget(self.overlay_gauge_combo)
+
+        self.overlay_gauge_button = ColorPickButton("#78C8FF", "게이지 색 선택")
+        self.overlay_gauge_button.color_changed.connect(self._refresh_overlay_preview)
+        gauge_layout.addWidget(self.overlay_gauge_button)
+        activation_layout.addRow("드웰 게이지:", gauge_layout)
+
+        layout.addWidget(activation_group)
+        self.overlay_activation_group = activation_group
+
+        # 모양과 라벨
+        shape_group = QGroupBox("모양과 라벨")
+        shape_layout = QFormLayout(shape_group)
+
+        self.overlay_shape_combo = QComboBox()
+        for value, text in (
+            ("pill", "알약"),
+            ("rounded", "둥근 사각"),
+            ("rectangle", "사각"),
+            ("circle", "원형"),
+        ):
+            self.overlay_shape_combo.addItem(text, value)
+        self.overlay_shape_combo.setToolTip("버튼의 외곽 모양을 고릅니다")
+        self.overlay_shape_combo.currentIndexChanged.connect(self._refresh_overlay_preview)
+        shape_layout.addRow("모양:", self.overlay_shape_combo)
+
+        self.overlay_label_edit = QLineEdit()
+        self.overlay_label_edit.setPlaceholderText("비우면 프로필 이름을 그대로 씁니다")
+        self.overlay_label_edit.setToolTip("버튼에 표시할 글자")
+        self.overlay_label_edit.textChanged.connect(self._refresh_overlay_preview)
+        shape_layout.addRow("라벨:", self.overlay_label_edit)
+
+        size_layout = QHBoxLayout()
+        self.overlay_width_spin = QSpinBox()
+        self.overlay_width_spin.setRange(40, 600)
+        self.overlay_width_spin.setSuffix(" px")
+        self.overlay_width_spin.valueChanged.connect(self._refresh_overlay_preview)
+        size_layout.addWidget(QLabel("너비"))
+        size_layout.addWidget(self.overlay_width_spin)
+
+        self.overlay_height_spin = QSpinBox()
+        self.overlay_height_spin.setRange(28, 200)
+        self.overlay_height_spin.setSuffix(" px")
+        self.overlay_height_spin.valueChanged.connect(self._refresh_overlay_preview)
+        size_layout.addWidget(QLabel("높이"))
+        size_layout.addWidget(self.overlay_height_spin)
+        size_layout.addStretch()
+        shape_layout.addRow("크기:", size_layout)
+
+        layout.addWidget(shape_group)
+        self.overlay_shape_group = shape_group
+
+        # 색상과 테두리
+        color_group = QGroupBox("색상과 테두리")
+        color_layout = QFormLayout(color_group)
+
+        self.overlay_background_button = ColorPickButton("#262A34", "배경색 선택")
+        self.overlay_background_button.color_changed.connect(self._refresh_overlay_preview)
+        color_layout.addRow("배경색:", self.overlay_background_button)
+
+        self.overlay_text_button = ColorPickButton("#E8ECF4", "글자색 선택")
+        self.overlay_text_button.color_changed.connect(self._refresh_overlay_preview)
+        color_layout.addRow("글자색:", self.overlay_text_button)
+
+        self.overlay_border_button = ColorPickButton("#6E7687", "테두리색 선택")
+        self.overlay_border_button.color_changed.connect(self._refresh_overlay_preview)
+        color_layout.addRow("테두리색:", self.overlay_border_button)
+
+        self.overlay_border_width_spin = QDoubleSpinBox()
+        self.overlay_border_width_spin.setRange(0.0, 8.0)
+        self.overlay_border_width_spin.setSingleStep(0.5)
+        self.overlay_border_width_spin.setSuffix(" px")
+        self.overlay_border_width_spin.setToolTip("0으로 두면 테두리를 그리지 않습니다")
+        self.overlay_border_width_spin.valueChanged.connect(self._refresh_overlay_preview)
+        color_layout.addRow("테두리 두께:", self.overlay_border_width_spin)
+
+        layout.addWidget(color_group)
+        self.overlay_color_group = color_group
+
+        # 미리보기
+        preview_group = QGroupBox("미리보기")
+        preview_layout = QVBoxLayout(preview_group)
+        self.overlay_preview = OverlayStylePreview()
+        preview_layout.addWidget(self.overlay_preview)
+
+        gauge_demo_layout = QHBoxLayout()
+        gauge_demo_layout.addWidget(QLabel("드웰 진행:"))
+        self.overlay_gauge_demo_slider = QSlider(Qt.Horizontal)
+        self.overlay_gauge_demo_slider.setRange(0, 100)
+        self.overlay_gauge_demo_slider.setValue(60)
+        self.overlay_gauge_demo_slider.setToolTip(
+            "게이지가 차오르는 모습을 확인하려고 끌어 보는 슬라이더입니다"
+        )
+        self.overlay_gauge_demo_slider.valueChanged.connect(self._refresh_overlay_preview)
+        gauge_demo_layout.addWidget(self.overlay_gauge_demo_slider)
+        preview_layout.addLayout(gauge_demo_layout)
+
+        layout.addWidget(preview_group)
+        self.overlay_preview_group = preview_group
+
+        reset_button = QPushButton("기본값으로 되돌리기")
+        reset_button.clicked.connect(self._reset_overlay_style)
+        layout.addWidget(reset_button)
+        self.overlay_reset_button = reset_button
+
+        layout.addStretch()
+
+        # 기본값을 한 번 밀어 넣어 위젯과 미리보기를 맞춘다.
+        self._apply_overlay_style_to_widgets(OverlayStyle())
+
+        self.tab_widget.addTab(tab, "오버레이 버튼")
+
+    # -- 오버레이 생김새 편집 도우미 -------------------------------------
+
+    def _collect_overlay_style(self) -> OverlayStyle:
+        """현재 위젯 값으로 생김새 객체를 만든다."""
+        # 전역 설정을 쓰겠다고 했으면 0으로 저장한다. 0이 "전역 따름"이다.
+        if self.overlay_dwell_global_check.isChecked():
+            dwell_ms = 0
+        else:
+            dwell_ms = int(round(self.overlay_dwell_spin.value() * 1000))
+
+        return OverlayStyle(
+            shape=self.overlay_shape_combo.currentData() or "pill",
+            label=self.overlay_label_edit.text().strip(),
+            background_color=self.overlay_background_button.color_hex(),
+            text_color=self.overlay_text_button.color_hex(),
+            border_color=self.overlay_border_button.color_hex(),
+            border_width=self.overlay_border_width_spin.value(),
+            width=self.overlay_width_spin.value(),
+            height=self.overlay_height_spin.value(),
+            enabled=self.overlay_enabled_check.isChecked(),
+            activation=self.overlay_activation_combo.currentData() or "global",
+            dwell_ms=dwell_ms,
+            gauge=self.overlay_gauge_combo.currentData() or "outline",
+            gauge_color=self.overlay_gauge_button.color_hex(),
+        )
+
+    def _apply_overlay_style_to_widgets(self, style: OverlayStyle):
+        """생김새 객체를 위젯에 채운다. 채우는 동안 미리보기 갱신은 한 번만 한다."""
+        widgets = [
+            self.overlay_shape_combo, self.overlay_label_edit,
+            self.overlay_width_spin, self.overlay_height_spin,
+            self.overlay_background_button, self.overlay_text_button,
+            self.overlay_border_button, self.overlay_border_width_spin,
+            self.overlay_enabled_check, self.overlay_activation_combo,
+            self.overlay_dwell_global_check, self.overlay_dwell_spin,
+            self.overlay_gauge_combo, self.overlay_gauge_button,
+        ]
+        for widget in widgets:
+            widget.blockSignals(True)
+
+        try:
+            index = self.overlay_shape_combo.findData(style.shape)
+            self.overlay_shape_combo.setCurrentIndex(max(0, index))
+            self.overlay_label_edit.setText(style.label)
+            self.overlay_width_spin.setValue(style.width)
+            self.overlay_height_spin.setValue(style.height)
+            self.overlay_background_button.set_color_hex(style.background_color)
+            self.overlay_text_button.set_color_hex(style.text_color)
+            self.overlay_border_button.set_color_hex(style.border_color)
+            self.overlay_border_width_spin.setValue(style.border_width)
+
+            self.overlay_enabled_check.setChecked(style.enabled)
+
+            activation_index = self.overlay_activation_combo.findData(style.activation)
+            self.overlay_activation_combo.setCurrentIndex(max(0, activation_index))
+
+            uses_global_dwell = style.dwell_ms <= 0
+            self.overlay_dwell_global_check.setChecked(uses_global_dwell)
+            self.overlay_dwell_spin.setValue(
+                DEFAULT_DWELL_MS / 1000.0 if uses_global_dwell else style.dwell_ms / 1000.0
+            )
+
+            gauge_index = self.overlay_gauge_combo.findData(style.gauge)
+            self.overlay_gauge_combo.setCurrentIndex(max(0, gauge_index))
+            self.overlay_gauge_button.set_color_hex(style.gauge_color)
+        finally:
+            for widget in widgets:
+                widget.blockSignals(False)
+
+        self._update_overlay_control_states()
+        self._refresh_overlay_preview()
+
+    def _update_overlay_control_states(self):
+        """쓸 수 없는 설정은 비활성으로 두어 오해를 줄인다."""
+        enabled = self.overlay_enabled_check.isChecked()
+
+        # 버튼을 쓰지 않으면 생김새 설정도 의미가 없다. 만질 수 있게 두면
+        # 다 설정해 놓고 버튼이 안 뜬다고 느끼게 된다.
+        for group in (
+            getattr(self, 'overlay_shape_group', None),
+            getattr(self, 'overlay_color_group', None),
+            getattr(self, 'overlay_preview_group', None),
+            getattr(self, 'overlay_reset_button', None),
+        ):
+            if group is not None:
+                group.setEnabled(enabled)
+
+        if hasattr(self, 'overlay_disabled_notice'):
+            self.overlay_disabled_notice.setVisible(not enabled)
+
+        self.overlay_activation_group.setEnabled(enabled)
+
+        # 드웰 관련 항목은 실제로 드웰로 동작할 때만 의미가 있다.
+        activation = self.overlay_activation_combo.currentData() or "global"
+        dwell_reachable = enabled and activation in ("global", "dwell")
+        self.overlay_dwell_global_check.setEnabled(dwell_reachable)
+        self.overlay_dwell_spin.setEnabled(
+            dwell_reachable and not self.overlay_dwell_global_check.isChecked()
+        )
+        self.overlay_gauge_combo.setEnabled(dwell_reachable)
+        self.overlay_gauge_button.setEnabled(dwell_reachable)
+
+    def _on_overlay_enabled_toggled(self, _checked):
+        self._update_overlay_control_states()
+        self._refresh_overlay_preview()
+
+    def _on_overlay_activation_changed(self, _index):
+        self._update_overlay_control_states()
+        self._refresh_overlay_preview()
+
+    def _on_overlay_dwell_global_toggled(self, _checked):
+        self._update_overlay_control_states()
+        self._refresh_overlay_preview()
+
+    def _refresh_overlay_preview(self):
+        if not hasattr(self, 'overlay_preview'):
+            return
+        style = self._collect_overlay_style()
+        fallback = self.name_edit.text().strip() or "프로필"
+        progress = self.overlay_gauge_demo_slider.value() / 100.0
+        self.overlay_preview.update_preview(
+            style, style.resolved_label(fallback), progress
+        )
+
+    def _reset_overlay_style(self):
+        style = OverlayStyle()
+        # 되돌리기가 사용 여부까지 꺼버리면 버튼이 갑자기 사라진다.
+        style.enabled = self.overlay_enabled_check.isChecked()
+        self._apply_overlay_style_to_widgets(style)
+
+    def _confirm_overlay_intent(self):
+        """버튼을 켜지 않은 채 생김새만 바꿔 저장하려는 경우를 잡는다.
+
+        생김새를 정성껏 바꿔 놓고 사용 체크를 빠뜨리면, 저장해도 화면에
+        아무 일이 일어나지 않아 설정이 먹지 않은 것처럼 보인다.
+        """
+        try:
+            style = self._collect_overlay_style()
+            if style.enabled:
+                return
+
+            current = asdict(style)
+            default = asdict(OverlayStyle())
+            current.pop('enabled', None)
+            default.pop('enabled', None)
+            if current == default:
+                return  # 아무것도 건드리지 않았다. 물을 이유가 없다.
+
+            answer = show_themed_question(
+                self,
+                "오버레이 버튼",
+                "오버레이 버튼 생김새를 바꿨지만 '이 프로필의 오버레이 버튼 사용'이 "
+                "꺼져 있어 화면에는 버튼이 나타나지 않습니다.\n\n지금 켜고 저장할까요?",
+            )
+            if answer == QMessageBox.Yes:
+                self.overlay_enabled_check.setChecked(True)
+        except Exception as exc:
+            logger.warning(f"오버레이 사용 여부 확인 중 문제: {exc}")
     
     def load_profile_data(self):
         """Load existing profile data into the form."""
@@ -751,6 +1205,10 @@ class ProfileEditorDialog(QDialog):
             # 기본 정보
             self.name_edit.setText(self.profile.name)
             self.description_edit.setPlainText(self.profile.description)
+
+            # 오버레이 생김새. 설정한 적이 없는 프로필은 기본값이 들어온다.
+            if hasattr(self, 'overlay_shape_combo'):
+                self._apply_overlay_style_to_widgets(self.profile.effective_overlay_style())
             
             # 프로필 타입 변환
             type_mapping = {
@@ -882,6 +1340,8 @@ class ProfileEditorDialog(QDialog):
                 )
                 return
             
+            self._confirm_overlay_intent()
+
             hotkey_sets = self._collect_hotkey_sets()
             primary_hotkey = hotkey_sets[0] if hotkey_sets else {}
 
@@ -915,6 +1375,8 @@ class ProfileEditorDialog(QDialog):
                 'hotkey_combination': primary_hotkey.get('combination', ''),
                 'hotkey_action': primary_hotkey.get('action', 'apply_profile'),
                 'hotkey_sets': hotkey_sets,
+                # Overlay button appearance
+                'overlay_style': asdict(self._collect_overlay_style()),
                 # Advanced feature fields (individual fields for Profile class compatibility)
                 'lock_position': self.lock_position_check.isChecked(),
                 'mouse_constraint': self.mouse_constraint_check.isChecked(),

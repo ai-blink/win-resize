@@ -162,11 +162,25 @@ class EnhancedWindowManipulator(WindowManipulator):
                 # Direct execution without error handling
                 execution_result = func()
             
-            result.success = True
             result.result = execution_result
             result.total_time = time.time() - start_time
-            
-            logger.debug(f"Operation {operation_name} completed successfully in {result.total_time:.3f}s")
+            if execution_result is False:
+                result.error_info = {
+                    "type": "OperationFailed",
+                    "message": f"{operation_name} returned failure",
+                }
+                logger.warning(
+                    "Operation %s returned failure in %.3fs",
+                    operation_name,
+                    result.total_time,
+                )
+            else:
+                result.success = True
+                logger.debug(
+                    "Operation %s completed successfully in %.3fs",
+                    operation_name,
+                    result.total_time,
+                )
             
         except SafeModeRestriction as e:
             result.error_info = {
