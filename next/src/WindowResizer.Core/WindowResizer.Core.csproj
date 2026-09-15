@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 의도적으로 net10.0 이다. -windows 를 붙이면 Win32 나 WPF 를 이 계층에
+         들여올 수 있게 되고, 그 순간 계층 경계가 문서상의 약속으로만 남는다.
+         여기서는 빌드가 경계를 지킨다. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

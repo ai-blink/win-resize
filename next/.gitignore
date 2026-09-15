@@ -1,0 +1,9 @@
+# .NET 빌드 산출물. 커밋하지 않는다.
+bin/
+obj/
+TestResults/
+
+# 사용자별 IDE 설정
+*.user
+*.suo
+.vs/

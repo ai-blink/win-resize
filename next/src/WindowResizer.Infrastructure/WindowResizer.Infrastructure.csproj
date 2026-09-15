@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Win32 P/Invoke 가 사는 곳이라 -windows 가 필요하다. Core 는 붙이지 않는다. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowResizer.Core\WindowResizer.Core.csproj" />
+  </ItemGroup>
+
+</Project>

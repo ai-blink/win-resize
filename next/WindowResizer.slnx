@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WindowResizer.App/WindowResizer.App.csproj" />
+    <Project Path="src/WindowResizer.Core/WindowResizer.Core.csproj" />
+    <Project Path="src/WindowResizer.Infrastructure/WindowResizer.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WindowResizer.App.Tests/WindowResizer.App.Tests.csproj" />
+    <Project Path="tests/WindowResizer.Core.Tests/WindowResizer.Core.Tests.csproj" />
+    <Project Path="tests/WindowResizer.Infrastructure.Tests/WindowResizer.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

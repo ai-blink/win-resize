@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 의도적으로 net10.0 이다. Core 가 net10.0-windows 로 바뀌면 이 프로젝트가
+         복원 단계에서 NU1201 로 깨진다(2026-09-16 실측). 즉 이 한 줄이
+         계층 경계의 tripwire 다. LayerBoundaryTests 보다 먼저 걸린다. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\WindowResizer.Core\WindowResizer.Core.csproj" />
+  </ItemGroup>
+
+</Project>
