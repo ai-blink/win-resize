@@ -19,11 +19,16 @@ from PyQt5.QtCore import QPoint, QRectF, Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt5.QtWidgets import QAction, QMenu, QWidget
 
-from gui.overlay_button import apply_no_activate_style, DRAG_THRESHOLD_PX
+from gui.overlay_button import apply_no_activate_style
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SIZE = 34
+# 손으로 집기 편한 크기. 너무 작으면 옮기려다 눌리기만 한다.
+DEFAULT_SIZE = 44
+
+# 프로필 버튼보다 낮은 임계를 쓴다. 스위치는 작아서 끌기 시작한 것을
+# 클릭으로 오해하기 쉽고, 그 오해의 대가가 "버튼이 전부 사라졌다"이다.
+DRAG_THRESHOLD_PX = 3
 
 # 눈 아이콘을 직접 그린다. 글꼴이나 특수 문자에 기대지 않으려는 선택이다.
 ICON_BACKGROUND = "#262a34"
@@ -64,7 +69,8 @@ class OverlayToggleButton(QWidget):
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setFocusPolicy(Qt.NoFocus)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setMouseTracking(True)
+        self.setCursor(Qt.OpenHandCursor)
         self.resize(DEFAULT_SIZE, DEFAULT_SIZE)
         self._update_tooltip()
 
@@ -86,6 +92,7 @@ class OverlayToggleButton(QWidget):
 
     def set_locked(self, locked: bool):
         self._locked = bool(locked)
+        self.setCursor(Qt.ArrowCursor if self._locked else Qt.OpenHandCursor)
         self._update_tooltip()
 
     @property
@@ -122,6 +129,8 @@ class OverlayToggleButton(QWidget):
             self._press_global = event.globalPos()
             self._drag_origin = event.globalPos() - self.frameGeometry().topLeft()
             self._dragged = False
+            if not self._locked:
+                self.setCursor(Qt.ClosedHandCursor)
             event.accept()
         else:
             super().mousePressEvent(event)
@@ -148,6 +157,7 @@ class OverlayToggleButton(QWidget):
         self._drag_origin = None
         self._press_global = None
         self._dragged = False
+        self.setCursor(Qt.OpenHandCursor if not self._locked else Qt.ArrowCursor)
 
         if was_drag:
             self.moved.emit(self)

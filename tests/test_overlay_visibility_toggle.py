@@ -83,6 +83,60 @@ class OverlayToggleButtonTests(unittest.TestCase):
         self.assertFalse(button.overlays_hidden)
         button.deleteLater()
 
+    def _drag(self, button, start, end):
+        """실제 마우스 이벤트로 끌어 본다. 상태를 손으로 세우지 않는다."""
+        button.mousePressEvent(QMouseEvent(
+            QEvent.MouseButtonPress, QPoint(5, 5), start,
+            Qt.LeftButton, Qt.LeftButton, Qt.NoModifier
+        ))
+        button.mouseMoveEvent(QMouseEvent(
+            QEvent.MouseMove, QPoint(5, 5), end,
+            Qt.NoButton, Qt.LeftButton, Qt.NoModifier
+        ))
+        button.mouseReleaseEvent(QMouseEvent(
+            QEvent.MouseButtonRelease, QPoint(5, 5), end,
+            Qt.LeftButton, Qt.NoButton, Qt.NoModifier
+        ))
+
+    def test_drag_moves_the_switch(self):
+        """스위치는 끌어서 옮길 수 있어야 한다."""
+        button = OverlayToggleButton()
+        button.move(100, 100)
+        moved = []
+        button.moved.connect(lambda b: moved.append(b.pos()))
+        toggled = []
+        button.toggled_hidden.connect(toggled.append)
+
+        self._drag(button, QPoint(110, 110), QPoint(300, 300))
+
+        self.assertEqual(button.pos(), QPoint(290, 290))
+        self.assertEqual(moved, [QPoint(290, 290)], "옮겼으면 저장하라고 알려야 한다")
+        self.assertEqual(toggled, [], "끌어 옮긴 것이 감추기로 처리되면 안 된다")
+        button.deleteLater()
+
+    def test_locked_switch_does_not_move(self):
+        button = OverlayToggleButton()
+        button.move(100, 100)
+        button.set_locked(True)
+
+        self._drag(button, QPoint(110, 110), QPoint(300, 300))
+
+        self.assertEqual(button.pos(), QPoint(100, 100))
+        button.deleteLater()
+
+    def test_tiny_movement_is_still_a_click(self):
+        """손떨림 수준의 이동까지 드래그로 보면 스위치를 누를 수 없다."""
+        button = OverlayToggleButton()
+        button.move(100, 100)
+        toggled = []
+        button.toggled_hidden.connect(toggled.append)
+
+        self._drag(button, QPoint(110, 110), QPoint(111, 111))
+
+        self.assertEqual(button.pos(), QPoint(100, 100))
+        self.assertEqual(toggled, [True])
+        button.deleteLater()
+
     def test_never_accepts_focus(self):
         button = OverlayToggleButton()
         self.assertEqual(button.focusPolicy(), Qt.NoFocus)
@@ -114,11 +168,17 @@ class OverlayHidingTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp(prefix="overlay_hide_test_")
         self.window = WindowResizerMainWindow()
-        self.app.processEvents()
-
+        # 사용자 설정에서 먼저 떼어낸다. processEvents를 먼저 돌리면 예약된
+        # 복원이 실제 레지스트리를 읽고 쓰기까지 한다.
         self.window.overlay_settings = QSettings(
             os.path.join(self.temp_dir, "overlay.ini"), QSettings.IniFormat
         )
+        self.app.processEvents()
+        # 복원이 만들어 둔 것이 있으면 치우고 깨끗한 상태에서 시작한다.
+        self.window.hide_overlay_toggle_button()
+        for leftover in list(self.window.overlay_buttons):
+            leftover.hide()
+            leftover.deleteLater()
         self.window.profile_manager = ProfileManager(
             storage_path=os.path.join(self.temp_dir, "profiles")
         )
@@ -216,6 +276,26 @@ class OverlayHidingTests(unittest.TestCase):
         restored = self.window._load_overlay_toggle_position()
 
         self.assertEqual(restored, QPoint(210, 220))
+
+    def test_dragging_the_switch_saves_its_position(self):
+        """끌어 옮긴 결과가 저장되지 않으면 다음 실행에 제자리로 돌아간다."""
+        switch = self.window.show_overlay_toggle_button(QPoint(50, 50))
+
+        switch.move(640, 480)
+        switch.moved.emit(switch)
+
+        self.assertEqual(self.window._load_overlay_toggle_position(), QPoint(640, 480))
+
+    def test_dragging_a_profile_button_saves_its_position(self):
+        button = self.window.show_overlay_button_for_profile(self.profile, QPoint(100, 110))
+
+        button.move(720, 530)
+        button.moved.emit(button)
+
+        import json
+        layout = json.loads(self.window.overlay_settings.value("layout", "[]"))
+        saved = {entry['profile_id']: (entry['x'], entry['y']) for entry in layout}
+        self.assertEqual(saved.get(self.profile.id), (720, 530))
 
     def test_lock_applies_to_switch(self):
         switch = self.window.show_overlay_toggle_button(QPoint(50, 50))

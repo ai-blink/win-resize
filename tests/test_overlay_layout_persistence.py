@@ -37,11 +37,16 @@ class OverlayLayoutPersistenceTests(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp(prefix="overlay_layout_test_")
         self.window = WindowResizerMainWindow()
 
-        # 초기화가 예약한 복원을 먼저 소화시킨 뒤 사용자 설정에서 분리한다.
-        self.app.processEvents()
+        # 사용자 설정에서 먼저 떼어낸다. processEvents를 먼저 돌리면 예약된
+        # 복원이 실제 레지스트리를 읽고 쓰기까지 한다.
         self.window.overlay_settings = QSettings(
             os.path.join(self.temp_dir, "overlay.ini"), QSettings.IniFormat
         )
+        self.app.processEvents()
+        self.window.hide_overlay_toggle_button()
+        for leftover in list(self.window.overlay_buttons):
+            leftover.hide()
+            leftover.deleteLater()
         self.window.profile_manager = ProfileManager(
             storage_path=os.path.join(self.temp_dir, "profiles")
         )
