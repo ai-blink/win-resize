@@ -34,7 +34,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from core.process_monitor import default_process_monitor, MonitoringConfig
 from core.profile_manager import default_profile_manager
 from gui.main_window import WindowResizerMainWindow
-from gui.profile_dialog import ProfileManagerDialog
 from gui.ui_scale_manager import get_ui_scale_manager
 
 logger = logging.getLogger(__name__)
@@ -255,7 +254,6 @@ class SystemTrayManager:
         self.app = None
         self.tray_icon = None
         self.main_window = None
-        self.profile_dialog = None
         self.settings_dialog = None
         self.status_dialog = None
         
@@ -458,18 +456,17 @@ class SystemTrayManager:
                                  QSystemTrayIcon.Critical)
     
     def show_profile_manager(self):
-        """Show profile manager dialog."""
+        """프로필 목록이 있는 메인 창을 보여줍니다.
+
+        프로필 편집 창은 메인 창의 프로필 목록 하나만 남았으므로
+        트레이의 프로필 항목도 그쪽으로 보냅니다.
+        """
         try:
-            if self.profile_dialog is None:
-                self.profile_dialog = ProfileManagerDialog()
-            
-            self.profile_dialog.show()
-            self.profile_dialog.raise_()
-            self.profile_dialog.activateWindow()
-            
+            self.show_main_window()
+
         except Exception as e:
             logger.error(f"Error showing profile manager: {e}")
-            self.show_notification("Error", f"Failed to open profile manager: {e}", 
+            self.show_notification("Error", f"Failed to open profile manager: {e}",
                                  QSystemTrayIcon.Critical)
     
     def show_settings_dialog(self):
@@ -549,8 +546,6 @@ class SystemTrayManager:
             self.status_dialog.close()
         if self.settings_dialog:
             self.settings_dialog.close()
-        if self.profile_dialog:
-            self.profile_dialog.close()
         if self.main_window:
             self.main_window.close()
         

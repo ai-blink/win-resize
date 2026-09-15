@@ -49,12 +49,9 @@ from core.hotkey_manager import (
     get_profile_hotkey_manager,
     parse_hotkey_combination,
 )
-from gui.profile_dialog import ProfileManagerDialog, ProfileEditDialog
-
 # Import Phase 6 components
 from gui.theme_manager import get_theme_manager, ThemeElement, ThemeType
 from gui.profile_editor import HotkeyWidget, ProfileEditorDialog
-from gui.preset_controls import PresetControlsWidget
 from gui.ui_scale_manager import UiScaleSettingsDialog, get_ui_scale_manager
 
 # Overlay profile buttons
@@ -285,7 +282,6 @@ class WindowResizerMainWindow(QMainWindow):
         
         # Initialize Phase 3 components first (needed by Phase 2)
         self.profile_manager = default_profile_manager
-        self.profile_manager_dialog = None
 
         # Overlay profile buttons. 추적기는 첫 오버레이 생성 시에만 켠다.
         self.foreground_tracker = None
@@ -328,8 +324,7 @@ class WindowResizerMainWindow(QMainWindow):
         
         # Initialize Phase 6 components
         self.theme_manager = get_theme_manager()
-        self.preset_controls = None
-        
+
         # Window state
         self.current_window: Optional[WindowInfo] = None
         self.window_list: List[WindowInfo] = []
@@ -850,25 +845,7 @@ class WindowResizerMainWindow(QMainWindow):
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(15)
         
-        # === ORIGINAL LAYOUT CODE (COMMENTED FOR BACKUP) ===
-        # panels_widget = QWidget()
-        # panels_layout = QVBoxLayout(panels_widget)
-        # panels_layout.setContentsMargins(0, 0, 0, 0)
-        # panels_layout.setSpacing(5)
-        # main_layout.addWidget(panels_widget)
-        # top_panel_widget = QWidget()
-        # top_panel_layout = QVBoxLayout(top_panel_widget)
-        # self.create_window_list_panel(top_panel_widget)
-        # panels_layout.addWidget(top_panel_widget)
-        # profile_group = self.create_profile_panel_direct()
-        # panels_layout.addWidget(profile_group)
-        # controls_panel_widget = QWidget()
-        # self.create_controls_panel(controls_panel_layout)
-        # panels_layout.addWidget(controls_panel_widget)
-        # panels_layout.setStretch(0, 5); panels_layout.setStretch(1, 5); panels_layout.setStretch(2, 2)
-        
-        # === NEW REDESIGNED LAYOUT SYSTEM ===
-        # Using QGridLayout for absolute control over space distribution
+        # 창 목록과 프로필 목록을 같은 비율로 나누는 2행 그리드.
         main_grid = QGridLayout()
         main_grid.setContentsMargins(5, 5, 5, 5)
         main_grid.setSpacing(5)
@@ -894,21 +871,9 @@ class WindowResizerMainWindow(QMainWindow):
         profile_section_layout.addWidget(profile_group)
         main_grid.addWidget(self.profile_section, 1, 0)
         
-        # Row 2: Controls (hidden - not needed)
-        self.controls_section = QWidget()
-        self.controls_section.setMinimumHeight(0)   # Hide controls section
-        self.controls_section.setMaximumHeight(0)   # Hide controls section  
-        self.controls_section.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        controls_section_layout = QVBoxLayout(self.controls_section)
-        controls_section_layout.setContentsMargins(0, 0, 0, 0)
-        self.create_controls_panel(controls_section_layout)
-        main_grid.addWidget(self.controls_section, 2, 0)
-        
-        # Set precise row stretch ratios: 1:1:0 (50:50:0)
         main_grid.setRowStretch(0, 1)  # Window list - 50%
-        main_grid.setRowStretch(1, 1)  # Profile list - 50% 
-        main_grid.setRowStretch(2, 0)  # Controls - hidden (0%)
-        
+        main_grid.setRowStretch(1, 1)  # Profile list - 50%
+
         # Apply grid layout to main layout
         grid_container = QWidget()
         grid_container.setLayout(main_grid)
@@ -1184,347 +1149,6 @@ class WindowResizerMainWindow(QMainWindow):
         
         # Add coordinate controls group to parent panel
         parent.layout().addWidget(coords_group)
-    
-    def create_auto_profile_panel(self, parent):
-        """Create automatic profile application controls panel - DEPRECATED."""
-        # 자동 프로필 패널은 각 프로필별 auto_restore 설정으로 대체되었습니다
-        # 이 메소드는 호환성을 위해 유지되지만 더 이상 사용되지 않습니다
-        return
-        
-        # 아래 코드는 주석 처리됨 (더 이상 사용하지 않음)
-        """
-        auto_apply_group = QGroupBox("자동 프로필 적용")
-        # Removed maximum height to allow group to expand
-        auto_apply_layout = QVBoxLayout(auto_apply_group)
-        
-        # Auto-apply master switch
-        self.auto_apply_master_checkbox = QCheckBox("자동 프로필 적용 활성화")
-        self.auto_apply_master_checkbox.setToolTip("새로운 창이 열릴 때 자동으로 일치하는 프로필을 적용합니다")
-        auto_apply_layout.addWidget(self.auto_apply_master_checkbox)
-        
-        # Settings layout
-        settings_layout = QHBoxLayout()
-        
-        # Monitoring interval
-        settings_layout.addWidget(QLabel("감지 간격:"))
-        self.monitoring_interval_spinbox = QDoubleSpinBox()
-        self.monitoring_interval_spinbox.setMinimum(0.5)
-        self.monitoring_interval_spinbox.setMaximum(10.0)
-        self.monitoring_interval_spinbox.setValue(1.0)
-        self.monitoring_interval_spinbox.setSuffix("초")
-        self.monitoring_interval_spinbox.setToolTip("새 창을 확인하는 간격 (초)")
-        settings_layout.addWidget(self.monitoring_interval_spinbox)
-        
-        # Startup delay
-        settings_layout.addWidget(QLabel("적용 지연:"))
-        self.startup_delay_spinbox = QDoubleSpinBox()
-        self.startup_delay_spinbox.setMinimum(0.0)
-        self.startup_delay_spinbox.setMaximum(10.0)
-        self.startup_delay_spinbox.setValue(2.0)
-        self.startup_delay_spinbox.setSuffix("초")
-        self.startup_delay_spinbox.setToolTip("창 생성 후 프로필 적용까지 대기 시간")
-        settings_layout.addWidget(self.startup_delay_spinbox)
-        
-        auto_apply_layout.addLayout(settings_layout)
-        
-        # Status and controls
-        status_controls_layout = QHBoxLayout()
-        
-        # Status display
-        self.auto_apply_status_label = QLabel("비활성화됨")
-        self.auto_apply_status_label.setStyleSheet("font-weight: bold;")
-        status_controls_layout.addWidget(QLabel("상태:"))
-        status_controls_layout.addWidget(self.auto_apply_status_label)
-        
-        
-        # Force scan button
-        self.force_scan_button = QPushButton("전체 적용")
-        self.force_scan_button.setToolTip("모든 열린 창에 대해 일치하는 프로필을 적용합니다")
-        self.force_scan_button.setEnabled(True)
-        status_controls_layout.addWidget(self.force_scan_button)
-        
-        auto_apply_layout.addLayout(status_controls_layout)
-        
-        parent.addWidget(auto_apply_group)
-        """
-    
-    def create_controls_panel(self, parent):
-        """Create the controls panel - empty since controls not needed."""
-        # Create minimal empty widget to maintain layout structure
-        controls_widget = QWidget()
-        controls_widget.setMaximumHeight(0)  # Make it invisible
-        controls_widget.setMinimumHeight(0)
-        
-        parent.addWidget(controls_widget)
-    
-    def create_preset_panel(self, parent):
-        """Create the preset controls panel."""
-        preset_group = QGroupBox("프리셋 및 검색")
-        preset_layout = QVBoxLayout(preset_group)
-        
-        # Create preset controls widget
-        self.preset_controls = PresetControlsWidget()
-        preset_layout.addWidget(self.preset_controls)
-        
-        parent.addWidget(preset_group)
-    
-    
-    def create_coordinate_controls(self, layout):
-        """Create coordinate input controls."""
-        coord_group = QGroupBox("위치 및 크기")
-        coord_group.setMinimumWidth(350)  # 100픽셀 더 넓게
-        
-        # Use VBox for main layout
-        coord_main_layout = QVBoxLayout(coord_group)
-        coord_main_layout.setContentsMargins(10, 10, 10, 10)
-        coord_main_layout.setSpacing(8)
-        
-        # Position row with custom styled spinboxes
-        position_row = QHBoxLayout()
-        position_row.setContentsMargins(0, 0, 0, 0)
-        position_row.setSpacing(15)
-        
-        # X control - with custom prefix using stylesheet
-        self.x_spinbox = QSpinBox()
-        self.x_spinbox.setRange(-9999, 9999)
-        self.x_spinbox.setSuffix(" px")
-        self.x_spinbox.setPrefix("X: ")  # Built-in prefix
-        self.x_spinbox.setFixedWidth(90)
-        self.x_spinbox.setStyleSheet("""
-            QSpinBox {
-                padding-left: 2px;
-                font-size: 11px;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 12px;
-            }
-        """)
-        position_row.addWidget(self.x_spinbox)
-        
-        # Y control - with custom prefix using stylesheet  
-        self.y_spinbox = QSpinBox()
-        self.y_spinbox.setRange(-9999, 9999)
-        self.y_spinbox.setSuffix(" px")
-        self.y_spinbox.setPrefix("Y: ")  # Built-in prefix
-        self.y_spinbox.setFixedWidth(90)
-        self.y_spinbox.setStyleSheet("""
-            QSpinBox {
-                padding-left: 2px;
-                font-size: 11px;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 12px;
-            }
-        """)
-        position_row.addWidget(self.y_spinbox)
-        
-        coord_main_layout.addLayout(position_row)
-        
-        # Size row
-        size_row = QHBoxLayout()
-        size_row.setContentsMargins(0, 0, 0, 0)
-        size_row.setSpacing(15)
-        
-        # Width control
-        self.width_spinbox = QSpinBox()
-        self.width_spinbox.setRange(1, 9999)
-        self.width_spinbox.setSuffix(" px")
-        self.width_spinbox.setPrefix("폭: ")  # Built-in prefix
-        self.width_spinbox.setFixedWidth(100)
-        self.width_spinbox.setStyleSheet("""
-            QSpinBox {
-                padding-left: 2px;
-                font-size: 11px;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 12px;
-            }
-        """)
-        size_row.addWidget(self.width_spinbox)
-        
-        # Height control
-        self.height_spinbox = QSpinBox()
-        self.height_spinbox.setRange(1, 9999)
-        self.height_spinbox.setSuffix(" px")
-        self.height_spinbox.setPrefix("높이: ")  # Built-in prefix
-        self.height_spinbox.setFixedWidth(110)
-        self.height_spinbox.setStyleSheet("""
-            QSpinBox {
-                padding-left: 2px;
-                font-size: 11px;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 12px;
-            }
-        """)
-        size_row.addWidget(self.height_spinbox)
-        
-        coord_main_layout.addLayout(size_row)
-        
-        # Real-time update checkbox
-        self.realtime_update_checkbox = QCheckBox("실시간 좌표 추적")
-        self.realtime_update_checkbox.setToolTip("선택된 창이 이동할 때 좌표를 실시간으로 업데이트합니다")
-        coord_main_layout.addWidget(self.realtime_update_checkbox)
-        
-        # Profile management section
-        profile_row = QHBoxLayout()
-        profile_row.addWidget(QLabel("프로필:"))
-        self.profile_combo = QComboBox()
-        self.profile_combo.setToolTip("저장된 프로필을 선택합니다")
-        self.profile_combo.addItem("새 프로필...")
-        profile_row.addWidget(self.profile_combo)
-        
-        # Profile load button
-        self.load_profile_button = QPushButton("불러오기")
-        self.load_profile_button.setToolTip("선택된 프로필의 설정을 불러옵니다")
-        profile_row.addWidget(self.load_profile_button)
-        
-        coord_main_layout.addLayout(profile_row)
-        layout.addWidget(coord_group)
-    
-    def create_action_buttons(self, layout):
-        """Create main action buttons."""
-        action_group = QGroupBox("동작")
-        action_layout = QVBoxLayout(action_group)
-        
-        # Primary actions
-        primary_layout = QHBoxLayout()
-        
-        self.apply_button = QPushButton("적용")
-        self.apply_button.setToolTip("Apply current position and size to selected window")
-        self.apply_button.setStyleSheet("QPushButton { background-color: #3498db; color: white; font-weight: bold; }")
-        primary_layout.addWidget(self.apply_button)
-        
-        self.center_button = QPushButton("가운데 정렬")  
-        self.center_button.setToolTip("선택된 창을 화면 가운데에 놓습니다")
-        primary_layout.addWidget(self.center_button)
-        
-        # Resolution presets
-        resolution_layout = QHBoxLayout()
-        resolution_layout.addWidget(QLabel("해상도:"))
-        
-        self.fhd_button = QPushButton("FHD")
-        self.fhd_button.setToolTip("1920x1080으로 설정")
-        self.fhd_button.clicked.connect(lambda: self.set_resolution_preset(1920, 1080))
-        resolution_layout.addWidget(self.fhd_button)
-        
-        self.qhd_button = QPushButton("QHD")
-        self.qhd_button.setToolTip("2560x1440으로 설정")
-        self.qhd_button.clicked.connect(lambda: self.set_resolution_preset(2560, 1440))
-        resolution_layout.addWidget(self.qhd_button)
-        
-        self.uhd_button = QPushButton("UHD")
-        self.uhd_button.setToolTip("3840x2160으로 설정")
-        self.uhd_button.clicked.connect(lambda: self.set_resolution_preset(3840, 2160))
-        resolution_layout.addWidget(self.uhd_button)
-        
-        primary_layout.addLayout(resolution_layout)
-        
-        # Position presets
-        position_layout = QHBoxLayout()
-        position_layout.addWidget(QLabel("위치:"))
-        
-        self.top_button = QPushButton("위")
-        self.top_button.setToolTip("화면 위쪽으로 이동")
-        self.top_button.clicked.connect(lambda: self.set_position_preset("top"))
-        position_layout.addWidget(self.top_button)
-        
-        self.bottom_button = QPushButton("아래")
-        self.bottom_button.setToolTip("화면 아래쪽으로 이동")
-        self.bottom_button.clicked.connect(lambda: self.set_position_preset("bottom"))
-        position_layout.addWidget(self.bottom_button)
-        
-        self.left_button = QPushButton("왼쪽")
-        self.left_button.setToolTip("화면 왼쪽으로 이동")
-        self.left_button.clicked.connect(lambda: self.set_position_preset("left"))
-        position_layout.addWidget(self.left_button)
-        
-        self.right_button = QPushButton("오른쪽")
-        self.right_button.setToolTip("화면 오른쪽으로 이동")
-        self.right_button.clicked.connect(lambda: self.set_position_preset("right"))
-        position_layout.addWidget(self.right_button)
-        
-        primary_layout.addLayout(position_layout)
-        
-        # Initially disable preset buttons (will be enabled when window is selected)
-        self.fhd_button.setEnabled(False)
-        self.qhd_button.setEnabled(False)
-        self.uhd_button.setEnabled(False)
-        self.top_button.setEnabled(False)
-        self.bottom_button.setEnabled(False)
-        self.left_button.setEnabled(False)
-        self.right_button.setEnabled(False)
-        
-        self.get_coords_button = QPushButton("현재 좌표 가져오기")
-        self.get_coords_button.setToolTip("선택된 창의 현재 좌표를 위치 및 크기 입력란에 가져옵니다")
-        primary_layout.addWidget(self.get_coords_button)
-        
-        # Profile save/update buttons
-        self.save_profile_button = QPushButton("프로필 저장")
-        self.save_profile_button.setToolTip("현재 설정을 프로필로 저장합니다")
-        self.save_profile_button.setStyleSheet("QPushButton { background-color: #27ae60; color: white; font-weight: bold; }")
-        primary_layout.addWidget(self.save_profile_button)
-        
-        self.update_profile_button = QPushButton("프로필 업데이트")
-        self.update_profile_button.setToolTip("선택된 프로필을 현재 설정으로 업데이트합니다")
-        self.update_profile_button.setStyleSheet("QPushButton { background-color: #f39c12; color: white; font-weight: bold; }")
-        self.update_profile_button.setEnabled(False)  # Initially disabled
-        primary_layout.addWidget(self.update_profile_button)
-        
-        action_layout.addLayout(primary_layout)
-        
-        # Secondary actions
-        secondary_layout = QHBoxLayout()
-        
-        self.minimize_button = QPushButton("최소화")
-        secondary_layout.addWidget(self.minimize_button)
-        
-        self.maximize_button = QPushButton("최대화")
-        secondary_layout.addWidget(self.maximize_button)
-        
-        self.restore_button = QPushButton("복원")
-        secondary_layout.addWidget(self.restore_button)
-        
-        action_layout.addLayout(secondary_layout)
-        
-        layout.addWidget(action_group)
-    
-    def create_quick_actions(self, layout):
-        """Create quick action buttons."""
-        quick_group = QGroupBox("빠른 동작")
-        quick_layout = QGridLayout(quick_group)
-        
-        # Snap buttons
-        self.snap_left_button = QPushButton("◀ 왼쪽")
-        self.snap_left_button.setToolTip("Snap to left half of screen")
-        quick_layout.addWidget(self.snap_left_button, 0, 0)
-        
-        self.snap_right_button = QPushButton("오른쪽 ▶")
-        self.snap_right_button.setToolTip("Snap to right half of screen")
-        quick_layout.addWidget(self.snap_right_button, 0, 1)
-        
-        self.snap_top_button = QPushButton("▲ 위쪽")
-        self.snap_top_button.setToolTip("Snap to top half of screen")
-        quick_layout.addWidget(self.snap_top_button, 1, 0)
-        
-        self.snap_bottom_button = QPushButton("아래쪽 ▼")
-        self.snap_bottom_button.setToolTip("Snap to bottom half of screen")
-        quick_layout.addWidget(self.snap_bottom_button, 1, 1)
-        
-        # Common sizes
-        size_layout = QHBoxLayout()
-        
-        self.size_1024_button = QPushButton("1024×768")
-        self.size_1024_button.setToolTip("Resize to 1024×768")
-        size_layout.addWidget(self.size_1024_button)
-        
-        self.size_1280_button = QPushButton("1280×720")
-        self.size_1280_button.setToolTip("Resize to 1280×720")
-        size_layout.addWidget(self.size_1280_button)
-        
-        quick_layout.addLayout(size_layout, 2, 0, 1, 2)
-        
-        layout.addWidget(quick_group)
     
     def setup_menu_bar(self):
         """Setup the menu bar."""
@@ -1997,11 +1621,6 @@ class WindowResizerMainWindow(QMainWindow):
         # 
         # # Filter combo
         # self.filter_combo.currentTextChanged.connect(self.filter_windows)
-        
-        # Preset controls connections
-        if self.preset_controls:
-            self.preset_controls.preset_applied.connect(self.on_preset_applied)
-            self.preset_controls.window_selected.connect(self.on_preset_window_selected)
         
         # Theme manager connections
         if self.theme_manager:
@@ -2902,10 +2521,6 @@ class WindowResizerMainWindow(QMainWindow):
                 if hasattr(self, 'right_button'):
                     self.right_button.setEnabled(True)
                 
-                # Sync with preset controls
-                if hasattr(self, 'preset_controls') and self.preset_controls:
-                    self.preset_controls.set_selected_window(self.current_window.hwnd)
-                
                 # Update profile apply button state if profile is selected
                 self.update_profile_apply_button()
         else:
@@ -3410,59 +3025,6 @@ class WindowResizerMainWindow(QMainWindow):
                          "• Robust error recovery\n\n"
                          "Built with PyQt5 and Windows API integration.")
     
-    def show_profile_manager(self):
-        """Show the profile manager dialog."""
-        try:
-            if self.profile_manager_dialog is None:
-                self.profile_manager_dialog = ProfileManagerDialog(self)
-                self.profile_manager_dialog.profile_applied.connect(self.on_profile_applied)
-            
-            # Set current window info for profile operations
-            if self.current_window:
-                window_info = self.get_current_window_info()
-                self.profile_manager_dialog.set_current_window_info(window_info)
-            
-            self.profile_manager_dialog.show()
-            self.profile_manager_dialog.raise_()
-            self.profile_manager_dialog.activateWindow()
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to open profile manager:\n{str(e)}")
-    
-    def save_current_as_profile(self):
-        """Save current window configuration as a new profile."""
-        if not self.current_window:
-            self.show_themed_warning("Warning", "Please select a window first.")
-            return
-        
-        try:
-            window_info = self.get_current_window_info()
-            dialog = ProfileEditDialog(self, window_info=window_info)
-            
-            if dialog.exec_() == dialog.Accepted:
-                data = dialog.get_profile_data()
-                profile = self.profile_manager.create_profile(**data)
-                
-                self.show_themed_information("Success", 
-                                      f"Profile '{profile.name}' created successfully!")
-                self.status_label.setText(f"Profile '{profile.name}' saved")
-                
-        except Exception as e:
-            self.show_themed_critical("Error", f"Failed to save profile:\n{str(e)}")
-    
-    def apply_profile_to_current(self):
-        """Apply a profile to the currently selected window."""
-        if not self.current_window:
-            QMessageBox.warning(self, "Warning", "Please select a window first.")
-            return
-        
-        try:
-            # Show profile manager for selection
-            self.show_profile_manager()
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to apply profile:\n{str(e)}")
-    
     def auto_apply_profiles(self):
         """Auto-apply all matching profiles to current windows."""
         # Window enumeration is asynchronous. Apply only after the refreshed
@@ -3578,103 +3140,6 @@ class WindowResizerMainWindow(QMainWindow):
             'is_minimized': self.current_window.is_minimized,
             'is_visible': self.current_window.is_visible
         }
-    
-    def on_preset_applied(self, name: str, width: int, height: int, hwnd: int):
-        """Handle preset application from preset controls."""
-        try:
-            # Use current window if hwnd is 0
-            target_hwnd = hwnd if hwnd else (self.current_window.hwnd if self.current_window else 0)
-            
-            if not target_hwnd:
-                self.show_themed_warning("경고", "먼저 창을 선택해주세요.")
-                return
-            
-            # Update position & size controls with preset values if they exist
-            if hasattr(self, 'x_spinbox') and hasattr(self, 'y_spinbox'):
-                current_x = self.x_spinbox.value()
-                current_y = self.y_spinbox.value()
-            else:
-                # Use current window coordinates
-                current_x = self.current_window.rect.left if self.current_window else 0
-                current_y = self.current_window.rect.top if self.current_window else 0
-            
-            if hasattr(self, 'width_spinbox'):
-                self.width_spinbox.setValue(width)
-            if hasattr(self, 'height_spinbox'):
-                self.height_spinbox.setValue(height)
-            
-            # Apply the preset using window manipulator
-            result = self.window_manipulator.enhanced_move_window(
-                target_hwnd, current_x, current_y, width, height
-            )
-            success = result.success
-            
-            if success:
-                self.status_label.setText(f"프리셋 '{name}' ({width}×{height})을 적용했습니다")
-                self.update_current_window_display()  # Update coordinate display
-                
-                # 프리셋 적용 후 실제 창의 좌표를 다시 가져와서 스피너 박스에 반영
-                try:
-                    from core.windows_api import WindowsAPI
-                    api = WindowsAPI()
-                    rect = api.get_window_rect(target_hwnd)
-                    
-                    if rect:
-                        # 스피너 박스가 존재하면 실제 좌표로 업데이트
-                        if hasattr(self, 'x_spinbox'):
-                            self.x_spinbox.setValue(rect.left)
-                        if hasattr(self, 'y_spinbox'):
-                            self.y_spinbox.setValue(rect.top)
-                        if hasattr(self, 'width_spinbox'):
-                            self.width_spinbox.setValue(rect.width)
-                        if hasattr(self, 'height_spinbox'):
-                            self.height_spinbox.setValue(rect.height)
-                        
-                        logger.info(f"Updated spinboxes with actual coordinates after preset application: {rect}")
-                except Exception as coord_error:
-                    logger.warning(f"Failed to update coordinates after preset application: {coord_error}")
-            else:
-                self.show_themed_warning("경고", f"프리셋 '{name}' 적용에 실패했습니다")
-                
-        except Exception as e:
-            logger.error(f"Error applying preset: {e}")
-            self.show_themed_critical("오류", f"프리셋 적용 중 오류가 발생했습니다:\n{str(e)}")
-    
-    def on_preset_selected(self, name: str, width: int, height: int):
-        """Handle preset selection from preset controls (sync with position & size)."""
-        try:
-            # Update width and height in position & size controls if they exist
-            if hasattr(self, 'width_spinbox'):
-                self.width_spinbox.setValue(width)
-            if hasattr(self, 'height_spinbox'):
-                self.height_spinbox.setValue(height)
-            
-            self.status_label.setText(f"프리셋 '{name}' ({width}×{height})을 위치 및 크기에 적용했습니다")
-            
-        except Exception as e:
-            logger.error(f"Error syncing preset selection: {e}")
-    
-    def on_preset_window_selected(self, hwnd: int):
-        """Handle window selection from preset controls."""
-        try:
-            # Find the window in our list and select it
-            for row in range(self.window_list_widget.rowCount()):
-                title_item = self.window_list_widget.item(row, 0)
-                if title_item:
-                    item_data = title_item.data(Qt.UserRole)
-                    # Handle both window object and hwnd cases
-                    item_hwnd = None
-                    if hasattr(item_data, 'hwnd'):
-                        item_hwnd = item_data.hwnd
-                    elif isinstance(item_data, int):
-                        item_hwnd = item_data
-                    
-                    if item_hwnd == hwnd:
-                        self.window_list_widget.selectRow(row)
-                        break
-            
-        except Exception as e:
-            logger.error(f"Error selecting window from preset controls: {e}")
     
     def on_theme_changed(self, theme_name: str):
         """Handle theme changes."""
@@ -5329,117 +4794,6 @@ class WindowResizerMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error in monitor error callback: {e}")
     
-    def create_profile_panel_direct(self):
-        """Create profile list panel directly without wrapper widget."""
-        # Create profile group with no padding
-        profile_group = QGroupBox("프로필 목록")
-        profile_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        profile_group.setStyleSheet("QGroupBox { padding: 0px; margin: 0px; }")  # Force zero padding
-        # Removed maximum height to allow expansion with stretch factor
-        profile_layout = QVBoxLayout(profile_group)
-        profile_layout.setContentsMargins(0, 0, 0, 0)  # Remove all margins
-        profile_layout.setSpacing(0)  # Remove spacing between items
-        
-        # Create profile table
-        self.profile_table_widget = QTableWidget()
-        self.profile_table_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        # Removed all height constraints to allow complete flexibility
-        # Table should expand to fill ALL available space in the profile group
-        self.profile_table_widget.setSelectionBehavior(QTableWidget.SelectRows)
-        self.profile_table_widget.setSelectionMode(QTableWidget.SingleSelection)
-        self.profile_table_widget.setAlternatingRowColors(True)
-        self.profile_table_widget.setEditTriggers(QTableWidget.NoEditTriggers)  # 편집 불가
-        
-        # Set up profile table headers - Add shortcut and mouse constraint columns
-        profile_headers = ["프로필명", "대상창/프로세스", "단축키", "마우스 가둠", "X", "Y", "폭", "높이", "자동적용"]
-        self.profile_table_widget.setColumnCount(len(profile_headers))
-        self.profile_table_widget.setHorizontalHeaderLabels(profile_headers)
-        
-        # Configure profile table column widths with responsive design
-        profile_header = self.profile_table_widget.horizontalHeader()
-        profile_header.setDefaultSectionSize(80)
-        
-        # Set column widths - coordinate columns same as window list (80px)
-        self.profile_table_widget.setColumnWidth(0, 150)  # 프로필명 - will be resizable
-        self.profile_table_widget.setColumnWidth(1, 200)  # 대상창/프로세스 - will be resizable
-        self.profile_table_widget.setColumnWidth(2, 120)  # 단축키 - fixed
-        self.profile_table_widget.setColumnWidth(3, 110)  # 마우스 가둠 - fixed (10px 증가)
-        self.profile_table_widget.setColumnWidth(4, 80)   # X - fixed (same as window list)
-        self.profile_table_widget.setColumnWidth(5, 80)   # Y - fixed (same as window list)
-        self.profile_table_widget.setColumnWidth(6, 80)   # 폭 - fixed (same as window list)
-        self.profile_table_widget.setColumnWidth(7, 80)   # 높이 - fixed (same as window list)
-        self.profile_table_widget.setColumnWidth(8, 104)  # 자동적용 - fixed (80 * 1.3 = 104, 30% wider)
-        
-        # Set resize modes - only profile name and target columns can expand
-        profile_header.setSectionResizeMode(0, profile_header.Stretch)    # 프로필명 - expandable
-        profile_header.setSectionResizeMode(1, profile_header.Stretch)    # 대상창/프로세스 - expandable
-        profile_header.setSectionResizeMode(2, profile_header.Fixed)      # 단축키 - fixed
-        profile_header.setSectionResizeMode(3, profile_header.Fixed)      # 마우스 가둠 - fixed
-        profile_header.setSectionResizeMode(4, profile_header.Fixed)      # X - fixed
-        profile_header.setSectionResizeMode(5, profile_header.Fixed)      # Y - fixed
-        profile_header.setSectionResizeMode(6, profile_header.Fixed)      # 폭 - fixed
-        profile_header.setSectionResizeMode(7, profile_header.Fixed)      # 높이 - fixed
-        profile_header.setSectionResizeMode(8, profile_header.Fixed)      # 자동적용 - fixed
-        
-        # Enable sorting for profile table
-        self.profile_table_widget.setSortingEnabled(True)
-        
-        # Connect selection change event
-        self.profile_table_widget.selectionModel().selectionChanged.connect(self.on_profile_selected)
-        
-        # Connect double-click event to open profile editor
-        self.profile_table_widget.itemDoubleClicked.connect(self.on_profile_double_clicked)
-        
-        profile_layout.addWidget(self.profile_table_widget)
-        
-        # Give maximum stretch to the table widget - it should take ALL available space
-        profile_layout.setStretch(profile_layout.count() - 1, 10)
-        
-        # Create profile management buttons with zero margins
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 0, 0, 0)  # No margins at all
-        button_layout.setSpacing(2)  # Minimal spacing between buttons
-        
-        self.edit_profile_button = QPushButton("편집")
-        self.edit_profile_button.setToolTip("선택된 프로필을 편집합니다")
-        self.edit_profile_button.setEnabled(False)
-        button_layout.addWidget(self.edit_profile_button)
-        
-        self.delete_profile_button = QPushButton("삭제")
-        self.delete_profile_button.setToolTip("선택된 프로필을 삭제합니다")
-        self.delete_profile_button.setEnabled(False)
-        button_layout.addWidget(self.delete_profile_button)
-        
-        self.apply_profile_button = QPushButton("적용")
-        self.apply_profile_button.setToolTip("선택된 프로필을 현재 창에 적용합니다")
-        self.apply_profile_button.setEnabled(False)
-        button_layout.addWidget(self.apply_profile_button)
-        
-        self.apply_all_profiles_button = QPushButton("전체 적용")
-        self.apply_all_profiles_button.setToolTip("모든 자동적용 프로필을 해당 창에 적용합니다")
-        button_layout.addWidget(self.apply_all_profiles_button)
-        
-        self.profile_count_label = QLabel("프로필 0개")
-        button_layout.addWidget(self.profile_count_label)
-        
-        # Add button layout with explicit space reservation
-        profile_layout.addLayout(button_layout)
-        
-        # Give most space to table, minimal to buttons
-        profile_layout.setStretch(0, 1)   # Table gets all stretch space
-        profile_layout.setStretch(1, 0)   # Button layout gets only what it needs
-        
-        # Set minimal button heights to save space
-        for button in [self.edit_profile_button, self.delete_profile_button, 
-                      self.apply_profile_button, self.apply_all_profiles_button]:
-            button.setMinimumHeight(24)  # Smaller buttons
-            button.setMaximumHeight(28)  # Prevent buttons from growing too much
-        
-        # Load initial profile data
-        self.refresh_profile_table()
-        
-        return profile_group
-
     def create_profile_panel_redesigned(self):
         """Create redesigned profile panel with zero empty space guarantee."""
         # Use QFrame instead of QGroupBox for tighter control - remove borders

@@ -76,12 +76,9 @@ def create_build_command(project_root, main_script):
         "--hidden-import=core.process_monitor",
         "--hidden-import=core.hotkey_manager",
         "--hidden-import=core.window_state_manager",
-        "--hidden-import=core.cursor_control",
         "--hidden-import=core.error_handler",
         "--hidden-import=gui.main_window",
         "--hidden-import=gui.theme_manager",
-        "--hidden-import=gui.preset_controls",
-        "--hidden-import=gui.profile_dialog",
         "--hidden-import=gui.system_tray",
         
         # 불필요한 모듈들 제외
