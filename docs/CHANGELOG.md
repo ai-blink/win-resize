@@ -6,6 +6,25 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.01.5 - 2026-09-25
+
+### Highlights
+
+- Added per-profile overlay buttons with click or dwell activation and a global
+  hide switch. The overlay does not steal foreground focus.
+- Preserved profile shortcut sets across restarts and added a configurable
+  global shortcut for applying all matching profiles.
+- Apply All now tries every matching window and reports native operation
+  failures instead of treating a failed Win32 call as success.
+- Added the .NET 10 WPF solution scaffold and layer-boundary tests as migration
+  groundwork. The distributed desktop executable remains the PyQt5 application.
+
+### Verification
+
+- Full tracked Python regression suite: 132 tests passed.
+- .NET solution build: 0 warnings and 0 errors; 8 tests passed.
+- PyInstaller single-executable build passed.
+
 ## 0.01.4 - 2026-08-10
 
 ### Hotfixes

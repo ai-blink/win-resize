@@ -5,7 +5,7 @@
 WindowResizer is a Windows desktop application for finding application windows,
 moving or resizing them, and repeatedly applying saved window profiles.
 
-Current documented release: 0.01.4
+Current documented release: 0.01.5
 
 ## App preview
 
