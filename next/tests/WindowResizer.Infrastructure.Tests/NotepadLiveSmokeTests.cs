@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using WindowResizer.Core.Profiles;
 using WindowResizer.Core.Windowing;
 using WindowResizer.Infrastructure.Windowing;
@@ -31,8 +30,8 @@ public sealed class NotepadLiveSmokeTests
         var config = new WindowConfiguration { X = target.X, Y = target.Y, Width = target.Width, Height = target.Height };
         var applier = new ProfileApplier(Windows);
 
-        var window = LaunchOwnNotepadWindow();
-        try
+        using var notepad = OwnNotepad.Launch(Windows);
+        var window = notepad.Window;
         {
             // 1. 일반 상태에서 적용
             Assert.AreEqual(ApplyOutcome.Applied, applier.Apply(window.Handle, config));
@@ -56,10 +55,6 @@ public sealed class NotepadLiveSmokeTests
             Assert.IsTrue(Windows.SetTopmost(window.Handle, true));
             Assert.IsTrue(Windows.SetTopmost(window.Handle, false));
         }
-        finally
-        {
-            Win32Windows.RequestClose(window.Handle);
-        }
     }
 
     private static void AssertLandsOn(nint handle, PixelRect expected, string step)
@@ -75,30 +70,4 @@ public sealed class NotepadLiveSmokeTests
         Assert.Fail($"{step}: 창이 {expected} 가 아니라 {actual} 에 있다");
     }
 
-    private static DesktopWindow LaunchOwnNotepadWindow()
-    {
-        var before = Windows.EnumerateWindows().Select(w => w.Handle).ToHashSet();
-
-        try
-        {
-            Process.Start(new ProcessStartInfo("notepad.exe") { UseShellExecute = true })?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            Assert.Inconclusive("Notepad 를 띄우지 못했다: " + ex.Message);
-        }
-
-        var deadline = DateTime.UtcNow.AddSeconds(10);
-        while (DateTime.UtcNow < deadline)
-        {
-            var fresh = Windows.EnumerateWindows()
-                .Where(w => !before.Contains(w.Handle))
-                .FirstOrDefault(w => w.Info.ProcessName.Equals("notepad.exe", StringComparison.OrdinalIgnoreCase));
-            if (fresh is not null) return fresh;
-            Thread.Sleep(100);
-        }
-
-        Assert.Inconclusive("새 Notepad 창이 생기지 않았다(기존 창에 탭으로 열렸을 수 있다). 기존 창은 건드리지 않았다.");
-        return null!;
-    }
 }

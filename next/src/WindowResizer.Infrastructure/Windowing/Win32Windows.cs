@@ -101,6 +101,10 @@ public sealed class Win32Windows : IWindowOperations
         return result;
     }
 
+    /// <summary>창 목록에 보여 줄 창. 규칙은 PyQt5 USER_WINDOWS 필터(<see cref="WindowListFilter"/>).</summary>
+    public IReadOnlyList<DesktopWindow> EnumerateUserWindows() =>
+        EnumerateWindows().Where(w => WindowListFilter.IsUserWindow(w.Info, w.Rect)).ToList();
+
     public IReadOnlyList<MonitorArea> EnumerateMonitors()
     {
         using var _ = new DpiScope();
@@ -158,17 +162,17 @@ public sealed class Win32Windows : IWindowOperations
     }
 
     private static PixelRect ToRect(RECT r) => new(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
+}
 
-    /// <summary>스레드 DPI 인식을 잠시 per-monitor v2 로 바꾸고 원래대로 돌린다.</summary>
-    private readonly struct DpiScope : IDisposable
+/// <summary>스레드 DPI 인식을 잠시 per-monitor v2 로 바꾸고 원래대로 돌린다.</summary>
+internal readonly struct DpiScope : IDisposable
+{
+    private readonly nint _previous;
+
+    public DpiScope() => _previous = SetThreadDpiAwarenessContext(DpiAwarenessPerMonitorV2);
+
+    public void Dispose()
     {
-        private readonly nint _previous;
-
-        public DpiScope() => _previous = SetThreadDpiAwarenessContext(DpiAwarenessPerMonitorV2);
-
-        public void Dispose()
-        {
-            if (_previous != 0) SetThreadDpiAwarenessContext(_previous);
-        }
+        if (_previous != 0) SetThreadDpiAwarenessContext(_previous);
     }
 }
