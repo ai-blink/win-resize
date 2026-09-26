@@ -1,12 +1,242 @@
-﻿<Window x:Class="WindowResizer.App.MainWindow"
+<Window x:Class="WindowResizer.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:WindowResizer.App"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        xmlns:vm="clr-namespace:WindowResizer.App.ViewModels"
+        Title="{DynamicResource App.Title}"
+        Width="1320" Height="780" MinWidth="980" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppSurfaceBrush}"
+        Foreground="{DynamicResource AppTextBrush}">
 
+    <!-- 버튼, 메뉴, 키가 같은 명령을 쓴다(계획 4.1). Ctrl+F 는 Find 명령으로 검색 상자에 초점을 준다. -->
+    <Window.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+        <KeyBinding Key="Q" Modifiers="Control" Command="{Binding ExitCommand}" />
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
+    </Window.CommandBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 보조 경로(D-018). 주 경로는 왼쪽 사이드바다. -->
+        <Menu Grid.Row="0">
+            <MenuItem Header="{DynamicResource Menu.File}">
+                <MenuItem Header="{DynamicResource Menu.Refresh}" InputGestureText="F5" Command="{Binding RefreshCommand}" />
+                <Separator />
+                <MenuItem Header="{DynamicResource Menu.Exit}" InputGestureText="Ctrl+Q" Command="{Binding ExitCommand}" />
+            </MenuItem>
+            <MenuItem Header="{DynamicResource Menu.Profile}">
+                <MenuItem Header="{DynamicResource Menu.Apply}" InputGestureText="Enter" Command="{Binding ApplyProfileCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 왼쪽 사이드바(계획 4.2.1, key-demo-osk 패턴) -->
+            <Border Grid.Column="0" Background="{DynamicResource AppCanvasBrush}"
+                    BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Margin="0,14,0,16">
+                    <TextBlock Text="{DynamicResource App.Title}" FontSize="17" FontWeight="Bold"
+                               Foreground="{DynamicResource AppTextBrush}" Margin="20,4,0,6" />
+
+                    <TextBlock Text="{DynamicResource Nav.Group.Work}" Style="{StaticResource NavGroupHeaderStyle}" />
+                    <RadioButton Style="{StaticResource NavItemStyle}"
+                                 AutomationProperties.Name="{DynamicResource Nav.WindowsAndProfiles}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.WindowsAndProfiles}"
+                                 IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:AppPage.WindowsAndProfiles}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE8A9;" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Nav.WindowsAndProfiles}" VerticalAlignment="Center" />
+                            <Border Grid.Column="2" Style="{StaticResource CountPillStyle}">
+                                <TextBlock FontSize="11.5" Foreground="{DynamicResource AppMutedTextBrush}">
+                                    <Run Text="{Binding WindowCount, Mode=OneWay}" /><Run Text=" / " /><Run Text="{Binding ProfileCount, Mode=OneWay}" />
+                                </TextBlock>
+                            </Border>
+                        </Grid>
+                    </RadioButton>
+
+                    <TextBlock Text="{DynamicResource Nav.Group.Tools}" Style="{StaticResource NavGroupHeaderStyle}" />
+                    <RadioButton Style="{StaticResource NavItemStyle}"
+                                 AutomationProperties.Name="{DynamicResource Nav.Overlay}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.Overlay}"
+                                 IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:AppPage.Overlay}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE8A7;" />
+                            <TextBlock Text="{DynamicResource Nav.Overlay}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavItemStyle}"
+                                 AutomationProperties.Name="{DynamicResource Nav.Hotkeys}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.Hotkeys}"
+                                 IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:AppPage.Hotkeys}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE765;" />
+                            <TextBlock Text="{DynamicResource Nav.Hotkeys}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+
+                    <TextBlock Text="{DynamicResource Nav.Group.App}" Style="{StaticResource NavGroupHeaderStyle}" />
+                    <RadioButton Style="{StaticResource NavItemStyle}"
+                                 AutomationProperties.Name="{DynamicResource Nav.Settings}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.Settings}"
+                                 IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:AppPage.Settings}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE713;" />
+                            <TextBlock Text="{DynamicResource Nav.Settings}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavItemStyle}"
+                                 AutomationProperties.Name="{DynamicResource Nav.LogAndAbout}"
+                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.LogAndAbout}"
+                                 IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:AppPage.LogAndAbout}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE946;" />
+                            <TextBlock Text="{DynamicResource Nav.LogAndAbout}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </Border>
+
+            <!-- 본문 -->
+            <Grid Grid.Column="1" Margin="24,18,24,12">
+
+                <!-- 창과 프로필: 가로 2단 + GridSplitter (계획 4.2, 4.0 확정) -->
+                <Grid Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:AppPage.WindowsAndProfiles}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="360" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="*" MinWidth="360" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 창 목록 -->
+                    <DockPanel Grid.Column="0">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="True">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitleStyle}" Margin="0,0,12,0">
+                                <Run Text="{DynamicResource Windows.Header}" />
+                                <Run Text="{Binding WindowCount, Mode=OneWay}" Foreground="{DynamicResource AppMutedTextBrush}" FontWeight="Normal" />
+                            </TextBlock>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButtonStyle}" Content="&#xE72C;"
+                                    Command="{Binding RefreshCommand}"
+                                    ToolTip="{DynamicResource Windows.Refresh}"
+                                    AutomationProperties.Name="{DynamicResource Windows.Refresh}" Margin="8,0,0,0" />
+                            <Grid>
+                                <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="{DynamicResource Windows.Search}"
+                                         AutomationProperties.Name="{DynamicResource Windows.Search}" />
+                                <!-- 입력 전 안내. 빈 상자만 있으면 무슨 칸인지 모른다. -->
+                                <TextBlock Text="{DynamicResource Windows.Search}" Margin="14,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource AppMutedTextBrush}" IsHitTestVisible="False"
+                                           TextTrimming="CharacterEllipsis">
+                                    <TextBlock.Style>
+                                        <Style TargetType="{x:Type TextBlock}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </DockPanel>
+                        <ListView ItemsSource="{Binding WindowsView}" SelectedItem="{Binding SelectedWindow}"
+                                  SelectionMode="Single" AutomationProperties.Name="{DynamicResource Windows.Header}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="{DynamicResource Col.WindowTitle}" Width="260" DisplayMemberBinding="{Binding DisplayTitle}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Pid}" Width="64" DisplayMemberBinding="{Binding ProcessId}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Process}" Width="120" DisplayMemberBinding="{Binding ProcessName}" />
+                                    <GridViewColumn Header="{DynamicResource Col.X}" Width="60" DisplayMemberBinding="{Binding Rect.X}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Y}" Width="60" DisplayMemberBinding="{Binding Rect.Y}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Width}" Width="60" DisplayMemberBinding="{Binding Rect.Width}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Height}" Width="60" DisplayMemberBinding="{Binding Rect.Height}" />
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+
+                    <GridSplitter Grid.Column="1" Width="14" HorizontalAlignment="Stretch" Background="Transparent"
+                                  ResizeBehavior="PreviousAndNext" />
+
+                    <!-- 프로필 목록 + 맥락 액션 바 -->
+                    <DockPanel Grid.Column="2">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" MinHeight="44">
+                            <TextBlock Style="{StaticResource SectionTitleStyle}">
+                                <Run Text="{DynamicResource Profiles.Header}" />
+                                <Run Text="{Binding ProfileCount, Mode=OneWay}" Foreground="{DynamicResource AppMutedTextBrush}" FontWeight="Normal" />
+                            </TextBlock>
+                        </DockPanel>
+                        <Border DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Style="{StaticResource AccentButtonStyle}" Content="{DynamicResource Action.Apply}" MinWidth="112"
+                                        Command="{Binding ApplyProfileCommand}"
+                                        ToolTip="{DynamicResource Action.ApplyHint}"
+                                        AutomationProperties.Name="{DynamicResource Action.Apply}" />
+                            </StackPanel>
+                        </Border>
+                        <ListView x:Name="ProfileList" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                                  SelectionMode="Single" AutomationProperties.Name="{DynamicResource Profiles.Header}">
+                            <ListView.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding ApplyProfileCommand}" />
+                            </ListView.InputBindings>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="{DynamicResource Col.ProfileName}" Width="200" DisplayMemberBinding="{Binding Name}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Target}" Width="150">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Target, Converter={StaticResource TargetText}}"
+                                                           ToolTip="{Binding TargetTooltip}" TextTrimming="CharacterEllipsis" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="{DynamicResource Col.Hotkey}" Width="90" DisplayMemberBinding="{Binding Hotkey}" />
+                                    <GridViewColumn Header="{DynamicResource Col.MouseConstraint}" Width="86" DisplayMemberBinding="{Binding MouseConstraint, Converter={StaticResource YesNo}}" />
+                                    <GridViewColumn Header="{DynamicResource Col.X}" Width="56" DisplayMemberBinding="{Binding X}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Y}" Width="56" DisplayMemberBinding="{Binding Y}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Width}" Width="56" DisplayMemberBinding="{Binding Width}" />
+                                    <GridViewColumn Header="{DynamicResource Col.Height}" Width="56" DisplayMemberBinding="{Binding Height}" />
+                                    <GridViewColumn Header="{DynamicResource Col.AutoApply}" Width="76" DisplayMemberBinding="{Binding AutoApply, Converter={StaticResource YesNo}}" />
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                </Grid>
+
+                <!-- 아직 채우지 않은 페이지. 자리만 있다. -->
+                <TextBlock Text="{DynamicResource Page.Pending}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="15"
+                           HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="{x:Type TextBlock}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.WindowsAndProfiles}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Grid>
+
+        <!-- 상태 줄 -->
+        <Border Grid.Row="2" Background="{DynamicResource AppCanvasBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,1,0,0" Padding="16,6">
+            <TextBlock Text="{Binding Status}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="13" />
+        </Border>
     </Grid>
 </Window>

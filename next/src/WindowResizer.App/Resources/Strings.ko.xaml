@@ -1,0 +1,57 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <!-- 화면 문자열(한국어, 기본 언어 - D-017). 키 목록은 Strings.en.xaml 과 같아야 한다(테스트가 확인). -->
+
+    <sys:String x:Key="App.Title">WindowResizer</sys:String>
+
+    <sys:String x:Key="Nav.Group.Work">작업</sys:String>
+    <sys:String x:Key="Nav.Group.Tools">도구</sys:String>
+    <sys:String x:Key="Nav.Group.App">앱</sys:String>
+    <sys:String x:Key="Nav.WindowsAndProfiles">창과 프로필</sys:String>
+    <sys:String x:Key="Nav.Overlay">오버레이 버튼</sys:String>
+    <sys:String x:Key="Nav.Hotkeys">단축키</sys:String>
+    <sys:String x:Key="Nav.Settings">설정</sys:String>
+    <sys:String x:Key="Nav.LogAndAbout">로그와 정보</sys:String>
+
+    <sys:String x:Key="Windows.Header">창 목록</sys:String>
+    <sys:String x:Key="Windows.Search">창 이름이나 프로세스로 찾기 (Ctrl+F)</sys:String>
+    <sys:String x:Key="Windows.Refresh">창 목록 새로고침 (F5)</sys:String>
+    <sys:String x:Key="Col.WindowTitle">창 이름</sys:String>
+    <sys:String x:Key="Col.Pid">PID</sys:String>
+    <sys:String x:Key="Col.Process">프로세스</sys:String>
+    <sys:String x:Key="Col.X">X</sys:String>
+    <sys:String x:Key="Col.Y">Y</sys:String>
+    <sys:String x:Key="Col.Width">폭</sys:String>
+    <sys:String x:Key="Col.Height">높이</sys:String>
+
+    <sys:String x:Key="Profiles.Header">프로필</sys:String>
+    <sys:String x:Key="Profiles.AllWindows">모든 창</sys:String>
+    <sys:String x:Key="Col.ProfileName">프로필명</sys:String>
+    <sys:String x:Key="Col.Target">대상창/프로세스</sys:String>
+    <sys:String x:Key="Col.Hotkey">단축키</sys:String>
+    <sys:String x:Key="Col.MouseConstraint">마우스 가둠</sys:String>
+    <sys:String x:Key="Col.AutoApply">자동적용</sys:String>
+
+    <sys:String x:Key="Action.Apply">적용</sys:String>
+    <sys:String x:Key="Action.ApplyHint">선택한 프로필과 맞는 창 전부에 적용 (Enter)</sys:String>
+
+    <sys:String x:Key="Menu.File">파일</sys:String>
+    <sys:String x:Key="Menu.Refresh">창 목록 새로고침</sys:String>
+    <sys:String x:Key="Menu.Exit">종료</sys:String>
+    <sys:String x:Key="Menu.Profile">프로필</sys:String>
+    <sys:String x:Key="Menu.Apply">프로필 적용</sys:String>
+
+    <sys:String x:Key="Page.Pending">이 페이지는 다음 단계에서 채워집니다.</sys:String>
+
+    <sys:String x:Key="Common.Yes">예</sys:String>
+    <sys:String x:Key="Common.No">아니오</sys:String>
+
+    <sys:String x:Key="Status.WindowsFound">창 {0}개를 찾았습니다</sys:String>
+    <sys:String x:Key="Status.NoMatch">프로필 '{0}'과 일치하는 창을 찾지 못했습니다</sys:String>
+    <sys:String x:Key="Status.Applied">프로필 '{0}'을(를) 창 {1}개에 적용했습니다</sys:String>
+    <sys:String x:Key="Status.AppliedWithFailures">프로필 '{0}': {1}개 적용, {2}개 실패</sys:String>
+    <sys:String x:Key="Status.ProfilesFromBackup">프로필 파일이 깨져 백업에서 불러왔습니다</sys:String>
+    <sys:String x:Key="Status.ProfilesUnreadable">프로필 파일을 읽지 못했습니다: {0}</sys:String>
+    <sys:String x:Key="Status.ProfilesSkipped">읽지 못한 프로필 {0}개를 건너뛰었습니다</sys:String>
+</ResourceDictionary>
