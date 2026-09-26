@@ -7,3 +7,7 @@ TestResults/
 *.user
 *.suo
 .vs/
+
+# 루트 .gitignore 의 profiles/ 는 로컬 사용자 프로필을 막으려는 규칙인데, Windows 에서는
+# 대소문자를 가리지 않아 Core 의 Profiles/ 소스 폴더까지 삼킨다(2026-09-27 실측). 소스는 되살린다.
+!/src/WindowResizer.Core/Profiles/
