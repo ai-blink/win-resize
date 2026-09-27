@@ -145,6 +145,11 @@
     <sys:String x:Key="Status.PositionRestored">Restored the position of profile '{0}': {1}</sys:String>
     <sys:String x:Key="Status.MaximizedMark">[maximized]</sys:String>
 
+    <!-- S4c: tray -->
+    <sys:String x:Key="Tray.Open">Open window</sys:String>
+    <sys:String x:Key="Tray.Exit">Exit program</sys:String>
+    <sys:String x:Key="Tray.HiddenNotice">WindowResizer keeps running in the system tray after the window closes. To quit, use Exit program in the tray menu or Ctrl+Q.</sys:String>
+
     <sys:String x:Key="Picker.Title">Choose a window</sys:String>
     <sys:String x:Key="Picker.Subtitle">Several windows match. Choose the one to take the position from.</sys:String>
 </ResourceDictionary>

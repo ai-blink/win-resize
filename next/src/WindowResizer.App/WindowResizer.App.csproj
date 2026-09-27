@@ -6,7 +6,16 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- 트레이 아이콘(NotifyIcon)만 쓴다. WPF 에는 트레이 API 가 없다. -->
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinForms 이름(Application, MessageBox, Button ...)이 WPF 와 겹치지 않게 전역 using 에서 뺀다.
+         WinForms 는 TrayIcon.cs 한 곳에서만 완전한 이름으로 쓴다. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WindowResizer.Core\WindowResizer.Core.csproj" />

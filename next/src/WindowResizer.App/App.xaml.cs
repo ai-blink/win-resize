@@ -38,14 +38,60 @@ public partial class App : Application
             document => Save(store, loaded.Source, document),
             new DialogService(Text),
             Text,
-            Shutdown);
+            Quit);
 
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
         if (notice is not null) viewModel.ShowStatus(notice);
 
         MainWindow = new MainWindow { DataContext = viewModel };
+        MainWindow.Closing += OnMainWindowClosing;
+        _tray = new TrayIcon(Text, ShowMainWindow, Quit);
         MainWindow.Show();
+    }
+
+    private TrayIcon? _tray;
+    private bool _quitting;
+
+    /// <summary>
+    /// 창 닫기(X, Alt+F4)는 트레이로 숨기기만 한다(D-020). 진짜 종료는 <see cref="Quit"/> 하나다 -
+    /// 메뉴 "종료"(Ctrl+Q)와 트레이 "프로그램 종료"가 같은 경로다. PyQt5 는 메뉴 "종료"도 숨기기만 했다.
+    /// </summary>
+    private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_quitting || _tray is null) return;
+        e.Cancel = true;
+        MainWindow!.Hide();
+        _tray.NotifyHiddenOnce();
+    }
+
+    private void ShowMainWindow()
+    {
+        var window = MainWindow!;
+        window.Show();
+        if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+        window.Activate();
+    }
+
+    private void Quit()
+    {
+        _quitting = true;
+        _tray?.Dispose();
+        _tray = null;
+        Shutdown();
+    }
+
+    /// <summary>로그오프나 종료 때는 숨기지 말고 끝낸다. 숨기려고 닫기를 취소하면 Windows 종료를 막는다.</summary>
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        _quitting = true;
+        base.OnSessionEnding(e);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _tray?.Dispose();
+        base.OnExit(e);
     }
 
     private string Text(string key) => TryFindResource(key) as string ?? key;

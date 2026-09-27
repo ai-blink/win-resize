@@ -145,6 +145,11 @@
     <sys:String x:Key="Status.PositionRestored">프로필 '{0}' 위치를 되돌렸습니다: {1}</sys:String>
     <sys:String x:Key="Status.MaximizedMark">[최대화]</sys:String>
 
+    <!-- S4c: 트레이 -->
+    <sys:String x:Key="Tray.Open">창 열기</sys:String>
+    <sys:String x:Key="Tray.Exit">프로그램 종료</sys:String>
+    <sys:String x:Key="Tray.HiddenNotice">창을 닫아도 시스템 트레이에서 계속 실행됩니다. 끝내려면 트레이 메뉴의 프로그램 종료나 Ctrl+Q 를 쓰세요.</sys:String>
+
     <sys:String x:Key="Picker.Title">창 선택</sys:String>
     <sys:String x:Key="Picker.Subtitle">조건과 맞는 창이 여러 개입니다. 위치를 가져올 창을 고르세요.</sys:String>
 </ResourceDictionary>

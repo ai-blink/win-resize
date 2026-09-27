@@ -85,6 +85,25 @@ public sealed class ProjectWiringTests
             + string.Join(" / ", references));
     }
 
+    /// <summary>
+    /// WinForms 는 트레이 아이콘 하나 때문에 켰다(S4c). 다른 파일로 번지면 WPF 와 이름이 겹치고
+    /// 두 UI 프레임워크가 섞인다 - <c>TrayIcon.cs</c> 한 곳으로 묶어 둔다.
+    /// </summary>
+    [TestMethod]
+    public void WinForms_is_used_only_by_the_tray_icon()
+    {
+        var appDir = Path.Combine(RepoNextRoot(), "src", "WindowResizer.App");
+        var offenders = Directory.EnumerateFiles(appDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar)
+                     && !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
+            .Where(f => Path.GetFileName(f) != "TrayIcon.cs")
+            .Where(f => File.ReadAllText(f).Contains("System.Windows.Forms", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .ToList();
+
+        Assert.IsEmpty(offenders, "WinForms 를 쓰는 파일: " + string.Join(", ", offenders));
+    }
+
     [TestMethod]
     public void Lower_layers_do_not_reference_app()
     {
