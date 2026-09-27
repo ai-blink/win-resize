@@ -169,6 +169,7 @@ public sealed class MainViewModelTests
         public bool IsMaximized(nint window) => false;
         public bool IsMinimized(nint window) => false;
         public PixelRect? GetRect(nint window) => null;
+        public WindowPlacement? GetPlacement(nint window) => null;
         public bool Restore(nint window) => true;
         public bool Maximize(nint window) => true;
         public bool Minimize(nint window) => true;

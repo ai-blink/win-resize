@@ -83,6 +83,7 @@ public sealed class ProfileApplierTests
         public bool IsMaximized(nint window) => Maximized;
         public bool IsMinimized(nint window) => false;
         public PixelRect? GetRect(nint window) => null;
+        public WindowPlacement? GetPlacement(nint window) => null;
 
         public bool Restore(nint window) { Calls.Add("restore"); return RestoreSucceeds; }
         public bool Maximize(nint window) { Calls.Add("maximize"); return true; }

@@ -33,6 +33,34 @@ public sealed class Win32Windows : IWindowOperations
         return GetWindowRect(window, out var r) ? ToRect(r) : null;
     }
 
+    /// <summary>
+    /// <c>rcNormalPosition</c> 은 도구 창이 아니면 <b>작업 영역 좌표</b>다 - 작업 표시줄이 왼쪽/위에
+    /// 있으면 화면 좌표와 그만큼 어긋난다. 창이 속한 모니터의 작업 영역 오프셋을 더해 화면 좌표로 바꾼다.
+    /// 최소화된 창도 <c>MonitorFromWindow</c> 는 최소화 전 위치의 모니터를 돌려준다.
+    /// </summary>
+    public WindowPlacement? GetPlacement(nint window)
+    {
+        using var _ = new DpiScope();
+        var p = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+        if (!GetWindowPlacement(window, ref p)) return null;
+
+        var normal = ToRect(p.rcNormalPosition);
+        if ((GetWindowLongPtr(window, GWL_EXSTYLE) & WS_EX_TOOLWINDOW) == 0)
+        {
+            var info = new MONITORINFOEX { cbSize = Marshal.SizeOf<MONITORINFOEX>(), szDevice = "" };
+            var monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+            if (monitor != 0 && GetMonitorInfoW(monitor, ref info))
+            {
+                normal = normal with
+                {
+                    X = normal.X + info.rcWork.Left - info.rcMonitor.Left,
+                    Y = normal.Y + info.rcWork.Top - info.rcMonitor.Top,
+                };
+            }
+        }
+        return new WindowPlacement(normal, (p.flags & WPF_RESTORETOMAXIMIZED) != 0);
+    }
+
     public bool Restore(nint window)
     {
         using var _ = new DpiScope();

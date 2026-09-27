@@ -59,6 +59,34 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetMonitorInfoW(nint monitor, ref MONITORINFOEX info);
 
+    public const int WS_EX_TOOLWINDOW = 0x00000080;
+    public const uint WPF_RESTORETOMAXIMIZED = 0x0002;
+    public const uint MONITOR_DEFAULTTONEAREST = 0x2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X, Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WINDOWPLACEMENT
+    {
+        public int length;
+        public uint flags;
+        public uint showCmd;
+        public POINT ptMinPosition;
+        public POINT ptMaxPosition;
+        public RECT rcNormalPosition;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetWindowPlacement(nint hwnd, ref WINDOWPLACEMENT placement);
+
+    [DllImport("user32.dll")]
+    public static extern nint MonitorFromWindow(nint hwnd, uint flags);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern int GetWindowTextW(nint hwnd, StringBuilder text, int maxCount);
 

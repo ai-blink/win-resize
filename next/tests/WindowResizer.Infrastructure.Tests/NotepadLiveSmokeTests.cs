@@ -57,6 +57,46 @@ public sealed class NotepadLiveSmokeTests
         }
     }
 
+    /// <summary>
+    /// D-021 게이트: 최대화/최소화된 실제 창을 떠도 일반 위치가 나오고 -32000 이 나오지 않는다.
+    /// 작업 영역 좌표 변환이 틀리면 일반 상태의 캡처와 최대화 상태의 캡처가 어긋난다.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Gate")]
+    [TestCategory("Live")]
+    public void Capture_returns_the_normal_placement_of_a_real_window_in_every_state()
+    {
+        var primary = Windows.EnumerateMonitors().Single(m => m.IsPrimary);
+        var target = new PixelRect(primary.WorkArea.X + 140, primary.WorkArea.Y + 110, 760, 540);
+
+        using var notepad = OwnNotepad.Launch(Windows);
+        var handle = notepad.Handle;
+        Assert.AreEqual(ApplyOutcome.Applied, new ProfileApplier(Windows).Apply(handle,
+            new WindowConfiguration { X = target.X, Y = target.Y, Width = target.Width, Height = target.Height }));
+        AssertLandsOn(handle, target, "캡처 준비");
+
+        AssertCaptured(handle, target, maximized: false, "일반 상태");
+
+        Assert.IsTrue(Windows.Minimize(handle), "스모크 준비: 최소화 실패");
+        AssertCaptured(handle, target, maximized: false, "일반에서 최소화");
+
+        Assert.IsTrue(Windows.Restore(handle), "스모크 준비: 복원 실패");
+        Assert.IsTrue(Windows.Maximize(handle), "스모크 준비: 최대화 실패");
+        AssertCaptured(handle, target, maximized: true, "최대화");
+
+        Assert.IsTrue(Windows.Minimize(handle), "스모크 준비: 최소화 실패");
+        AssertCaptured(handle, target, maximized: true, "최대화에서 최소화");
+    }
+
+    private static void AssertCaptured(nint handle, PixelRect expected, bool maximized, string step)
+    {
+        var result = WindowCapture.Capture(Windows, handle);
+        Assert.IsTrue(result.Succeeded, $"{step}: 캡처 거절 {result.Refusal}");
+        var c = result.Configuration!;
+        Assert.AreEqual(expected, new PixelRect(c.X, c.Y, c.Width, c.Height), $"{step}: 사각형");
+        Assert.AreEqual(maximized, c.IsMaximized, $"{step}: 최대화 플래그");
+    }
+
     private static void AssertLandsOn(nint handle, PixelRect expected, string step)
     {
         // 다른 프로세스 창이라 반영이 한 박자 늦을 수 있다. 짧게 기다리며 잰다.

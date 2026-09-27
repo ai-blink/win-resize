@@ -11,6 +11,12 @@ public readonly record struct PixelRect(int X, int Y, int Width, int Height)
 }
 
 /// <summary>
+/// 창이 최대화/최소화돼 있어도 남아 있는 "일반" 위치. <see cref="NormalRect"/> 는 화면 좌표로 바꾼 값이다.
+/// <see cref="RestoresToMaximized"/> 는 최소화된 창이 복원되면 최대화로 돌아가는가다.
+/// </summary>
+public readonly record struct WindowPlacement(PixelRect NormalRect, bool RestoresToMaximized);
+
+/// <summary>
 /// Core 가 창을 다루기 위해 필요한 것. 구현은 Infrastructure 의 Win32 어댑터다.
 /// 창 핸들은 <see cref="nint"/> 로만 다룬다 - Core 는 그것이 HWND 라는 것 말고는 모른다.
 ///
@@ -23,6 +29,7 @@ public interface IWindowOperations
     bool IsMaximized(nint window);
     bool IsMinimized(nint window);
     PixelRect? GetRect(nint window);
+    WindowPlacement? GetPlacement(nint window);
 
     bool Restore(nint window);
     bool Maximize(nint window);
