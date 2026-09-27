@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
 using WindowResizer.App.Mvvm;
+using WindowResizer.Core.Profiles;
 using WindowResizer.Core.Windowing;
 
 namespace WindowResizer.App.ViewModels;
@@ -23,15 +24,21 @@ public enum AppPage
 /// - 선택된 창은 <see cref="SelectedWindow"/> 하나가 소유한다. 목록을 새로 열 때마다 hwnd 로 한 번
 ///   재검증하고, 없으면 비운다. PyQt5 는 이 값을 8곳에서 따로 다시 정했다.
 /// - 프로필 적용은 창 선택을 요구하지 않는다. <b>먼저 목록을 새로 열고</b> 새 목록에서 맞는 창 전부에 적용한다.
-/// - 버튼, 메뉴, Enter 가 같은 <see cref="ApplyProfileCommand"/> 를 쓴다.
-///
-/// 이 슬라이스는 프로필 파일을 읽기만 한다. 적용 횟수 갱신과 저장은 편집/삭제와 함께 들어온다.
+/// - 버튼, 메뉴, 키가 같은 명령을 쓴다.
+/// - 프로필 문서(<see cref="ProfileDocument"/>)는 이 클래스 하나가 소유한다. <see cref="Profiles"/> 는 그 표시용
+///   사본이고, 바꿀 때는 <see cref="Commit"/> 한 곳을 거친다: 바꾸고 -> 저장하고 -> 실패하면 되돌린다.
+///   저장에 실패한 변경이 화면에만 남아 "저장된 줄 아는" 상태를 만들지 않는다.
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
     private readonly Func<IReadOnlyList<WindowRow>> _enumerateWindows;
+    private readonly IWindowOperations _windows;
     private readonly ProfileApplier _applier;
+    private readonly ProfileDocument _document;
+    private readonly Func<ProfileDocument, string?> _save;
+    private readonly IDialogService _dialogs;
     private readonly Func<string, string> _text;
+    private readonly Func<double> _now;
 
     private AppPage _page = AppPage.WindowsAndProfiles;
     private WindowRow? _selectedWindow;
@@ -40,25 +47,39 @@ public sealed class MainViewModel : ObservableObject
     private string _status = "";
 
     /// <param name="enumerateWindows">사용자 창 목록(Infrastructure <c>EnumerateUserWindows</c>).</param>
+    /// <param name="document">읽어 온 프로필 문서. 이 뒤로는 이 ViewModel 만 바꾼다.</param>
+    /// <param name="save">문서 저장. 성공하면 null, 실패하면 사용자에게 보일 원인.</param>
     /// <param name="text">문자열 리소스 조회. 키 -> 표시 문자열.</param>
     /// <param name="exit">명시적 종료. 메뉴 "종료"(Ctrl+Q)는 트레이로 숨기지 않고 진짜 끝낸다(D-020).</param>
+    /// <param name="now">Unix epoch 초. 테스트가 고정한다.</param>
     public MainViewModel(
         Func<IReadOnlyList<WindowRow>> enumerateWindows,
         IWindowOperations windows,
-        IEnumerable<ProfileRow> profiles,
+        ProfileDocument document,
+        Func<ProfileDocument, string?> save,
+        IDialogService dialogs,
         Func<string, string> text,
-        Action? exit = null)
+        Action? exit = null,
+        Func<double>? now = null)
     {
         _enumerateWindows = enumerateWindows;
+        _windows = windows;
         _applier = new ProfileApplier(windows);
+        _document = document;
+        _save = save;
+        _dialogs = dialogs;
         _text = text;
+        _now = now ?? (() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0);
 
-        Profiles = new ObservableCollection<ProfileRow>(profiles);
+        Profiles = new ObservableCollection<ProfileRow>(document.Profiles.Select(p => new ProfileRow(p.Key, p.Value)));
         WindowsView = CollectionViewSource.GetDefaultView(Windows);
         WindowsView.Filter = MatchesSearch;
 
         RefreshCommand = new RelayCommand(RefreshWindows);
         ApplyProfileCommand = new RelayCommand(ApplySelectedProfile, () => SelectedProfile is not null);
+        NewProfileFromWindowCommand = new RelayCommand(NewProfileFromSelectedWindow, () => SelectedWindow is not null);
+        EditProfileCommand = new RelayCommand(EditSelectedProfile, () => SelectedProfile is not null);
+        DeleteProfileCommand = new RelayCommand(DeleteSelectedProfile, () => SelectedProfile is not null);
         NavigateCommand = new ParameterCommand<AppPage>(page => Page = page);
         ExitCommand = new RelayCommand(exit ?? (() => { }));
     }
@@ -72,6 +93,9 @@ public sealed class MainViewModel : ObservableObject
 
     public ICommand RefreshCommand { get; }
     public ICommand ApplyProfileCommand { get; }
+    public ICommand NewProfileFromWindowCommand { get; }
+    public ICommand EditProfileCommand { get; }
+    public ICommand DeleteProfileCommand { get; }
     public ICommand NavigateCommand { get; }
     public ICommand ExitCommand { get; }
 
@@ -147,9 +171,99 @@ public sealed class MainViewModel : ObservableObject
 
         // 옮긴 좌표가 목록에 보이게 다시 연다.
         RefreshWindows();
-        Status = failed == 0
+        var message = failed == 0
             ? string.Format(_text("Status.Applied"), row.Name, applied)
             : string.Format(_text("Status.AppliedWithFailures"), row.Name, applied, failed);
+
+        // 적용 횟수는 창은 이미 옮겼으니 저장 실패가 적용을 되돌리지 않는다. 실패만 알린다.
+        if (applied > 0 && !Commit(() => row.Profile.RecordApplied(applied, _now()), row.Id)) return;
+        Status = message;
+    }
+
+    /// <summary>
+    /// 선택한 창을 새 프로필로 저장한다(Ctrl+S, D-021). 캡처 규칙은 Core <see cref="WindowCapture"/> 하나다.
+    /// 미리 채운 편집 창을 "위치와 크기" 페이지로 열고, 저장을 눌렀을 때만 문서에 넣는다.
+    /// </summary>
+    public void NewProfileFromSelectedWindow()
+    {
+        var window = SelectedWindow;
+        if (window is null) return;
+
+        var capture = WindowCapture.Capture(_windows, window.Handle);
+        if (!capture.Succeeded)
+        {
+            Status = string.Format(_text("Status.CaptureRefused"), window.Info.Title, _text("Capture." + capture.Refusal));
+            return;
+        }
+
+        var name = _document.UniqueName(Profile.ProgramName(window.Info));
+        var editor = CreateEditor(Profile.FromWindow(window.Info, capture.Configuration!, name), null, EditorPage.Position);
+        if (!_dialogs.ShowEditor(editor)) return;
+
+        string? id = null;
+        if (Commit(() => id = _document.Add(editor.Profile, _now()), () => id))
+            Status = string.Format(_text("Status.ProfileCreated"), editor.Profile.Name);
+    }
+
+    public void EditSelectedProfile()
+    {
+        var row = SelectedProfile;
+        if (row is null) return;
+
+        var editor = CreateEditor(ProfileJson.Clone(row.Profile), row.Id, EditorPage.General);
+        if (!_dialogs.ShowEditor(editor)) return;
+
+        if (Commit(() => _document.Replace(row.Id, editor.Profile, _now()), row.Id))
+            Status = string.Format(_text("Status.ProfileSaved"), editor.Profile.Name);
+    }
+
+    public void DeleteSelectedProfile()
+    {
+        var row = SelectedProfile;
+        if (row is null || !_dialogs.ConfirmDelete(row.Name)) return;
+
+        if (Commit(() => _document.Remove(row.Id), (string?)null))
+            Status = string.Format(_text("Status.ProfileDeleted"), row.Name);
+    }
+
+    public ProfileEditorViewModel CreateEditor(Profile working, string? id, EditorPage page) =>
+        new(working, page,
+            name => _document.Profiles.Any(p => p.Key != id &&
+                string.Equals(p.Value.Name.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)),
+            _enumerateWindows, _windows, _dialogs, _text);
+
+    private bool Commit(Action change, string? selectId) => Commit(change, () => selectId);
+
+    /// <summary>
+    /// 문서를 바꾸는 유일한 길. 바꾸기 전 문서를 직렬화해 두고, 저장이 실패하면 그 상태로 되돌린다.
+    /// 성공하든 실패하든 목록은 문서에서 다시 만든다 - 행이 들고 있는 값이 문서와 어긋나지 않게.
+    /// </summary>
+    private bool Commit(Action change, Func<string?> selectId)
+    {
+        var before = ProfileJson.Serialize(_document);
+        change();
+
+        var error = _save(_document);
+        if (error is not null)
+        {
+            var restored = ProfileJson.Parse(before).Document;
+            _document.Profiles.Clear();
+            _document.Profiles.AddRange(restored.Profiles);
+            RebuildProfiles(SelectedProfile?.Id);
+            Status = string.Format(_text("Status.SaveFailed"), error);
+            return false;
+        }
+
+        RebuildProfiles(selectId());
+        return true;
+    }
+
+    private void RebuildProfiles(string? selectId)
+    {
+        Profiles.Clear();
+        foreach (var (id, profile) in _document.Profiles) Profiles.Add(new ProfileRow(id, profile));
+        OnPropertyChanged(nameof(ProfileCount));
+        SelectedProfile = selectId is null ? null : Profiles.FirstOrDefault(p => p.Id == selectId);
     }
 
     private bool MatchesSearch(object item)

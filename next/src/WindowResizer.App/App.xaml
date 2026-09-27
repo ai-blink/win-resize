@@ -26,11 +26,14 @@
             <SolidColorBrush x:Key="AppAccentHoverBrush" Color="#1F5FCE" />
             <SolidColorBrush x:Key="AppAccentSoftBrush" Color="#EAF1FF" />
             <SolidColorBrush x:Key="AppOnAccentBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="AppDangerBrush" Color="#C42B1C" />
 
             <mvvm:EqualsConverter x:Key="EqualsConverter" />
             <mvvm:EqualsToVisibilityConverter x:Key="EqualsToVisibility" />
             <mvvm:YesNoConverter x:Key="YesNo" />
             <mvvm:TargetTextConverter x:Key="TargetText" />
+            <mvvm:ResourceTextConverter x:Key="ResourceText" />
+            <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
             <Style TargetType="{x:Type Window}">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
@@ -160,6 +163,37 @@
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
                 <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <!-- 편집 창(계획 4.4, magnifier SettingsWindow 구조). 사이드바 항목은 메인과 같은 모양, 그룹만 다르다. -->
+            <Style x:Key="EditorNavItemStyle" TargetType="{x:Type RadioButton}" BasedOn="{StaticResource NavItemStyle}">
+                <Setter Property="GroupName" Value="EditorNavigation" />
+            </Style>
+            <Style x:Key="PageTitleStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontSize" Value="24" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+            </Style>
+            <Style x:Key="PageSubtitleStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="Margin" Value="0,7,0,22" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+            </Style>
+            <Style x:Key="FieldLabelStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Margin" Value="0,0,0,6" />
+                <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+            </Style>
+            <Style x:Key="FieldHintStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Margin" Value="0,4,0,18" />
+                <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+            </Style>
+            <Style TargetType="{x:Type CheckBox}">
+                <Setter Property="MinHeight" Value="36" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
             </Style>
 
             <Style TargetType="{x:Type TextBox}">

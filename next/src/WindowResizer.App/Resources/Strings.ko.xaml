@@ -54,4 +54,85 @@
     <sys:String x:Key="Status.ProfilesFromBackup">프로필 파일이 깨져 백업에서 불러왔습니다</sys:String>
     <sys:String x:Key="Status.ProfilesUnreadable">프로필 파일을 읽지 못했습니다: {0}</sys:String>
     <sys:String x:Key="Status.ProfilesSkipped">읽지 못한 프로필 {0}개를 건너뛰었습니다</sys:String>
+
+    <!-- S4b: 프로필 만들기, 편집, 삭제 -->
+    <sys:String x:Key="Menu.NewFromWindow">선택한 창을 새 프로필로 저장</sys:String>
+    <sys:String x:Key="Menu.Edit">프로필 편집</sys:String>
+    <sys:String x:Key="Menu.Delete">프로필 삭제</sys:String>
+    <sys:String x:Key="Action.NewFromWindow">새 프로필로 저장</sys:String>
+    <sys:String x:Key="Action.NewFromWindowHint">선택한 창의 위치와 크기로 새 프로필을 만듭니다 (Ctrl+S)</sys:String>
+    <sys:String x:Key="Action.Edit">편집</sys:String>
+    <sys:String x:Key="Action.EditHint">선택한 프로필 편집 (더블클릭)</sys:String>
+    <sys:String x:Key="Action.Delete">삭제</sys:String>
+
+    <sys:String x:Key="Common.Cancel">취소</sys:String>
+    <sys:String x:Key="Common.Save">저장</sys:String>
+    <sys:String x:Key="Common.Select">선택</sys:String>
+
+    <sys:String x:Key="Confirm.Delete.Title">프로필 삭제</sys:String>
+    <sys:String x:Key="Confirm.Delete">프로필 '{0}'을(를) 삭제할까요? 되돌릴 수 없습니다.</sys:String>
+
+    <sys:String x:Key="Status.CaptureRefused">'{0}' 창의 위치를 가져오지 못했습니다: {1}</sys:String>
+    <sys:String x:Key="Capture.None">문제 없음</sys:String>
+    <sys:String x:Key="Capture.WindowGone">창이 이미 닫혔습니다</sys:String>
+    <sys:String x:Key="Capture.NoPlacement">창 위치를 읽을 수 없습니다</sys:String>
+    <sys:String x:Key="Capture.Unplaceable">화면 밖 좌표라 저장할 수 없습니다</sys:String>
+    <sys:String x:Key="Status.ProfileCreated">프로필 '{0}'을(를) 만들었습니다</sys:String>
+    <sys:String x:Key="Status.ProfileSaved">프로필 '{0}'을(를) 저장했습니다</sys:String>
+    <sys:String x:Key="Status.ProfileDeleted">프로필 '{0}'을(를) 삭제했습니다</sys:String>
+    <sys:String x:Key="Status.SaveFailed">저장하지 못해 변경을 되돌렸습니다: {0}</sys:String>
+    <sys:String x:Key="Status.ReadOnlyProfiles">프로필 파일을 읽지 못해 읽기 전용입니다. 파일을 고친 뒤 다시 시작하세요</sys:String>
+
+    <sys:String x:Key="Editor.Title">프로필 편집</sys:String>
+    <sys:String x:Key="Editor.Nav.General">일반</sys:String>
+    <sys:String x:Key="Editor.Nav.Target">대상 창</sys:String>
+    <sys:String x:Key="Editor.Nav.Position">위치와 크기</sys:String>
+    <sys:String x:Key="Editor.Nav.RunMethod">실행 방법</sys:String>
+    <sys:String x:Key="Editor.Nav.Advanced">고급</sys:String>
+    <sys:String x:Key="Editor.General.Subtitle">프로필 이름과 사용 여부입니다.</sys:String>
+    <sys:String x:Key="Editor.Name">이름</sys:String>
+    <sys:String x:Key="Editor.Description">설명</sys:String>
+    <sys:String x:Key="Editor.Enabled">사용함</sys:String>
+    <sys:String x:Key="Editor.Enabled.Hint">끄면 이 프로필은 어떤 창과도 일치하지 않습니다.</sys:String>
+    <sys:String x:Key="Editor.Target.Subtitle">이 프로필을 적용할 창을 찾는 방법입니다.</sys:String>
+    <sys:String x:Key="Editor.Strategy">매칭 방식</sys:String>
+    <sys:String x:Key="Editor.ExecutablePath">실행 파일 경로</sys:String>
+    <sys:String x:Key="Editor.ProcessName">프로세스 이름</sys:String>
+    <sys:String x:Key="Editor.TitlePattern">창 제목 패턴</sys:String>
+    <sys:String x:Key="Editor.Target.Hint">고른 방식이 쓰는 칸만 열립니다. 실행 파일 경로는 프로그램을 다시 켜도 맞습니다.</sys:String>
+    <sys:String x:Key="Editor.Position.Subtitle">좌표는 화면 픽셀입니다. 보조 모니터가 왼쪽이나 위에 있으면 음수일 수 있습니다.</sys:String>
+    <sys:String x:Key="Editor.Maximized">최대화로 적용</sys:String>
+    <sys:String x:Key="Editor.CaptureFromWindow">현재 창에서 가져오기</sys:String>
+    <sys:String x:Key="Editor.CaptureFromWindow.Hint">대상 창 조건과 맞는 창의 지금 위치와 크기를 채웁니다. 최대화나 최소화된 창은 원래 위치를 가져옵니다.</sys:String>
+    <sys:String x:Key="Editor.Capture.NoMatch">대상 창 조건과 맞는 창이 없습니다</sys:String>
+    <sys:String x:Key="Editor.Capture.Done">'{0}' 창에서 위치와 크기를 가져왔습니다</sys:String>
+    <sys:String x:Key="Editor.RunMethod.Subtitle">이 프로필을 적용하는 방법입니다. 목록의 적용 버튼은 항상 쓸 수 있습니다.</sys:String>
+    <sys:String x:Key="Editor.HotkeyEnabled">단축키 사용</sys:String>
+    <sys:String x:Key="Editor.HotkeyCombination">단축키</sys:String>
+    <sys:String x:Key="Editor.HotkeyCombination.Hint">예: Ctrl+Alt+E. 수정키는 Ctrl, Alt, Shift, Win 입니다.</sys:String>
+    <sys:String x:Key="Editor.OverlayEnabled">오버레이 버튼 사용</sys:String>
+    <sys:String x:Key="Editor.OverlayEnabled.Hint">화면에 떠 있는 버튼으로 이 프로필을 적용합니다.</sys:String>
+    <sys:String x:Key="Editor.AutoApply">자동 적용</sys:String>
+    <sys:String x:Key="Editor.AutoApply.Hint">맞는 창이 새로 뜨면 자동으로 적용합니다.</sys:String>
+    <sys:String x:Key="Editor.Advanced.Subtitle">적용한 뒤 창을 어떻게 유지할지 정합니다.</sys:String>
+    <sys:String x:Key="Editor.LockPosition">위치 잠금</sys:String>
+    <sys:String x:Key="Editor.LockPosition.Hint">창이 옮겨지면 프로필 위치로 되돌립니다.</sys:String>
+    <sys:String x:Key="Editor.MouseConstraint">마우스 제한</sys:String>
+    <sys:String x:Key="Editor.MouseConstraint.Hint">창이 앞에 있는 동안 마우스를 창 안에 둡니다.</sys:String>
+    <sys:String x:Key="Editor.AlwaysOnTop">항상 위에 표시</sys:String>
+    <sys:String x:Key="Editor.Error.NameEmpty">이름을 입력하세요</sys:String>
+    <sys:String x:Key="Editor.Error.NameTaken">같은 이름의 프로필이 이미 있습니다</sys:String>
+    <sys:String x:Key="Editor.Error.PatternEmpty">고른 매칭 방식에 쓸 값을 입력하세요</sys:String>
+    <sys:String x:Key="Editor.Error.SizeInvalid">폭과 높이는 0보다 커야 합니다</sys:String>
+    <sys:String x:Key="Editor.Error.HotkeyInvalid">단축키 형식이 올바르지 않습니다 (예: Ctrl+Alt+E)</sys:String>
+
+    <sys:String x:Key="Strategy.ExecutablePath">실행 파일 경로</sys:String>
+    <sys:String x:Key="Strategy.ProcessName">프로세스 이름 포함</sys:String>
+    <sys:String x:Key="Strategy.TitleContains">창 제목 포함</sys:String>
+    <sys:String x:Key="Strategy.ExactTitle">창 제목 일치</sys:String>
+    <sys:String x:Key="Strategy.TitleRegex">창 제목 정규식</sys:String>
+    <sys:String x:Key="Strategy.Combined">결합 (채운 조건 모두)</sys:String>
+
+    <sys:String x:Key="Picker.Title">창 선택</sys:String>
+    <sys:String x:Key="Picker.Subtitle">조건과 맞는 창이 여러 개입니다. 위치를 가져올 창을 고르세요.</sys:String>
 </ResourceDictionary>

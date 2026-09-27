@@ -13,6 +13,58 @@ public sealed class ProfileDocument
     public double CreatedAt { get; set; }
 
     public List<KeyValuePair<string, Profile>> Profiles { get; } = new();
+
+    public Profile? Find(string id) => Profiles.FirstOrDefault(p => p.Key == id).Value;
+
+    /// <summary>
+    /// 끝에 붙이고 ID 를 돌려준다. ID 규칙은 Python <c>Profile._generate_id</c> 와 같다:
+    /// <c>sha256("이름_생성시각")</c> 앞 16자리. 겹치면(같은 초에 같은 이름) 뒤에 번호를 섞어 다시 만든다.
+    /// </summary>
+    public string Add(Profile profile, double now)
+    {
+        if (profile.CreatedAt == 0) profile.CreatedAt = now;
+        profile.ModifiedAt = now;
+
+        var seed = profile.Name + "_" + profile.CreatedAt.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+        var id = HashId(seed);
+        for (var n = 2; Find(id) is not null; n++) id = HashId(seed + "_" + n);
+
+        Profiles.Add(new(id, profile));
+        return id;
+    }
+
+    /// <summary>같은 자리(순서 유지)에 바꿔 넣는다. 없는 ID 면 false.</summary>
+    public bool Replace(string id, Profile profile, double now)
+    {
+        var index = Profiles.FindIndex(p => p.Key == id);
+        if (index < 0) return false;
+        profile.ModifiedAt = now;
+        Profiles[index] = new(id, profile);
+        return true;
+    }
+
+    public bool Remove(string id) => Profiles.RemoveAll(p => p.Key == id) > 0;
+
+    /// <summary>
+    /// 이름이 겹치지 않게 한다(D-021 결정 2): <c>Blender</c> 가 있으면 <c>Blender (2)</c>, <c>Blender (3)</c> ...
+    /// 대소문자는 무시한다. <paramref name="exceptId"/> 는 편집 중인 자기 자신이다.
+    /// </summary>
+    public string UniqueName(string baseName, string? exceptId = null)
+    {
+        bool Taken(string name) => Profiles.Any(p => p.Key != exceptId &&
+            string.Equals(p.Value.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
+
+        var trimmed = baseName.Trim();
+        if (!Taken(trimmed)) return trimmed;
+        for (var n = 2; ; n++)
+        {
+            var candidate = $"{trimmed} ({n})";
+            if (!Taken(candidate)) return candidate;
+        }
+    }
+
+    private static string HashId(string seed) =>
+        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(seed)))[..16];
 }
 
 /// <summary>한 프로필을 읽다 실패한 기록. Python 과 같이 그 프로필만 건너뛰고 나머지는 읽는다.</summary>
@@ -95,6 +147,13 @@ public static class ProfileJson
 
         return new ProfileLoadResult(document, errors);
     }
+
+    /// <summary>
+    /// 깊은 복사. 편집 창은 복사본을 고치고 저장할 때만 문서에 넣는다 - 취소하면 원본이 그대로다.
+    /// 직렬화를 거치므로 모르는 키(<see cref="Profile.Extra"/>)도 같이 복사된다.
+    /// </summary>
+    public static Profile Clone(Profile profile) =>
+        JsonSerializer.Deserialize<Profile>(JsonSerializer.Serialize(profile, Options), Options)!;
 
     public static string Serialize(ProfileDocument document)
     {

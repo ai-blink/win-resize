@@ -54,4 +54,85 @@
     <sys:String x:Key="Status.ProfilesFromBackup">The profile file was damaged; loaded the backup</sys:String>
     <sys:String x:Key="Status.ProfilesUnreadable">Could not read the profile file: {0}</sys:String>
     <sys:String x:Key="Status.ProfilesSkipped">Skipped {0} unreadable profiles</sys:String>
+
+    <!-- S4b: create, edit, delete profiles -->
+    <sys:String x:Key="Menu.NewFromWindow">Save selected window as new profile</sys:String>
+    <sys:String x:Key="Menu.Edit">Edit profile</sys:String>
+    <sys:String x:Key="Menu.Delete">Delete profile</sys:String>
+    <sys:String x:Key="Action.NewFromWindow">Save as new profile</sys:String>
+    <sys:String x:Key="Action.NewFromWindowHint">Create a profile from the selected window's position and size (Ctrl+S)</sys:String>
+    <sys:String x:Key="Action.Edit">Edit</sys:String>
+    <sys:String x:Key="Action.EditHint">Edit the selected profile (double-click)</sys:String>
+    <sys:String x:Key="Action.Delete">Delete</sys:String>
+
+    <sys:String x:Key="Common.Cancel">Cancel</sys:String>
+    <sys:String x:Key="Common.Save">Save</sys:String>
+    <sys:String x:Key="Common.Select">Select</sys:String>
+
+    <sys:String x:Key="Confirm.Delete.Title">Delete profile</sys:String>
+    <sys:String x:Key="Confirm.Delete">Delete profile '{0}'? This cannot be undone.</sys:String>
+
+    <sys:String x:Key="Status.CaptureRefused">Could not read the position of '{0}': {1}</sys:String>
+    <sys:String x:Key="Capture.None">No problem</sys:String>
+    <sys:String x:Key="Capture.WindowGone">the window has closed</sys:String>
+    <sys:String x:Key="Capture.NoPlacement">the window position is not readable</sys:String>
+    <sys:String x:Key="Capture.Unplaceable">the coordinates are off screen</sys:String>
+    <sys:String x:Key="Status.ProfileCreated">Created profile '{0}'</sys:String>
+    <sys:String x:Key="Status.ProfileSaved">Saved profile '{0}'</sys:String>
+    <sys:String x:Key="Status.ProfileDeleted">Deleted profile '{0}'</sys:String>
+    <sys:String x:Key="Status.SaveFailed">Could not save; the change was undone: {0}</sys:String>
+    <sys:String x:Key="Status.ReadOnlyProfiles">The profile file could not be read, so profiles are read-only. Fix the file and restart</sys:String>
+
+    <sys:String x:Key="Editor.Title">Edit profile</sys:String>
+    <sys:String x:Key="Editor.Nav.General">General</sys:String>
+    <sys:String x:Key="Editor.Nav.Target">Target window</sys:String>
+    <sys:String x:Key="Editor.Nav.Position">Position and size</sys:String>
+    <sys:String x:Key="Editor.Nav.RunMethod">How to run</sys:String>
+    <sys:String x:Key="Editor.Nav.Advanced">Advanced</sys:String>
+    <sys:String x:Key="Editor.General.Subtitle">The profile name and whether it is in use.</sys:String>
+    <sys:String x:Key="Editor.Name">Name</sys:String>
+    <sys:String x:Key="Editor.Description">Description</sys:String>
+    <sys:String x:Key="Editor.Enabled">Enabled</sys:String>
+    <sys:String x:Key="Editor.Enabled.Hint">When off, this profile matches no window.</sys:String>
+    <sys:String x:Key="Editor.Target.Subtitle">How this profile finds the windows it applies to.</sys:String>
+    <sys:String x:Key="Editor.Strategy">Matching</sys:String>
+    <sys:String x:Key="Editor.ExecutablePath">Executable path</sys:String>
+    <sys:String x:Key="Editor.ProcessName">Process name</sys:String>
+    <sys:String x:Key="Editor.TitlePattern">Window title pattern</sys:String>
+    <sys:String x:Key="Editor.Target.Hint">Only the fields the chosen method uses are open. An executable path still matches after the program restarts.</sys:String>
+    <sys:String x:Key="Editor.Position.Subtitle">Coordinates are screen pixels. They can be negative when a secondary monitor is to the left or above.</sys:String>
+    <sys:String x:Key="Editor.Maximized">Apply maximized</sys:String>
+    <sys:String x:Key="Editor.CaptureFromWindow">Take from current window</sys:String>
+    <sys:String x:Key="Editor.CaptureFromWindow.Hint">Fills in the current position and size of the window that matches the target. Maximized or minimized windows give their normal position.</sys:String>
+    <sys:String x:Key="Editor.Capture.NoMatch">No window matches the target</sys:String>
+    <sys:String x:Key="Editor.Capture.Done">Took the position and size from '{0}'</sys:String>
+    <sys:String x:Key="Editor.RunMethod.Subtitle">How this profile is applied. The Apply button in the list always works.</sys:String>
+    <sys:String x:Key="Editor.HotkeyEnabled">Use a shortcut</sys:String>
+    <sys:String x:Key="Editor.HotkeyCombination">Shortcut</sys:String>
+    <sys:String x:Key="Editor.HotkeyCombination.Hint">For example Ctrl+Alt+E. Modifiers are Ctrl, Alt, Shift and Win.</sys:String>
+    <sys:String x:Key="Editor.OverlayEnabled">Use an overlay button</sys:String>
+    <sys:String x:Key="Editor.OverlayEnabled.Hint">Apply this profile from a button floating on screen.</sys:String>
+    <sys:String x:Key="Editor.AutoApply">Apply automatically</sys:String>
+    <sys:String x:Key="Editor.AutoApply.Hint">Apply when a matching window opens.</sys:String>
+    <sys:String x:Key="Editor.Advanced.Subtitle">How the window is kept after the profile is applied.</sys:String>
+    <sys:String x:Key="Editor.LockPosition">Lock position</sys:String>
+    <sys:String x:Key="Editor.LockPosition.Hint">Moves the window back when it is moved.</sys:String>
+    <sys:String x:Key="Editor.MouseConstraint">Mouse limit</sys:String>
+    <sys:String x:Key="Editor.MouseConstraint.Hint">Keeps the mouse inside the window while it is in front.</sys:String>
+    <sys:String x:Key="Editor.AlwaysOnTop">Always on top</sys:String>
+    <sys:String x:Key="Editor.Error.NameEmpty">Enter a name</sys:String>
+    <sys:String x:Key="Editor.Error.NameTaken">A profile with this name already exists</sys:String>
+    <sys:String x:Key="Editor.Error.PatternEmpty">Enter a value for the chosen matching method</sys:String>
+    <sys:String x:Key="Editor.Error.SizeInvalid">Width and height must be greater than 0</sys:String>
+    <sys:String x:Key="Editor.Error.HotkeyInvalid">The shortcut is not valid (for example Ctrl+Alt+E)</sys:String>
+
+    <sys:String x:Key="Strategy.ExecutablePath">Executable path</sys:String>
+    <sys:String x:Key="Strategy.ProcessName">Process name contains</sys:String>
+    <sys:String x:Key="Strategy.TitleContains">Title contains</sys:String>
+    <sys:String x:Key="Strategy.ExactTitle">Title is exactly</sys:String>
+    <sys:String x:Key="Strategy.TitleRegex">Title regular expression</sys:String>
+    <sys:String x:Key="Strategy.Combined">Combined (all filled fields)</sys:String>
+
+    <sys:String x:Key="Picker.Title">Choose a window</sys:String>
+    <sys:String x:Key="Picker.Subtitle">Several windows match. Choose the one to take the position from.</sys:String>
 </ResourceDictionary>

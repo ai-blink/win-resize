@@ -12,7 +12,7 @@ namespace WindowResizer.App;
 /// 실행 인자:
 ///   <c>--profiles-dir &lt;폴더&gt;</c>  프로필 폴더를 바꾼다. 기본은 실행 파일 옆 <c>profiles</c>(D-019).
 ///   개발 빌드는 <c>next\...\bin</c> 에서 뜨므로, 실사용 프로필을 보려면 <c>C:\app\profiles</c> 를 넘긴다.
-///   이 슬라이스는 프로필을 읽기만 하므로 원본을 바꾸지 않는다.
+///   S4b 부터 이 폴더에 <b>쓴다</b>(적용 횟수, 편집, 삭제). 개발 중에는 실사용 폴더가 아니라 사본을 넘긴다.
 /// </summary>
 public partial class App : Application
 {
@@ -34,7 +34,9 @@ public partial class App : Application
                 .Select(w => new WindowRow(w.Handle, w.Info, w.ProcessId, w.Rect, w.IsMaximized, w.IsMinimized))
                 .ToList(),
             windows,
-            loaded.Document.Profiles.Select(p => new ProfileRow(p.Key, p.Value)),
+            loaded.Document,
+            document => Save(store, loaded.Source, document),
+            new DialogService(Text),
             Text,
             Shutdown);
 
@@ -47,6 +49,16 @@ public partial class App : Application
     }
 
     private string Text(string key) => TryFindResource(key) as string ?? key;
+
+    /// <summary>
+    /// 본 파일과 백업을 둘 다 못 읽었으면 쓰지 않는다. 빈 문서를 저장하면 사용자의 깨진(그러나 고칠 수 있는)
+    /// 파일이 빈 파일로 바뀌고, 백업마저 그 깨진 파일로 밀린다.
+    /// </summary>
+    private string? Save(ProfileStore store, ProfileSource source, Core.Profiles.ProfileDocument document)
+    {
+        if (source == ProfileSource.Unreadable) return Text("Status.ReadOnlyProfiles");
+        return store.TrySave(document, out var error) ? null : error!.Message;
+    }
 
     private string? LoadNotice(ProfileStoreLoad loaded) => loaded.Source switch
     {

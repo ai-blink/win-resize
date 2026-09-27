@@ -35,6 +35,22 @@ public sealed class YesNoConverter : IValueConverter
         Binding.DoNothing;
 }
 
+/// <summary>
+/// 값을 리소스 문자열로. 키는 매개변수 접두 + 값 이름이다: <c>Strategy.</c> + <c>ExecutablePath</c>.
+/// 콤보 상자가 enum 값을 들고 있으면서 표시 언어를 따르게 한다.
+/// </summary>
+public sealed class ResourceTextConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var key = (parameter as string ?? "") + value;
+        return Application.Current?.TryFindResource(key) as string ?? value?.ToString() ?? "";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        Binding.DoNothing;
+}
+
 /// <summary>빈 대상 문자열을 리소스 "모든 창"으로.</summary>
 public sealed class TargetTextConverter : IValueConverter
 {

@@ -1,0 +1,33 @@
+<Window x:Class="WindowResizer.App.WindowPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource Picker.Title}"
+        Width="640" Height="400" MinWidth="480" MinHeight="300"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource AppSurfaceBrush}"
+        Foreground="{DynamicResource AppTextBrush}">
+
+    <!-- 조건에 맞는 창이 여러 개일 때 하나를 고른다(D-021). PyQt5 는 첫 창을 조용히 썼다. -->
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" Text="{DynamicResource Picker.Subtitle}" TextWrapping="Wrap" Margin="0,0,0,12"
+                   Foreground="{DynamicResource AppMutedTextBrush}" />
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="{DynamicResource Common.Cancel}" MinWidth="96" IsCancel="True" Margin="0,0,10,0" />
+            <Button Style="{StaticResource AccentButtonStyle}" Content="{DynamicResource Common.Select}" MinWidth="96"
+                    IsDefault="True" Click="OnSelect" />
+        </StackPanel>
+        <ListView x:Name="Candidates" SelectionMode="Single" MouseDoubleClick="OnSelect"
+                  AutomationProperties.Name="{DynamicResource Picker.Title}">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="{DynamicResource Col.WindowTitle}" Width="260" DisplayMemberBinding="{Binding DisplayTitle}" />
+                    <GridViewColumn Header="{DynamicResource Col.Pid}" Width="64" DisplayMemberBinding="{Binding ProcessId}" />
+                    <GridViewColumn Header="{DynamicResource Col.X}" Width="60" DisplayMemberBinding="{Binding Rect.X}" />
+                    <GridViewColumn Header="{DynamicResource Col.Y}" Width="60" DisplayMemberBinding="{Binding Rect.Y}" />
+                    <GridViewColumn Header="{DynamicResource Col.Width}" Width="60" DisplayMemberBinding="{Binding Rect.Width}" />
+                    <GridViewColumn Header="{DynamicResource Col.Height}" Width="60" DisplayMemberBinding="{Binding Rect.Height}" />
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</Window>

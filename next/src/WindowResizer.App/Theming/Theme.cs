@@ -33,6 +33,7 @@ public static class Theme
         ("AppAccentHoverBrush", "#1F5FCE", "#BED4FF"),
         ("AppAccentSoftBrush", "#EAF1FF", "#364662"),
         ("AppOnAccentBrush", "#FFFFFF", "#10151D"),
+        ("AppDangerBrush", "#C42B1C", "#FF99A4"),
     };
 
     public static ThemeMode Current { get; private set; }
@@ -85,5 +86,6 @@ public static class Theme
         resources["AppAccentHoverBrush"] = SystemColors.HotTrackBrush;
         resources["AppAccentSoftBrush"] = SystemColors.HighlightBrush;
         resources["AppOnAccentBrush"] = SystemColors.HighlightTextBrush;
+        resources["AppDangerBrush"] = SystemColors.WindowTextBrush;
     }
 }
