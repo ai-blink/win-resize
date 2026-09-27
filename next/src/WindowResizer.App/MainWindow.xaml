@@ -13,6 +13,7 @@
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="Q" Modifiers="Control" Command="{Binding ExitCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding NewProfileFromWindowCommand}" />
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
     </Window.InputBindings>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -36,6 +37,8 @@
                 <MenuItem Header="{DynamicResource Menu.Apply}" InputGestureText="Enter" Command="{Binding ApplyProfileCommand}" />
                 <MenuItem Header="{DynamicResource Menu.NewFromWindow}" InputGestureText="Ctrl+S" Command="{Binding NewProfileFromWindowCommand}" />
                 <MenuItem Header="{DynamicResource Menu.Edit}" Command="{Binding EditProfileCommand}" />
+                <MenuItem Header="{DynamicResource Menu.OverwritePosition}" Command="{Binding OverwritePositionCommand}" />
+                <MenuItem Header="{DynamicResource Menu.Undo}" InputGestureText="Ctrl+Z" Command="{Binding UndoCommand}" />
                 <Separator />
                 <MenuItem Header="{DynamicResource Menu.Delete}" InputGestureText="Del" Command="{Binding DeleteProfileCommand}" />
             </MenuItem>
@@ -197,6 +200,10 @@
                                 <Button Content="{DynamicResource Action.Delete}" MinWidth="88" Margin="0,0,10,0"
                                         Command="{Binding DeleteProfileCommand}"
                                         AutomationProperties.Name="{DynamicResource Action.Delete}" />
+                                <Button Content="{DynamicResource Action.OverwritePosition}" Margin="0,0,10,0"
+                                        Command="{Binding OverwritePositionCommand}"
+                                        ToolTip="{DynamicResource Action.OverwritePositionHint}"
+                                        AutomationProperties.Name="{DynamicResource Action.OverwritePosition}" />
                                 <Button Content="{DynamicResource Action.Edit}" MinWidth="88" Margin="0,0,10,0"
                                         Command="{Binding EditProfileCommand}"
                                         ToolTip="{DynamicResource Action.EditHint}"
@@ -257,7 +264,16 @@
         <!-- 상태 줄 -->
         <Border Grid.Row="2" Background="{DynamicResource AppCanvasBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
                 BorderThickness="0,1,0,0" Padding="16,6">
-            <TextBlock Text="{Binding Status}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="13" />
+            <DockPanel>
+                <!-- 위치 덮어쓰기 뒤에만 보인다(D-021 결정 3). 다음 변경이 저장되면 사라진다. -->
+                <Button DockPanel.Dock="Right" Content="{DynamicResource Action.Undo}" MinHeight="32" Padding="12,2"
+                        Command="{Binding UndoCommand}"
+                        Visibility="{Binding CanUndo, Converter={StaticResource BoolToVisibility}}"
+                        ToolTip="{DynamicResource Action.UndoHint}"
+                        AutomationProperties.Name="{DynamicResource Action.Undo}" />
+                <TextBlock Text="{Binding Status}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="13"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

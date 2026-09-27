@@ -133,6 +133,17 @@
     <sys:String x:Key="Strategy.TitleRegex">창 제목 정규식</sys:String>
     <sys:String x:Key="Strategy.Combined">결합 (채운 조건 모두)</sys:String>
 
+    <!-- S4b-4: 위치 덮어쓰기와 되돌리기 -->
+    <sys:String x:Key="Menu.OverwritePosition">선택한 창 위치로 프로필 덮어쓰기</sys:String>
+    <sys:String x:Key="Menu.Undo">위치 덮어쓰기 되돌리기</sys:String>
+    <sys:String x:Key="Action.OverwritePosition">위치 덮어쓰기</sys:String>
+    <sys:String x:Key="Action.OverwritePositionHint">선택한 창의 지금 위치와 크기를 선택한 프로필에 저장합니다. 나머지 설정은 그대로입니다</sys:String>
+    <sys:String x:Key="Action.Undo">되돌리기</sys:String>
+    <sys:String x:Key="Action.UndoHint">마지막 위치 덮어쓰기를 되돌립니다 (Ctrl+Z)</sys:String>
+    <sys:String x:Key="Status.PositionOverwritten">프로필 '{0}' 위치를 바꿨습니다. 이전: {1} / 새: {2}</sys:String>
+    <sys:String x:Key="Status.PositionRestored">프로필 '{0}' 위치를 되돌렸습니다: {1}</sys:String>
+    <sys:String x:Key="Status.MaximizedMark">[최대화]</sys:String>
+
     <sys:String x:Key="Picker.Title">창 선택</sys:String>
     <sys:String x:Key="Picker.Subtitle">조건과 맞는 창이 여러 개입니다. 위치를 가져올 창을 고르세요.</sys:String>
 </ResourceDictionary>

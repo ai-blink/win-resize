@@ -133,6 +133,17 @@
     <sys:String x:Key="Strategy.TitleRegex">Title regular expression</sys:String>
     <sys:String x:Key="Strategy.Combined">Combined (all filled fields)</sys:String>
 
+    <!-- S4b-4: overwrite position and undo -->
+    <sys:String x:Key="Menu.OverwritePosition">Overwrite profile with selected window position</sys:String>
+    <sys:String x:Key="Menu.Undo">Undo position overwrite</sys:String>
+    <sys:String x:Key="Action.OverwritePosition">Overwrite position</sys:String>
+    <sys:String x:Key="Action.OverwritePositionHint">Save the selected window's current position and size into the selected profile. Other settings stay as they are</sys:String>
+    <sys:String x:Key="Action.Undo">Undo</sys:String>
+    <sys:String x:Key="Action.UndoHint">Undo the last position overwrite (Ctrl+Z)</sys:String>
+    <sys:String x:Key="Status.PositionOverwritten">Changed the position of profile '{0}'. Before: {1} / now: {2}</sys:String>
+    <sys:String x:Key="Status.PositionRestored">Restored the position of profile '{0}': {1}</sys:String>
+    <sys:String x:Key="Status.MaximizedMark">[maximized]</sys:String>
+
     <sys:String x:Key="Picker.Title">Choose a window</sys:String>
     <sys:String x:Key="Picker.Subtitle">Several windows match. Choose the one to take the position from.</sys:String>
 </ResourceDictionary>

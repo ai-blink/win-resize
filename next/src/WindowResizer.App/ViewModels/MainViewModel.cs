@@ -46,6 +46,9 @@ public sealed class MainViewModel : ObservableObject
     private string _searchText = "";
     private string _status = "";
 
+    /// <summary>되돌릴 수 있는 마지막 위치 덮어쓰기. 다른 변경이 저장되면 비운다 - 그 뒤로는 되돌리면 남의 변경을 덮는다.</summary>
+    private (string Id, WindowConfiguration Before)? _undo;
+
     /// <param name="enumerateWindows">사용자 창 목록(Infrastructure <c>EnumerateUserWindows</c>).</param>
     /// <param name="document">읽어 온 프로필 문서. 이 뒤로는 이 ViewModel 만 바꾼다.</param>
     /// <param name="save">문서 저장. 성공하면 null, 실패하면 사용자에게 보일 원인.</param>
@@ -80,6 +83,9 @@ public sealed class MainViewModel : ObservableObject
         NewProfileFromWindowCommand = new RelayCommand(NewProfileFromSelectedWindow, () => SelectedWindow is not null);
         EditProfileCommand = new RelayCommand(EditSelectedProfile, () => SelectedProfile is not null);
         DeleteProfileCommand = new RelayCommand(DeleteSelectedProfile, () => SelectedProfile is not null);
+        OverwritePositionCommand = new RelayCommand(OverwriteSelectedProfilePosition,
+            () => SelectedWindow is not null && SelectedProfile is not null);
+        UndoCommand = new RelayCommand(Undo, () => CanUndo);
         NavigateCommand = new ParameterCommand<AppPage>(page => Page = page);
         ExitCommand = new RelayCommand(exit ?? (() => { }));
     }
@@ -96,7 +102,12 @@ public sealed class MainViewModel : ObservableObject
     public ICommand NewProfileFromWindowCommand { get; }
     public ICommand EditProfileCommand { get; }
     public ICommand DeleteProfileCommand { get; }
+    public ICommand OverwritePositionCommand { get; }
+    public ICommand UndoCommand { get; }
     public ICommand NavigateCommand { get; }
+
+    /// <summary>상태 줄의 되돌리기 버튼이 보이는가.</summary>
+    public bool CanUndo => _undo is not null;
     public ICommand ExitCommand { get; }
 
     public AppPage Page
@@ -176,7 +187,8 @@ public sealed class MainViewModel : ObservableObject
             : string.Format(_text("Status.AppliedWithFailures"), row.Name, applied, failed);
 
         // 적용 횟수는 창은 이미 옮겼으니 저장 실패가 적용을 되돌리지 않는다. 실패만 알린다.
-        if (applied > 0 && !Commit(() => row.Profile.RecordApplied(applied, _now()), row.Id)) return;
+        // 적용 횟수는 위치를 바꾸지 않으므로 덮어쓰기 되돌리기를 지우지 않는다 - 덮어쓴 뒤 적용해 보고 되돌리는 흐름.
+        if (applied > 0 && !Commit(() => row.Profile.RecordApplied(applied, _now()), () => row.Id, clearsUndo: false)) return;
         Status = message;
     }
 
@@ -226,6 +238,65 @@ public sealed class MainViewModel : ObservableObject
             Status = string.Format(_text("Status.ProfileDeleted"), row.Name);
     }
 
+    /// <summary>
+    /// 선택한 창의 지금 위치로 선택한 프로필의 위치와 크기만 바꾼다(D-021 결정 3). 확인을 묻지 않는 대신
+    /// 상태 줄에 이전/새 좌표와 되돌리기를 보인다. 캡처 규칙은 새 프로필과 같은 <see cref="WindowCapture"/> 다.
+    /// 항상 위, 투명도 같은 나머지 창 설정은 그대로 둔다.
+    /// </summary>
+    public void OverwriteSelectedProfilePosition()
+    {
+        var window = SelectedWindow;
+        var row = SelectedProfile;
+        if (window is null || row is null) return;
+
+        var capture = WindowCapture.Capture(_windows, window.Handle);
+        if (!capture.Succeeded)
+        {
+            Status = string.Format(_text("Status.CaptureRefused"), window.Info.Title, _text("Capture." + capture.Refusal));
+            return;
+        }
+
+        var before = row.Profile.WindowConfig is null ? null : CloneConfig(row.Profile.WindowConfig);
+        var after = before is null ? new WindowConfiguration() : CloneConfig(before);
+        var c = capture.Configuration!;
+        (after.X, after.Y, after.Width, after.Height, after.IsMaximized, after.IsMinimized) =
+            (c.X, c.Y, c.Width, c.Height, c.IsMaximized, false);
+
+        if (!Commit(() => row.Profile.WindowConfig = after, row.Id)) return;
+
+        _undo = before is null ? null : (row.Id, before);
+        OnPropertyChanged(nameof(CanUndo));
+        Status = string.Format(_text("Status.PositionOverwritten"), row.Name, Describe(before), Describe(after));
+    }
+
+    /// <summary>마지막 위치 덮어쓰기를 되돌린다. 되돌리기도 저장이다 - 같은 <see cref="Commit"/> 을 거친다.</summary>
+    public void Undo()
+    {
+        if (_undo is not { } undo) return;
+        var profile = _document.Find(undo.Id);
+        if (profile is null) return;
+
+        if (Commit(() => profile.WindowConfig = undo.Before, undo.Id))
+        {
+            Status = string.Format(_text("Status.PositionRestored"), profile.Name, Describe(undo.Before));
+            return;
+        }
+
+        // 저장이 실패했으면 아무것도 안 바뀌었다. 다시 시도할 수 있게 남긴다.
+        _undo = undo;
+        OnPropertyChanged(nameof(CanUndo));
+    }
+
+    private static WindowConfiguration CloneConfig(WindowConfiguration c) => new()
+    {
+        X = c.X, Y = c.Y, Width = c.Width, Height = c.Height,
+        IsMaximized = c.IsMaximized, IsMinimized = c.IsMinimized, MonitorIndex = c.MonitorIndex,
+        ZOrder = c.ZOrder, Opacity = c.Opacity, AlwaysOnTop = c.AlwaysOnTop,
+    };
+
+    private string Describe(WindowConfiguration? c) =>
+        c is null ? "-" : $"{c.X}, {c.Y}, {c.Width}x{c.Height}" + (c.IsMaximized ? " " + _text("Status.MaximizedMark") : "");
+
     public ProfileEditorViewModel CreateEditor(Profile working, string? id, EditorPage page) =>
         new(working, page,
             name => _document.Profiles.Any(p => p.Key != id &&
@@ -238,9 +309,16 @@ public sealed class MainViewModel : ObservableObject
     /// 문서를 바꾸는 유일한 길. 바꾸기 전 문서를 직렬화해 두고, 저장이 실패하면 그 상태로 되돌린다.
     /// 성공하든 실패하든 목록은 문서에서 다시 만든다 - 행이 들고 있는 값이 문서와 어긋나지 않게.
     /// </summary>
-    private bool Commit(Action change, Func<string?> selectId)
+    private bool Commit(Action change, Func<string?> selectId, bool clearsUndo = true)
     {
         var before = ProfileJson.Serialize(_document);
+
+        // 되돌리기는 바로 다음 변경 전까지만 유효하다. 덮어쓰기 자신은 저장 뒤에 다시 채운다.
+        if (clearsUndo)
+        {
+            _undo = null;
+            OnPropertyChanged(nameof(CanUndo));
+        }
         change();
 
         var error = _save(_document);

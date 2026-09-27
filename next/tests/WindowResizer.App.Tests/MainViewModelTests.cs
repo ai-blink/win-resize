@@ -309,6 +309,75 @@ public sealed class MainViewModelTests
         Assert.AreEqual("Editor.Capture.NoMatch:{0}", editor.Message);
     }
 
+    // --- S4b-4: 위치 덮어쓰기와 되돌리기 ---------------------------------------------------
+
+    [TestMethod]
+    public void Overwrite_needs_one_window_and_one_profile_and_changes_only_the_geometry()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) });
+        var row = Profile("b", "Blender", 0, 0, 640, 480);
+        row.Profile.WindowConfig!.AlwaysOnTop = true;
+        var vm = desktop.CreateViewModel(row);
+        vm.RefreshWindows();
+
+        vm.SelectedProfile = vm.Profiles.Single();
+        Assert.IsFalse(vm.OverwritePositionCommand.CanExecute(null), "창 선택이 없으면 꺼져 있다");
+        vm.SelectedWindow = vm.Windows.Single();
+        Assert.IsTrue(vm.OverwritePositionCommand.CanExecute(null));
+
+        vm.OverwritePositionCommand.Execute(null);
+
+        var config = desktop.Document.Find("id-b")!.WindowConfig!;
+        Assert.AreEqual((70, 80, 1100, 900, true), (config.X, config.Y, config.Width, config.Height, config.AlwaysOnTop));
+        Assert.IsTrue(vm.CanUndo);
+        Assert.AreEqual("Status.PositionOverwritten:b", vm.Status);
+    }
+
+    [TestMethod]
+    public void Undo_restores_the_old_geometry_and_survives_an_apply_but_not_an_edit()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) });
+        var vm = desktop.CreateViewModel(Profile("b", "Blender", 5, 6, 640, 480));
+        vm.RefreshWindows();
+        vm.SelectedWindow = vm.Windows.Single();
+        vm.SelectedProfile = vm.Profiles.Single();
+
+        vm.OverwritePositionCommand.Execute(null);
+        vm.ApplyProfileCommand.Execute(null);
+        Assert.IsTrue(vm.CanUndo, "적용 횟수 저장은 되돌리기를 지우지 않는다");
+
+        vm.UndoCommand.Execute(null);
+        var config = desktop.Document.Find("id-b")!.WindowConfig!;
+        Assert.AreEqual((5, 6, 640, 480), (config.X, config.Y, config.Width, config.Height));
+        Assert.AreEqual(1, desktop.Document.Find("id-b")!.AppliedCount, "되돌리기는 위치만 되돌린다");
+        Assert.IsFalse(vm.CanUndo);
+
+        vm.OverwritePositionCommand.Execute(null);
+        desktop.Dialogs.OnEditor = e => e.Description = "edited";
+        vm.EditProfileCommand.Execute(null);
+        Assert.IsFalse(vm.CanUndo, "다른 변경이 저장되면 되돌리기는 남의 변경을 덮으므로 사라진다");
+    }
+
+    [TestMethod]
+    public void Failed_undo_changes_nothing_and_can_be_retried()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) });
+        var vm = desktop.CreateViewModel(Profile("b", "Blender", 5, 6, 640, 480));
+        vm.RefreshWindows();
+        vm.SelectedWindow = vm.Windows.Single();
+        vm.SelectedProfile = vm.Profiles.Single();
+        vm.OverwritePositionCommand.Execute(null);
+
+        desktop.SaveError = "locked";
+        vm.UndoCommand.Execute(null);
+        Assert.AreEqual(70, desktop.Document.Find("id-b")!.WindowConfig!.X);
+        Assert.IsTrue(vm.CanUndo);
+
+        desktop.SaveError = null;
+        vm.UndoCommand.Execute(null);
+        Assert.AreEqual(5, desktop.Document.Find("id-b")!.WindowConfig!.X);
+    }
+
     private static WindowRow Row(nint handle, string title, string process = "app.exe") =>
         new(handle, new WindowInfo(Title: title, ProcessName: process), 100, new PixelRect(0, 0, 300, 200), false, false);
 

@@ -50,6 +50,16 @@ public sealed class DialogWindowSmokeTests
         Assert.AreEqual(row, picker.Selected);
         picker.Close();
 
+        // 메인 창도 같은 리소스로 그린다(되돌리기 버튼 등 S4b 에서 늘어난 바인딩).
+        var document = new ProfileDocument();
+        document.Add(profile, 1);
+        var main = new MainViewModel(() => [row], windows, document, _ => null, null!, k => k);
+        main.RefreshWindows();
+        var mainWindow = new MainWindow { DataContext = main, ShowActivated = false, Left = -4000 };
+        mainWindow.Show();
+        mainWindow.UpdateLayout();
+        mainWindow.Close();
+
         System.Diagnostics.PresentationTraceSources.DataBindingSource.Listeners.Remove(bindingErrors);
         Assert.IsEmpty(bindingErrors.Messages, string.Join(Environment.NewLine, bindingErrors.Messages));
     }
