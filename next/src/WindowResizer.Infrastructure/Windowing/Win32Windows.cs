@@ -182,6 +182,16 @@ public sealed class Win32Windows : IWindowOperations
         return buffer.ToString();
     }
 
+    /// <summary>창 하나의 매칭 정보. 오버레이가 직전 창의 제목과 경로를 알려 줄 때 쓴다.</summary>
+    public static WindowInfo DescribeWindow(nint hwnd)
+    {
+        GetWindowThreadProcessId(hwnd, out var pid);
+        var exePath = GetExecutablePath(pid);
+        return new WindowInfo(GetTitle(hwnd), exePath.Length > 0 ? Path.GetFileName(exePath) : "", GetClassName(hwnd), exePath);
+    }
+
+    public static string GetClassNameOf(nint hwnd) => GetClassName(hwnd);
+
     private static string GetClassName(nint hwnd)
     {
         var buffer = new StringBuilder(256);

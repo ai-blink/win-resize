@@ -87,6 +87,9 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern nint MonitorFromWindow(nint hwnd, uint flags);
 
+    [DllImport("user32.dll")]
+    public static extern nint GetForegroundWindow();
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern int GetWindowTextW(nint hwnd, StringBuilder text, int maxCount);
 

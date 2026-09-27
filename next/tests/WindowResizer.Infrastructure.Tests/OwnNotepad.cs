@@ -42,5 +42,26 @@ internal sealed class OwnNotepad : IDisposable
         return null!;
     }
 
-    public void Dispose() => Win32Windows.RequestClose(Handle);
+    /// <summary>
+    /// 닫기를 요청하고 <b>창과 프로세스가 실제로 사라질 때까지</b> 기다린다. 요청만 하고 돌아가면 다음 테스트가
+    /// 띄운 Notepad 가 아직 끝나는 중인 프로세스에 넘겨져 같이 사라지고, 그 사이 전경이 바뀌어 커서 제한도 풀린다
+    /// (2026-09-27 실측: 이 테스트 뒤에 붙은 Notepad 게이트와 커서 게이트가 두 번 연속 실패).
+    /// </summary>
+    public void Dispose()
+    {
+        Win32Windows.RequestClose(Handle);
+        var windows = new Win32Windows();
+        for (var i = 0; i < 50 && windows.IsWindow(Handle); i++) Thread.Sleep(100);
+
+        try
+        {
+            using var process = Process.GetProcessById((int)Window.ProcessId);
+            // 다른 창(사용자의 Notepad)이 같은 프로세스에 있으면 프로세스는 남는다. 창이 없어진 것으로 충분하다.
+            process.WaitForExit(3000);
+        }
+        catch (ArgumentException)
+        {
+            // 이미 끝났다.
+        }
+    }
 }
