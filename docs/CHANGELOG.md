@@ -6,6 +6,29 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.1 - 2026-09-27
+
+First preview of the rewritten WPF (.NET 10) app, built from source; the
+distributed executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.1.md](../doc/releases/v0.02.0-preview.1.md).
+
+### Highlights
+
+- Sidebar main window with windows and profiles side by side; search; Enter
+  applies to every matching window after a fresh scan.
+- Save a window as a new profile (Ctrl+S, prefilled, named after the program);
+  overwrite a profile's position with Undo (Ctrl+Z); five-page profile editor.
+- Maximized and minimized windows are captured at their normal position.
+- Failed saves roll back; unreadable profiles are kept and shown dimmed.
+- Closing hides to the tray; Exit program (sidebar, Ctrl+Q, tray) quits.
+- Overlay settings page, menu and tray items. The button windows are not in
+  this preview yet, nor are the hotkeys, settings and log pages.
+
+### Verification
+
+- .NET build: 0 warnings, 0 errors; 102 tests passed, including live checks on
+  real windows, key input, cursor clip and foreground tracking.
+
 ## 0.01.5 - 2026-09-25
 
 ### Highlights

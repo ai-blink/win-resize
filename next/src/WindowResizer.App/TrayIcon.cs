@@ -43,7 +43,7 @@ public sealed class TrayIcon : IDisposable
         _icon = new Forms.NotifyIcon
         {
             Icon = System.Drawing.SystemIcons.Application,
-            Text = text("App.Title"),
+            Text = text("App.Title") + " " + AppInfo.DisplayVersion,
             ContextMenuStrip = menu,
             Visible = true,
         };
