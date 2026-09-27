@@ -53,6 +53,7 @@ public sealed class DialogWindowSmokeTests
         // 메인 창도 같은 리소스로 그린다(되돌리기 버튼 등 S4b 에서 늘어난 바인딩).
         var document = new ProfileDocument();
         document.Add(profile, 1);
+        document.Unreadable.Add(new UnreadableProfile("broken", """{ "name": "Old" }""", "bad enum"));
         var main = new MainViewModel(() => [row], windows, document, _ => null, null!, k => k);
         main.RefreshWindows();
         var mainWindow = new MainWindow { DataContext = main, ShowActivated = false, Left = -4000 };

@@ -74,17 +74,18 @@ public sealed class MainViewModel : ObservableObject
         _text = text;
         _now = now ?? (() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0);
 
-        Profiles = new ObservableCollection<ProfileRow>(document.Profiles.Select(p => new ProfileRow(p.Key, p.Value)));
+        Profiles = new ObservableCollection<ProfileRow>(RowsOf(document));
         WindowsView = CollectionViewSource.GetDefaultView(Windows);
         WindowsView.Filter = MatchesSearch;
 
         RefreshCommand = new RelayCommand(RefreshWindows);
-        ApplyProfileCommand = new RelayCommand(ApplySelectedProfile, () => SelectedProfile is not null);
+        // 읽지 못한 프로필은 삭제만 된다(D-022).
+        ApplyProfileCommand = new RelayCommand(ApplySelectedProfile, () => SelectedProfile is { IsUnreadable: false });
         NewProfileFromWindowCommand = new RelayCommand(NewProfileFromSelectedWindow, () => SelectedWindow is not null);
-        EditProfileCommand = new RelayCommand(EditSelectedProfile, () => SelectedProfile is not null);
+        EditProfileCommand = new RelayCommand(EditSelectedProfile, () => SelectedProfile is { IsUnreadable: false });
         DeleteProfileCommand = new RelayCommand(DeleteSelectedProfile, () => SelectedProfile is not null);
         OverwritePositionCommand = new RelayCommand(OverwriteSelectedProfilePosition,
-            () => SelectedWindow is not null && SelectedProfile is not null);
+            () => SelectedWindow is not null && SelectedProfile is { IsUnreadable: false });
         UndoCommand = new RelayCommand(Undo, () => CanUndo);
         NavigateCommand = new ParameterCommand<AppPage>(page => Page = page);
         ExitCommand = new RelayCommand(exit ?? (() => { }));
@@ -164,7 +165,7 @@ public sealed class MainViewModel : ObservableObject
     public void ApplySelectedProfile()
     {
         var row = SelectedProfile;
-        if (row is null) return;
+        if (row is null || row.IsUnreadable) return;
 
         // 새로 뜬 창까지 한 번에 잡으려고 적용 직전에 목록을 새로 연다.
         RefreshWindows();
@@ -220,7 +221,7 @@ public sealed class MainViewModel : ObservableObject
     public void EditSelectedProfile()
     {
         var row = SelectedProfile;
-        if (row is null) return;
+        if (row is null || row.IsUnreadable) return;
 
         var editor = CreateEditor(ProfileJson.Clone(row.Profile), row.Id, EditorPage.General);
         if (!_dialogs.ShowEditor(editor)) return;
@@ -247,7 +248,7 @@ public sealed class MainViewModel : ObservableObject
     {
         var window = SelectedWindow;
         var row = SelectedProfile;
-        if (window is null || row is null) return;
+        if (window is null || row is null || row.IsUnreadable) return;
 
         var capture = WindowCapture.Capture(_windows, window.Handle);
         if (!capture.Succeeded)
@@ -312,6 +313,9 @@ public sealed class MainViewModel : ObservableObject
     private bool Commit(Action change, Func<string?> selectId, bool clearsUndo = true)
     {
         var before = ProfileJson.Serialize(_document);
+        // 읽지 못한 프로필은 불변 레코드라 목록을 그대로 떠 둔다. 직렬화본을 다시 읽어 되살리면 판정을 한 번 더
+        // 하게 되어, 판정이 달라지면 "읽을 수 없음" 줄이 정상 프로필로 둔갑한다.
+        var unreadableBefore = _document.Unreadable.ToList();
 
         // 되돌리기는 바로 다음 변경 전까지만 유효하다. 덮어쓰기 자신은 저장 뒤에 다시 채운다.
         if (clearsUndo)
@@ -325,8 +329,11 @@ public sealed class MainViewModel : ObservableObject
         if (error is not null)
         {
             var restored = ProfileJson.Parse(before).Document;
+            var unreadableIds = unreadableBefore.Select(u => u.Id).ToHashSet();
             _document.Profiles.Clear();
-            _document.Profiles.AddRange(restored.Profiles);
+            _document.Profiles.AddRange(restored.Profiles.Where(p => !unreadableIds.Contains(p.Key)));
+            _document.Unreadable.Clear();
+            _document.Unreadable.AddRange(unreadableBefore);
             RebuildProfiles(SelectedProfile?.Id);
             Status = string.Format(_text("Status.SaveFailed"), error);
             return false;
@@ -339,10 +346,15 @@ public sealed class MainViewModel : ObservableObject
     private void RebuildProfiles(string? selectId)
     {
         Profiles.Clear();
-        foreach (var (id, profile) in _document.Profiles) Profiles.Add(new ProfileRow(id, profile));
+        foreach (var row in RowsOf(_document)) Profiles.Add(row);
         OnPropertyChanged(nameof(ProfileCount));
         SelectedProfile = selectId is null ? null : Profiles.FirstOrDefault(p => p.Id == selectId);
     }
+
+    /// <summary>읽은 프로필 다음에 읽지 못한 프로필(흐린 줄). 파일에 쓰는 순서와 같다.</summary>
+    private static IEnumerable<ProfileRow> RowsOf(ProfileDocument document) =>
+        document.Profiles.Select(p => new ProfileRow(p.Key, p.Value))
+            .Concat(document.Unreadable.Select(ProfileRow.ForUnreadable));
 
     private bool MatchesSearch(object item)
     {

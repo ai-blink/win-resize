@@ -24,8 +24,14 @@ public sealed record WindowRow(
 /// 프로필명, 대상창/프로세스, 단축키, 마우스 가둠, X, Y, 폭, 높이, 자동적용.
 /// 예/아니오 같은 표시 문자열은 뷰가 리소스로 정한다 - 여기서는 값만 준다.
 /// </summary>
-public sealed record ProfileRow(string Id, Profile Profile)
+/// <param name="IsUnreadable">
+/// 파일에 있지만 읽지 못한 프로필(D-022). 흐리게 보이고 삭제만 된다. <see cref="Profile"/> 은 이름만 채운 자리표시다.
+/// </param>
+public sealed record ProfileRow(string Id, Profile Profile, bool IsUnreadable = false, string? Error = null)
 {
+    public static ProfileRow ForUnreadable(UnreadableProfile u) =>
+        new(u.Id, new Profile { Name = u.DisplayName }, IsUnreadable: true, Error: u.Error);
+
     public string Name => Profile.Name;
 
     /// <summary>제목 패턴 -> 프로세스 패턴 -> 실행 파일 이름 순. 셋 다 없으면 빈 문자열(뷰가 "모든 창"으로 표시).</summary>
@@ -33,6 +39,7 @@ public sealed record ProfileRow(string Id, Profile Profile)
     {
         get
         {
+            if (IsUnreadable) return "-";
             var c = Profile.MatchingCriteria;
             if (c is null) return "";
             if (!string.IsNullOrEmpty(c.WindowTitlePattern)) return c.WindowTitlePattern;

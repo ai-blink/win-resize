@@ -53,7 +53,8 @@
     <sys:String x:Key="Status.AppliedWithFailures">프로필 '{0}': {1}개 적용, {2}개 실패</sys:String>
     <sys:String x:Key="Status.ProfilesFromBackup">프로필 파일이 깨져 백업에서 불러왔습니다</sys:String>
     <sys:String x:Key="Status.ProfilesUnreadable">프로필 파일을 읽지 못했습니다: {0}</sys:String>
-    <sys:String x:Key="Status.ProfilesSkipped">읽지 못한 프로필 {0}개를 건너뛰었습니다</sys:String>
+    <sys:String x:Key="Status.ProfilesSkipped">읽지 못한 프로필 {0}개가 목록에 흐리게 보입니다. 파일에는 그대로 남고, 지우려면 삭제하세요</sys:String>
+    <sys:String x:Key="Profiles.Unreadable">(읽을 수 없음)</sys:String>
 
     <!-- S4b: 프로필 만들기, 편집, 삭제 -->
     <sys:String x:Key="Menu.NewFromWindow">선택한 창을 새 프로필로 저장</sys:String>

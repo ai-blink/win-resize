@@ -53,7 +53,8 @@
     <sys:String x:Key="Status.AppliedWithFailures">Profile '{0}': {1} applied, {2} failed</sys:String>
     <sys:String x:Key="Status.ProfilesFromBackup">The profile file was damaged; loaded the backup</sys:String>
     <sys:String x:Key="Status.ProfilesUnreadable">Could not read the profile file: {0}</sys:String>
-    <sys:String x:Key="Status.ProfilesSkipped">Skipped {0} unreadable profiles</sys:String>
+    <sys:String x:Key="Status.ProfilesSkipped">{0} unreadable profiles are shown dimmed. They stay in the file; delete them to remove them</sys:String>
+    <sys:String x:Key="Profiles.Unreadable">(unreadable)</sys:String>
 
     <!-- S4b: create, edit, delete profiles -->
     <sys:String x:Key="Menu.NewFromWindow">Save selected window as new profile</sys:String>

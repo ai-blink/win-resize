@@ -378,6 +378,52 @@ public sealed class MainViewModelTests
         Assert.AreEqual(5, desktop.Document.Find("id-b")!.WindowConfig!.X);
     }
 
+    // --- D-022: 읽지 못한 프로필 --------------------------------------------------------------
+
+    [TestMethod]
+    public void Unreadable_profile_is_listed_can_only_be_deleted_and_survives_other_saves()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender"));
+        desktop.Document.Unreadable.Add(new UnreadableProfile("broken", """{ "name": "Old", "profile_type": "nope" }""", "bad enum"));
+        var vm = desktop.CreateViewModel(Profile("a", "Blender", 0, 0, 10, 10));
+        vm.RefreshWindows();
+        vm.SelectedWindow = vm.Windows.Single();
+
+        var broken = vm.Profiles.Single(p => p.IsUnreadable);
+        Assert.AreEqual(("Old", "bad enum", "-"), (broken.Name, broken.Error, broken.Target));
+
+        vm.SelectedProfile = broken;
+        Assert.IsFalse(vm.ApplyProfileCommand.CanExecute(null));
+        Assert.IsFalse(vm.EditProfileCommand.CanExecute(null));
+        Assert.IsFalse(vm.OverwritePositionCommand.CanExecute(null));
+        Assert.IsTrue(vm.DeleteProfileCommand.CanExecute(null));
+
+        // 다른 프로필의 변경이 저장돼도 남는다.
+        vm.SelectedProfile = vm.Profiles.Single(p => p.Id == "id-a");
+        vm.ApplyProfileCommand.Execute(null);
+        Assert.HasCount(1, desktop.Document.Unreadable);
+        Assert.IsTrue(vm.Profiles.Any(p => p.IsUnreadable), "다시 만든 목록에도 흐린 줄이 있어야 한다");
+
+        vm.SelectedProfile = vm.Profiles.Single(p => p.IsUnreadable);
+        vm.DeleteProfileCommand.Execute(null);
+        Assert.IsEmpty(desktop.Document.Unreadable);
+        Assert.AreEqual("Status.ProfileDeleted:Old", vm.Status);
+    }
+
+    [TestMethod]
+    public void Failed_save_also_restores_unreadable_profiles()
+    {
+        var desktop = new FakeDesktop { SaveError = "locked" };
+        desktop.Document.Unreadable.Add(new UnreadableProfile("broken", """{ "name": "Old" }""", "x"));
+        var vm = desktop.CreateViewModel();
+        vm.SelectedProfile = vm.Profiles.Single();
+
+        vm.DeleteProfileCommand.Execute(null);
+
+        Assert.HasCount(1, desktop.Document.Unreadable);
+        Assert.AreEqual(1, vm.ProfileCount);
+    }
+
     private static WindowRow Row(nint handle, string title, string process = "app.exe") =>
         new(handle, new WindowInfo(Title: title, ProcessName: process), 100, new PixelRect(0, 0, 300, 200), false, false);
 

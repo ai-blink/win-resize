@@ -82,6 +82,42 @@ public sealed class ProfileDocumentEditingTests
     }
 
     [TestMethod]
+    public void Unreadable_profiles_survive_a_save_and_go_only_when_removed()
+    {
+        var json = """
+            {
+              "version": "1.0",
+              "created_at": 1.5,
+              "profiles": {
+                "good": { "name": "좋은 프로필" },
+                "bad_enum": { "name": "Blender", "profile_type": "nope", "future": [1, 2] },
+                "no_name": { "name": "  " }
+              }
+            }
+            """;
+
+        var first = ProfileJson.Parse(json);
+        CollectionAssert.AreEqual(new[] { "bad_enum", "no_name" }, first.Document.Unreadable.Select(u => u.Id).ToArray());
+        Assert.AreEqual("Blender", first.Document.Unreadable[0].DisplayName);
+        Assert.AreEqual("no_name", first.Document.Unreadable[1].DisplayName, "이름이 없으면 ID 로 보인다");
+
+        // 다른 프로필을 바꿔 저장해도 읽지 못한 원문은 그대로 다시 쓰인다.
+        first.Document.Add(new Profile { Name = "new" }, 2);
+        var second = ProfileJson.Parse(ProfileJson.Serialize(first.Document));
+        Assert.HasCount(2, second.Document.Profiles);
+        CollectionAssert.AreEqual(
+            first.Document.Unreadable.Select(u => Compact(u.RawJson)).ToArray(),
+            second.Document.Unreadable.Select(u => Compact(u.RawJson)).ToArray());
+
+        Assert.IsTrue(second.Document.Remove("bad_enum"));
+        var third = ProfileJson.Parse(ProfileJson.Serialize(second.Document));
+        CollectionAssert.AreEqual(new[] { "no_name" }, third.Document.Unreadable.Select(u => u.Id).ToArray());
+    }
+
+    private static string Compact(string json) =>
+        System.Text.Json.JsonSerializer.Serialize(System.Text.Json.JsonDocument.Parse(json).RootElement);
+
+    [TestMethod]
     public void Clone_is_deep_and_keeps_unknown_keys()
     {
         var original = new Profile

@@ -14,6 +14,12 @@ public sealed class ProfileDocument
 
     public List<KeyValuePair<string, Profile>> Profiles { get; } = new();
 
+    /// <summary>
+    /// 읽지 못한 프로필. 버리지 않고 원문 그대로 들고 있다가 저장할 때 다시 쓴다(D-022) - 파일을 손으로 고치면
+    /// 되살아난다. 사용자가 목록에서 지울 때만 사라진다. 저장 위치는 읽은 프로필들 뒤다.
+    /// </summary>
+    public List<UnreadableProfile> Unreadable { get; } = new();
+
     public Profile? Find(string id) => Profiles.FirstOrDefault(p => p.Key == id).Value;
 
     /// <summary>
@@ -27,7 +33,7 @@ public sealed class ProfileDocument
 
         var seed = profile.Name + "_" + profile.CreatedAt.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
         var id = HashId(seed);
-        for (var n = 2; Find(id) is not null; n++) id = HashId(seed + "_" + n);
+        for (var n = 2; Find(id) is not null || Unreadable.Any(u => u.Id == id); n++) id = HashId(seed + "_" + n);
 
         Profiles.Add(new(id, profile));
         return id;
@@ -43,7 +49,9 @@ public sealed class ProfileDocument
         return true;
     }
 
-    public bool Remove(string id) => Profiles.RemoveAll(p => p.Key == id) > 0;
+    /// <summary>읽은 프로필이든 읽지 못한 프로필이든 그 ID 를 지운다.</summary>
+    public bool Remove(string id) =>
+        Profiles.RemoveAll(p => p.Key == id) + Unreadable.RemoveAll(u => u.Id == id) > 0;
 
     /// <summary>
     /// 이름이 겹치지 않게 한다(D-021 결정 2): <c>Blender</c> 가 있으면 <c>Blender (2)</c>, <c>Blender (3)</c> ...
@@ -69,6 +77,33 @@ public sealed class ProfileDocument
 
 /// <summary>한 프로필을 읽다 실패한 기록. Python 과 같이 그 프로필만 건너뛰고 나머지는 읽는다.</summary>
 public sealed record ProfileLoadError(string ProfileId, string Message);
+
+/// <summary>
+/// 읽지 못한 프로필 하나. <see cref="RawJson"/> 은 파일에 있던 값 그대로다.
+/// <see cref="DisplayName"/> 은 원문에 문자열 <c>name</c> 이 있으면 그것, 없으면 ID 다 - 목록에서 알아보게.
+/// </summary>
+public sealed record UnreadableProfile(string Id, string RawJson, string Error)
+{
+    public string DisplayName
+    {
+        get
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(RawJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("name", out var name) &&
+                    name.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(name.GetString()))
+                    return name.GetString()!.Trim();
+            }
+            catch (JsonException)
+            {
+            }
+            return Id;
+        }
+    }
+}
 
 public sealed record ProfileLoadResult(ProfileDocument Document, IReadOnlyList<ProfileLoadError> Errors);
 
@@ -142,6 +177,7 @@ public static class ProfileJson
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException)
             {
                 errors.Add(new ProfileLoadError(entry.Name, ex.Message));
+                document.Unreadable.Add(new UnreadableProfile(entry.Name, entry.Value.GetRawText(), ex.Message));
             }
         }
 
@@ -174,6 +210,11 @@ public static class ProfileJson
             {
                 writer.WritePropertyName(id);
                 JsonSerializer.Serialize(writer, profile, Options);
+            }
+            foreach (var unreadable in document.Unreadable)
+            {
+                writer.WritePropertyName(unreadable.Id);
+                writer.WriteRawValue(unreadable.RawJson, skipInputValidation: false);
             }
             writer.WriteEndObject();
             writer.WriteEndObject();
