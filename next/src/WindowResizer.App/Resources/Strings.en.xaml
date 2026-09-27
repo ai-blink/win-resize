@@ -150,6 +150,45 @@
     <sys:String x:Key="Tray.Exit">Exit program</sys:String>
     <sys:String x:Key="Tray.HiddenNotice">WindowResizer keeps running in the system tray after the window closes. To quit, use Exit program in the tray menu or Ctrl+Q.</sys:String>
 
+    <!-- Overlay O2: page, menu, tray -->
+    <sys:String x:Key="Menu.Overlay">Overlay</sys:String>
+    <sys:String x:Key="Menu.OverlayPage">Open overlay settings</sys:String>
+    <sys:String x:Key="Overlay.Subtitle">Floating buttons apply a profile to the window you were just using. The buttons never take focus.</sys:String>
+    <sys:String x:Key="Overlay.Activation">Activation</sys:String>
+    <sys:String x:Key="Overlay.Click">Click</sys:String>
+    <sys:String x:Key="Overlay.Click.Hint">Applies when you click the button</sys:String>
+    <sys:String x:Key="Overlay.Dwell">Dwell</sys:String>
+    <sys:String x:Key="Overlay.Dwell.Hint">Applies when the mouse rests on the button</sys:String>
+    <sys:String x:Key="Overlay.DwellTime">Dwell time</sys:String>
+    <sys:String x:Key="Overlay.Hidden">Hide overlay buttons</sys:String>
+    <sys:String x:Key="Overlay.Hidden.Hint">Puts the buttons away for now. Their positions and settings stay.</sys:String>
+    <sys:String x:Key="Overlay.Switch">Show the hide switch</sys:String>
+    <sys:String x:Key="Overlay.Switch.Hint">A small switch on screen hides and shows the buttons. Removing the switch shows hidden buttons again.</sys:String>
+    <sys:String x:Key="Overlay.Locked">Lock positions</sys:String>
+    <sys:String x:Key="Overlay.Locked.Hint">Buttons and the switch cannot be dragged, so a dwell cannot move them by accident.</sys:String>
+    <sys:String x:Key="Overlay.CloseAll">Close all</sys:String>
+    <sys:String x:Key="Overlay.Profiles">Buttons per profile</sys:String>
+    <sys:String x:Key="Overlay.Profiles.Hint">Each profile that is on gets one button. This is the same setting as the editor's How to run page.</sys:String>
+    <sys:String x:Key="Overlay.ButtonsPending">The button windows arrive in the next step. For now only the settings are saved.</sys:String>
+    <sys:String x:Key="Tray.OverlayDwell">Overlay dwell mode</sys:String>
+    <sys:String x:Key="Tray.OverlayHidden">Hide overlay buttons</sys:String>
+    <sys:String x:Key="Tray.OverlaySwitch">Show the hide switch</sys:String>
+    <sys:String x:Key="Tray.OverlayCloseAll">Close all overlay buttons</sys:String>
+    <sys:String x:Key="Status.OverlayDwell">Overlay activation: dwell (applies after {0:0.0} s)</sys:String>
+    <sys:String x:Key="Status.OverlayClick">Overlay activation: click</sys:String>
+    <sys:String x:Key="Status.OverlayDwellTime">Dwell time set to {0:0.0} s</sys:String>
+    <sys:String x:Key="Status.OverlayHidden">Overlay buttons hidden</sys:String>
+    <sys:String x:Key="Status.OverlayShown">Overlay buttons shown again</sys:String>
+    <sys:String x:Key="Status.OverlaySwitchShown">Hide switch shown</sys:String>
+    <sys:String x:Key="Status.OverlaySwitchRemoved">Hide switch removed</sys:String>
+    <sys:String x:Key="Status.OverlayLocked">Overlay positions locked</sys:String>
+    <sys:String x:Key="Status.OverlayUnlocked">Overlay positions unlocked</sys:String>
+    <sys:String x:Key="Status.SettingsSaveFailed">Could not save the settings (they apply for this session): {0}</sys:String>
+    <sys:String x:Key="Status.OverlayProfileOn">Turned on the overlay button of profile '{0}'</sys:String>
+    <sys:String x:Key="Status.OverlayProfileOff">Turned off the overlay button of profile '{0}'</sys:String>
+    <sys:String x:Key="Status.OverlayNoneOpen">No overlay button is on</sys:String>
+    <sys:String x:Key="Status.OverlayAllClosed">Closed all overlay buttons</sys:String>
+
     <sys:String x:Key="Picker.Title">Choose a window</sys:String>
     <sys:String x:Key="Picker.Subtitle">Several windows match. Choose the one to take the position from.</sys:String>
 </ResourceDictionary>

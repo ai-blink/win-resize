@@ -2,6 +2,7 @@ using System.Windows;
 using WindowResizer.App.Theming;
 using WindowResizer.App.ViewModels;
 using WindowResizer.Infrastructure.Persistence;
+using WindowResizer.Infrastructure.Settings;
 using WindowResizer.Infrastructure.Windowing;
 
 namespace WindowResizer.App;
@@ -28,6 +29,7 @@ public partial class App : Application
         var store = new ProfileStore(ProfilesDirectory(e.Args));
         var loaded = store.Load();
         var windows = new Win32Windows();
+        var overlayStore = new OverlaySettingsStore();
 
         var viewModel = new MainViewModel(
             () => windows.EnumerateUserWindows()
@@ -38,7 +40,9 @@ public partial class App : Application
             document => Save(store, loaded.Source, document),
             new DialogService(Text),
             Text,
-            Quit);
+            Quit,
+            overlaySettings: overlayStore.Load(),
+            saveOverlay: settings => overlayStore.TrySave(settings, out var error) ? null : error!.Message);
 
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
@@ -46,7 +50,7 @@ public partial class App : Application
 
         MainWindow = new MainWindow { DataContext = viewModel };
         MainWindow.Closing += OnMainWindowClosing;
-        _tray = new TrayIcon(Text, ShowMainWindow, Quit);
+        _tray = new TrayIcon(Text, ShowMainWindow, Quit, viewModel.Overlay, viewModel.CloseAllOverlays);
         MainWindow.Show();
     }
 

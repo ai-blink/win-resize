@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
 using WindowResizer.App.Mvvm;
+using WindowResizer.Core.Overlay;
 using WindowResizer.Core.Profiles;
 using WindowResizer.Core.Windowing;
 
@@ -63,7 +64,9 @@ public sealed class MainViewModel : ObservableObject
         IDialogService dialogs,
         Func<string, string> text,
         Action? exit = null,
-        Func<double>? now = null)
+        Func<double>? now = null,
+        OverlaySettings? overlaySettings = null,
+        Func<OverlaySettings, string?>? saveOverlay = null)
     {
         _enumerateWindows = enumerateWindows;
         _windows = windows;
@@ -89,6 +92,50 @@ public sealed class MainViewModel : ObservableObject
         UndoCommand = new RelayCommand(Undo, () => CanUndo);
         NavigateCommand = new ParameterCommand<AppPage>(page => Page = page);
         ExitCommand = new RelayCommand(exit ?? (() => { }));
+
+        Overlay = new OverlayViewModel(overlaySettings ?? new OverlaySettings(), saveOverlay ?? (_ => null), text, ShowStatus);
+        SetProfileOverlayCommand = new ParameterCommand<ProfileRow>(row => SetProfileOverlay(row, !row.OverlayEnabled));
+        CloseAllOverlaysCommand = new RelayCommand(CloseAllOverlays);
+    }
+
+    /// <summary>오버레이 전역 설정. 오버레이 페이지, 메뉴 막대, 트레이가 같은 객체를 본다.</summary>
+    public OverlayViewModel Overlay { get; }
+
+    /// <summary>프로필 하나의 오버레이 버튼을 켜고 끈다(행을 넘긴다 - 누른 쪽의 반대 값으로).</summary>
+    public ICommand SetProfileOverlayCommand { get; }
+
+    /// <summary>
+    /// 모든 오버레이 버튼을 닫는다. PyQt5 와 같이 각 프로필의 사용 여부를 끄고 저장한다 - 무엇을 띄울지는
+    /// 프로필 한 곳이 정한다. 화면에서만 닫으면 다음 실행에 되살아나 편집 창의 체크와 어긋난다.
+    /// </summary>
+    public ICommand CloseAllOverlaysCommand { get; }
+
+    /// <summary>프로필 오버레이 사용 여부를 바꾸고 저장한다. 버튼 창의 닫기(O3)도 이 길로 온다.</summary>
+    public void SetProfileOverlay(ProfileRow row, bool enabled)
+    {
+        if (row.IsUnreadable) return;
+        var profile = _document.Find(row.Id);
+        if (profile is null) return;
+
+        if (Commit(() =>
+            {
+                profile.OverlayStyle ??= new OverlayStyle();
+                profile.OverlayStyle.Enabled = enabled;
+            }, SelectedProfile?.Id))
+            Status = string.Format(_text(enabled ? "Status.OverlayProfileOn" : "Status.OverlayProfileOff"), profile.Name);
+    }
+
+    public void CloseAllOverlays()
+    {
+        var open = _document.Profiles.Where(p => p.Value.OverlayStyle?.Enabled == true).Select(p => p.Value).ToList();
+        if (open.Count == 0)
+        {
+            Status = _text("Status.OverlayNoneOpen");
+            return;
+        }
+
+        if (Commit(() => open.ForEach(p => p.OverlayStyle!.Enabled = false), SelectedProfile?.Id))
+            Status = _text("Status.OverlayAllClosed");
     }
 
     /// <summary>시작 시 한 줄 알림(프로필을 백업에서 읽음 등). 창 목록 상태로 곧 덮인다.</summary>

@@ -42,6 +42,21 @@
                 <Separator />
                 <MenuItem Header="{DynamicResource Menu.Delete}" InputGestureText="Del" Command="{Binding DeleteProfileCommand}" />
             </MenuItem>
+            <!-- PyQt5 의 프로필 메뉴 오버레이 항목들. 같은 Overlay 객체를 보므로 페이지와 트레이와 늘 같은 값이다. -->
+            <MenuItem Header="{DynamicResource Menu.Overlay}">
+                <!-- 둘 중 하나(PyQt5 는 배타 그룹). 체크는 표시만, 선택은 명령 - 체크된 항목을 다시 눌러도 뒤집히지 않는다. -->
+                <MenuItem Header="{DynamicResource Overlay.Click}" IsChecked="{Binding Overlay.IsClick, Mode=OneWay}"
+                          Command="{Binding Overlay.SetDwellCommand}" CommandParameter="{StaticResource FalseValue}" />
+                <MenuItem Header="{DynamicResource Overlay.Dwell}" IsChecked="{Binding Overlay.IsDwell, Mode=OneWay}"
+                          Command="{Binding Overlay.SetDwellCommand}" CommandParameter="{StaticResource TrueValue}" />
+                <Separator />
+                <MenuItem Header="{DynamicResource Overlay.Hidden}" IsCheckable="True" IsChecked="{Binding Overlay.Hidden}" />
+                <MenuItem Header="{DynamicResource Overlay.Switch}" IsCheckable="True" IsChecked="{Binding Overlay.ToggleVisible}" />
+                <MenuItem Header="{DynamicResource Overlay.Locked}" IsCheckable="True" IsChecked="{Binding Overlay.Locked}" />
+                <Separator />
+                <MenuItem Header="{DynamicResource Overlay.CloseAll}" Command="{Binding CloseAllOverlaysCommand}" />
+                <MenuItem Header="{DynamicResource Menu.OverlayPage}" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.Overlay}" />
+            </MenuItem>
         </Menu>
 
         <Grid Grid.Row="1">
@@ -276,6 +291,81 @@
                     </DockPanel>
                 </Grid>
 
+                <!-- 오버레이 버튼 (메뉴 지도 2.5, 4). 메뉴 막대와 트레이가 같은 Overlay 객체를 본다. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:AppPage.Overlay}}">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,14,0">
+                        <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource Nav.Overlay}" />
+                        <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource Overlay.Subtitle}" />
+
+                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Overlay.Activation}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,14">
+                            <RadioButton Style="{StaticResource ChoiceCardStyle}" GroupName="OverlayActivation"
+                                         IsChecked="{Binding Overlay.IsClick}" AutomationProperties.Name="{DynamicResource Overlay.Click}">
+                                <StackPanel>
+                                    <TextBlock Text="{DynamicResource Overlay.Click}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{DynamicResource Overlay.Click.Hint}" FontSize="12" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource AppMutedTextBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource ChoiceCardStyle}" GroupName="OverlayActivation"
+                                         IsChecked="{Binding Overlay.IsDwell}" AutomationProperties.Name="{DynamicResource Overlay.Dwell}">
+                                <StackPanel>
+                                    <TextBlock Text="{DynamicResource Overlay.Dwell}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{DynamicResource Overlay.Dwell.Hint}" FontSize="12" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource AppMutedTextBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+
+                        <!-- 드웰을 골라야 열린다(계획 4.1 "켤 수 있으면 켜져 있다") -->
+                        <DockPanel IsEnabled="{Binding Overlay.IsDwell}" Margin="0,0,0,20">
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center"
+                                       Text="{DynamicResource Overlay.DwellTime}" Margin="0,0,14,0" />
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" MinWidth="52" TextAlignment="Right"
+                                       Text="{Binding Overlay.DwellSeconds, StringFormat={}{0:0.0} s}" />
+                            <Slider Minimum="0.2" Maximum="5.0" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                                    SmallChange="0.1" LargeChange="0.5" VerticalAlignment="Center"
+                                    Value="{Binding Overlay.DwellSeconds}" AutomationProperties.Name="{DynamicResource Overlay.DwellTime}" />
+                        </DockPanel>
+
+                        <CheckBox IsChecked="{Binding Overlay.Hidden}" Content="{DynamicResource Overlay.Hidden}" />
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Overlay.Hidden.Hint}" />
+                        <CheckBox IsChecked="{Binding Overlay.ToggleVisible}" Content="{DynamicResource Overlay.Switch}" />
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Overlay.Switch.Hint}" />
+                        <CheckBox IsChecked="{Binding Overlay.Locked}" Content="{DynamicResource Overlay.Locked}" />
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,18" Text="{DynamicResource Overlay.Locked.Hint}" />
+
+                        <DockPanel Margin="0,0,0,8">
+                            <Button DockPanel.Dock="Right" Content="{DynamicResource Overlay.CloseAll}"
+                                    Command="{Binding CloseAllOverlaysCommand}" AutomationProperties.Name="{DynamicResource Overlay.CloseAll}" />
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Overlay.Profiles}" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Overlay.Profiles.Hint}" />
+                        <ItemsControl ItemsSource="{Binding Profiles}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- 체크는 값을 보여 주기만 하고(OneWay), 바꾸는 것은 명령이다 - 저장이 끝나면 목록이 다시 그려진다. -->
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding OverlayEnabled, Mode=OneWay}"
+                                              Command="{Binding DataContext.SetProfileOverlayCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                              CommandParameter="{Binding}">
+                                        <CheckBox.Style>
+                                            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsUnreadable}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </CheckBox.Style>
+                                    </CheckBox>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,14,0,0" Text="{DynamicResource Overlay.ButtonsPending}" />
+                    </StackPanel>
+                </ScrollViewer>
+
                 <!-- 아직 채우지 않은 페이지. 자리만 있다. -->
                 <TextBlock Text="{DynamicResource Page.Pending}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="15"
                            HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -283,6 +373,9 @@
                         <Style TargetType="{x:Type TextBlock}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.WindowsAndProfiles}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Overlay}">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                             </Style.Triggers>

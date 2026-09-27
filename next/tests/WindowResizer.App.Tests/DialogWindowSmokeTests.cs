@@ -58,7 +58,11 @@ public sealed class DialogWindowSmokeTests
         main.RefreshWindows();
         var mainWindow = new MainWindow { DataContext = main, ShowActivated = false, Left = -4000 };
         mainWindow.Show();
-        mainWindow.UpdateLayout();
+        foreach (var page in Enum.GetValues<AppPage>())
+        {
+            main.Page = page;
+            mainWindow.UpdateLayout();
+        }
         mainWindow.Close();
 
         System.Diagnostics.PresentationTraceSources.DataBindingSource.Listeners.Remove(bindingErrors);

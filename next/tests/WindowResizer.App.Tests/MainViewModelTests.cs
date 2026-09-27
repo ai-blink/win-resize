@@ -424,6 +424,79 @@ public sealed class MainViewModelTests
         Assert.AreEqual(1, vm.ProfileCount);
     }
 
+    // --- 오버레이 O2 ------------------------------------------------------------------------
+
+    [TestMethod]
+    public void Overlay_settings_save_on_every_change_and_report_in_the_status_line()
+    {
+        var saved = new List<string>();
+        var desktop = new FakeDesktop();
+        var vm = desktop.CreateViewModel();
+        var overlay = new OverlayViewModel(new Core.Overlay.OverlaySettings(), s => { saved.Add(s.ToValues()["interaction_mode"]); return null; },
+            key => key + ":{0}", vm.ShowStatus);
+
+        overlay.IsDwell = true;
+        overlay.IsDwell = true;   // 같은 값은 저장하지 않는다
+        Assert.IsFalse(overlay.IsClick);
+        CollectionAssert.AreEqual(new[] { "dwell" }, saved);
+        StringAssert.StartsWith(vm.Status, "Status.OverlayDwell:");
+
+        overlay.DwellSeconds = 1.26;
+        Assert.AreEqual(1300, overlay.Settings.DwellMs, "0.1초 단위로 맞춘다");
+        overlay.DwellSeconds = 9;
+        Assert.AreEqual(5000, overlay.Settings.DwellMs);
+    }
+
+    [TestMethod]
+    public void Removing_the_switch_shows_hidden_buttons_so_they_can_come_back()
+    {
+        var changed = new List<string>();
+        var overlay = new OverlayViewModel(new Core.Overlay.OverlaySettings(), _ => null, k => k, _ => { });
+        overlay.Changed += changed.Add;
+        overlay.ToggleVisible = true;
+        overlay.Hidden = true;
+
+        overlay.ToggleVisible = false;
+
+        Assert.IsFalse(overlay.Hidden);
+        CollectionAssert.Contains(changed, "Hidden", "버튼 창도 다시 보여야 하니 알린다");
+    }
+
+    [TestMethod]
+    public void A_failed_settings_save_keeps_the_value_and_says_so()
+    {
+        var status = "";
+        var overlay = new OverlayViewModel(new Core.Overlay.OverlaySettings(), _ => "denied", k => k + ":{0}", s => status = s);
+
+        overlay.Locked = true;
+
+        Assert.IsTrue(overlay.Locked);
+        Assert.AreEqual("Status.SettingsSaveFailed:denied", status);
+    }
+
+    [TestMethod]
+    public void Profile_overlay_switches_and_close_all_go_through_the_profile_file()
+    {
+        var desktop = new FakeDesktop();
+        desktop.Document.Unreadable.Add(new UnreadableProfile("broken", """{ "name": "Old" }""", "x"));
+        var vm = desktop.CreateViewModel(Profile("a", "x", 0, 0, 10, 10), Profile("b", "y", 0, 0, 10, 10));
+
+        vm.SetProfileOverlayCommand.Execute(vm.Profiles.Single(p => p.Id == "id-a"));
+        vm.SetProfileOverlayCommand.Execute(vm.Profiles.Single(p => p.Id == "id-b"));
+        vm.SetProfileOverlay(vm.Profiles.Single(p => p.IsUnreadable), true);
+
+        Assert.IsTrue(vm.Profiles.Where(p => !p.IsUnreadable).All(p => p.OverlayEnabled));
+        Assert.IsFalse(vm.Profiles.Single(p => p.IsUnreadable).OverlayEnabled, "읽지 못한 프로필에는 버튼이 없다");
+        Assert.AreEqual(2, desktop.Saves);
+
+        vm.CloseAllOverlaysCommand.Execute(null);
+
+        Assert.IsTrue(desktop.Document.Profiles.All(p => p.Value.OverlayStyle!.Enabled == false));
+        Assert.AreEqual("Status.OverlayAllClosed:{0}", vm.Status);
+        vm.CloseAllOverlaysCommand.Execute(null);
+        Assert.AreEqual(3, desktop.Saves, "켜진 것이 없으면 저장하지 않는다");
+    }
+
     private static WindowRow Row(nint handle, string title, string process = "app.exe") =>
         new(handle, new WindowInfo(Title: title, ProcessName: process), 100, new PixelRect(0, 0, 300, 200), false, false);
 

@@ -54,6 +54,9 @@ public sealed record ProfileRow(string Id, Profile Profile, bool IsUnreadable = 
         Profile.HotkeyEnabled && !string.IsNullOrEmpty(Profile.HotkeyCombination) ? Profile.HotkeyCombination : "-";
 
     public bool MouseConstraint => Profile.MouseConstraint;
+
+    /// <summary>이 프로필의 오버레이 버튼을 띄우는가. 읽지 못한 프로필은 띄우지 않는다.</summary>
+    public bool OverlayEnabled => !IsUnreadable && Profile.OverlayStyle?.Enabled == true;
     public bool AutoApply => Profile.AutoApply;
 
     public string X => Profile.WindowConfig?.X.ToString() ?? "-";

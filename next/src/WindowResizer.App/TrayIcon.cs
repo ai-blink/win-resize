@@ -6,7 +6,9 @@ namespace WindowResizer.App;
 /// 시스템 트레이 아이콘(S4c, D-020). WinForms <see cref="Forms.NotifyIcon"/> 을 감싼다 - WPF 에는 트레이 API 가 없다.
 /// WinForms 는 이 파일에서만 쓴다.
 ///
-/// 메뉴는 PyQt5 트레이 6항목 중 "창 열기"와 "프로그램 종료" 둘이다. 오버레이 네 항목은 오버레이 단계에서 붙는다.
+/// 메뉴는 PyQt5 트레이 6항목 그대로다: 창 열기, 오버레이 드웰 모드, 오버레이 버튼 감추기, 감추기 스위치 표시,
+/// 오버레이 버튼 모두 닫기, 프로그램 종료. 오버레이 세 토글은 <see cref="ViewModels.OverlayViewModel"/> 을 직접
+/// 읽고 쓴다 - 메뉴를 열 때마다 체크를 다시 읽으므로 페이지나 메뉴 막대에서 바꾼 값과 어긋나지 않는다.
 /// 왼쪽 클릭과 더블클릭은 창을 연다(PyQt5 와 같다).
 /// </summary>
 public sealed class TrayIcon : IDisposable
@@ -15,11 +17,26 @@ public sealed class TrayIcon : IDisposable
     private readonly Func<string, string> _text;
     private bool _hiddenNoticeShown;
 
-    public TrayIcon(Func<string, string> text, Action open, Action exit)
+    public TrayIcon(Func<string, string> text, Action open, Action exit,
+        ViewModels.OverlayViewModel overlay, Action closeAllOverlays)
     {
         _text = text;
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add(text("Tray.Open"), null, (_, _) => open());
+        menu.Items.Add(new Forms.ToolStripSeparator());
+
+        var dwell = Toggle(text("Tray.OverlayDwell"), () => overlay.IsDwell, v => overlay.IsDwell = v);
+        var hidden = Toggle(text("Tray.OverlayHidden"), () => overlay.Hidden, v => overlay.Hidden = v);
+        var toggle = Toggle(text("Tray.OverlaySwitch"), () => overlay.ToggleVisible, v => overlay.ToggleVisible = v);
+        menu.Items.Add(dwell.Item);
+        menu.Items.Add(hidden.Item);
+        menu.Items.Add(toggle.Item);
+        menu.Items.Add(text("Tray.OverlayCloseAll"), null, (_, _) => closeAllOverlays());
+        menu.Opening += (_, _) =>
+        {
+            foreach (var (item, get) in new[] { dwell, hidden, toggle }) item.Checked = get();
+        };
+
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(text("Tray.Exit"), null, (_, _) => exit());
 
@@ -34,6 +51,17 @@ public sealed class TrayIcon : IDisposable
         {
             if (e.Button == Forms.MouseButtons.Left) open();
         };
+    }
+
+    /// <summary>
+    /// 체크 항목 하나. 누르면 읽은 값의 반대를 쓴다(CheckOnClick 을 쓰지 않는다 - 체크 표시가 설정보다 앞서가면
+    /// 저장 실패 등으로 둘이 어긋난다).
+    /// </summary>
+    private static (Forms.ToolStripMenuItem Item, Func<bool> Get) Toggle(string label, Func<bool> get, Action<bool> set)
+    {
+        var item = new Forms.ToolStripMenuItem(label);
+        item.Click += (_, _) => set(!get());
+        return (item, get);
     }
 
     /// <summary>처음 트레이로 숨길 때 한 번만 알린다. 매번 띄우면 소음이다(PyQt5 <c>_tray_notification_shown</c>).</summary>
