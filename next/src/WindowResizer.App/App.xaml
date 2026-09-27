@@ -144,6 +144,31 @@
                 </Setter>
             </Style>
 
+            <!-- 사이드바의 페이지가 아닌 동작(계획 4.2.1 NavActionStyle). 항목과 같은 모양이지만 선택 상태가 없다. -->
+            <Style x:Key="NavActionStyle" TargetType="{x:Type Button}">
+                <Setter Property="MinHeight" Value="44" />
+                <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="Chrome" Margin="8,1" CornerRadius="8" Background="Transparent" Padding="12,0"
+                                    BorderThickness="1" BorderBrush="Transparent">
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AppHoverBrush}" /></Trigger>
+                                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AppPressedBrush}" /></Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AppAccentBrush}" /></Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="NavIconStyle" TargetType="{x:Type TextBlock}">
                 <Setter Property="FontFamily" Value="{StaticResource IconFontFamily}" />
                 <Setter Property="FontSize" Value="16" />

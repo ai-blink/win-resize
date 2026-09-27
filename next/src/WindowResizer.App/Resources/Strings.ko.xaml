@@ -13,6 +13,8 @@
     <sys:String x:Key="Nav.Hotkeys">단축키</sys:String>
     <sys:String x:Key="Nav.Settings">설정</sys:String>
     <sys:String x:Key="Nav.LogAndAbout">로그와 정보</sys:String>
+    <sys:String x:Key="Nav.Exit">프로그램 종료</sys:String>
+    <sys:String x:Key="Nav.Exit.Hint">프로그램을 끝냅니다 (Ctrl+Q). 창 닫기(X)는 트레이로 숨기기만 합니다</sys:String>
 
     <sys:String x:Key="Windows.Header">창 목록</sys:String>
     <sys:String x:Key="Windows.Search">창 이름이나 프로세스로 찾기 (Ctrl+F)</sys:String>

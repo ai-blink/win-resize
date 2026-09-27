@@ -13,6 +13,8 @@
     <sys:String x:Key="Nav.Hotkeys">Shortcuts</sys:String>
     <sys:String x:Key="Nav.Settings">Settings</sys:String>
     <sys:String x:Key="Nav.LogAndAbout">Log and about</sys:String>
+    <sys:String x:Key="Nav.Exit">Exit program</sys:String>
+    <sys:String x:Key="Nav.Exit.Hint">Quit the program (Ctrl+Q). Closing the window (X) only hides it to the tray</sys:String>
 
     <sys:String x:Key="Windows.Header">Windows</sys:String>
     <sys:String x:Key="Windows.Search">Find by window name or process (Ctrl+F)</sys:String>

@@ -68,6 +68,18 @@
             <!-- 왼쪽 사이드바(계획 4.2.1, key-demo-osk 패턴) -->
             <Border Grid.Column="0" Background="{DynamicResource AppCanvasBrush}"
                     BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,1,0">
+              <DockPanel>
+                <!-- 왼쪽 아래 프로그램 종료. 메뉴 "종료"(Ctrl+Q), 트레이 "프로그램 종료"와 같은 명령이다(D-020).
+                     창 닫기(X)는 트레이로 숨기므로, 진짜로 끝내는 길이 화면에 보여야 한다. -->
+                <Button DockPanel.Dock="Bottom" Style="{StaticResource NavActionStyle}" Margin="0,0,0,12"
+                        Command="{Binding ExitCommand}"
+                        ToolTip="{DynamicResource Nav.Exit.Hint}"
+                        AutomationProperties.Name="{DynamicResource Nav.Exit}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource NavIconStyle}" Text="&#xE7E8;" />
+                        <TextBlock Text="{DynamicResource Nav.Exit}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <StackPanel Margin="0,14,0,16">
                     <TextBlock Text="{DynamicResource App.Title}" FontSize="17" FontWeight="Bold"
                                Foreground="{DynamicResource AppTextBrush}" Margin="20,4,0,6" />
@@ -131,6 +143,7 @@
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
+              </DockPanel>
             </Border>
 
             <!-- 본문 -->
