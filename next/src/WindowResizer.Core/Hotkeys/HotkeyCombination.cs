@@ -80,6 +80,36 @@ public readonly record struct HotkeyCombination(HotkeyModifiers Modifiers, int V
             : new HotkeyCombination(modifiers, key.Value);
     }
 
+    /// <summary>
+    /// 저장 문자열로 되돌린다(<see cref="Parse"/> 의 역). 수정키 순서는 Ctrl, Alt, Shift, Win 이다.
+    /// 이름을 붙일 수 없는 가상 키(마우스 버튼, 미디어 키 등)면 null.
+    /// </summary>
+    public string? Format()
+    {
+        string? key = null;
+        if (VirtualKey is >= 'A' and <= 'Z' || VirtualKey is >= '0' and <= '9') key = ((char)VirtualKey).ToString();
+        else if (VirtualKey is >= 0x70 and <= 0x87) key = "F" + (VirtualKey - 0x6F);
+        else key = SpecialKeyNames.GetValueOrDefault(VirtualKey);
+        if (key is null) return null;
+
+        var parts = new List<string>();
+        if ((Modifiers & HotkeyModifiers.Control) != 0) parts.Add("Ctrl");
+        if ((Modifiers & HotkeyModifiers.Alt) != 0) parts.Add("Alt");
+        if ((Modifiers & HotkeyModifiers.Shift) != 0) parts.Add("Shift");
+        if ((Modifiers & HotkeyModifiers.Win) != 0) parts.Add("Win");
+        parts.Add(key);
+        return string.Join("+", parts);
+    }
+
+    /// <summary>되돌릴 때 쓰는 이름. <c>esc</c> 같은 별칭은 <see cref="SpecialKeys"/> 에서만 받고 여기서는 내지 않는다.</summary>
+    private static readonly Dictionary<int, string> SpecialKeyNames = new()
+    {
+        [0x20] = "Space", [0x0D] = "Enter", [0x09] = "Tab", [0x08] = "Backspace", [0x2E] = "Delete",
+        [0x24] = "Home", [0x23] = "End", [0x21] = "Page Up", [0x22] = "Page Down",
+        [0x25] = "Left", [0x26] = "Up", [0x27] = "Right", [0x28] = "Down",
+        [0x2D] = "Insert", [0x1B] = "Escape",
+    };
+
     public static bool TryParse(string? combination, out HotkeyCombination result)
     {
         try

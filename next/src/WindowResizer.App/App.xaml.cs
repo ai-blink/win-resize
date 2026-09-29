@@ -16,6 +16,7 @@ namespace WindowResizer.App;
 ///   S4b 부터 이 폴더에 <b>쓴다</b>(적용 횟수, 편집, 삭제). 개발 중에는 실사용 폴더가 아니라 사본을 넘긴다.
 ///   <c>--overlay-key &lt;HKCU 아래 경로&gt;</c>  오버레이 설정 키를 바꾼다(PyQt5 키에서 가져오지도 않는다).
 ///   라이브 검증이 사용자 설정을 건드리지 않게 쓴다.
+///   <c>--hotkey-key &lt;HKCU 아래 경로&gt;</c>  전체 적용 단축키 키를 바꾼다(PyQt5 파일에서 가져오지도 않는다). 같은 이유다.
 /// </summary>
 public partial class App : Application
 {
@@ -34,6 +35,10 @@ public partial class App : Application
         var overlayKey = ArgValue(e.Args, "--overlay-key");
         var overlayStore = overlayKey is null ? new OverlaySettingsStore() : new OverlaySettingsStore(overlayKey, legacyKeyPath: null);
 
+        var hotkeyKey = ArgValue(e.Args, "--hotkey-key");
+        var hotkeyStore = hotkeyKey is null ? new HotkeySettingsStore() : new HotkeySettingsStore(hotkeyKey, legacyFilePath: null);
+        _hotkeys = new HotkeyRegistrar();
+
         var viewModel = new MainViewModel(
             () => windows.EnumerateUserWindows()
                 .Select(w => new WindowRow(w.Handle, w.Info, w.ProcessId, w.Rect, w.IsMaximized, w.IsMinimized))
@@ -45,8 +50,16 @@ public partial class App : Application
             Text,
             Quit,
             overlaySettings: overlayStore.Load(),
-            saveOverlay: settings => overlayStore.TrySave(settings, out var error) ? null : error!.Message);
+            saveOverlay: settings => overlayStore.TrySave(settings, out var error) ? null : error!.Message,
+            hotkeys: new HotkeyServices(
+                _hotkeys,
+                hotkeyStore.Load(),
+                hotkey => hotkeyStore.TrySave(hotkey, out var error) ? null : error!.Message,
+                Win32Windows.ToggleForegroundTopmost,
+                // 등록기는 자기 스레드에서 알린다. 화면 상태는 UI 스레드에서만 만진다.
+                action => Dispatcher.BeginInvoke(action)));
 
+        viewModel.Hotkeys.Sync();
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
         if (notice is not null) viewModel.ShowStatus(notice);
@@ -62,6 +75,7 @@ public partial class App : Application
         _overlays = new Overlay.OverlayController(viewModel, _foreground, Text);
     }
 
+    private HotkeyRegistrar? _hotkeys;
     private TrayIcon? _tray;
     private WindowEventWatcher? _windowEvents;
     private ForegroundTracker? _foreground;
@@ -95,9 +109,11 @@ public partial class App : Application
         Shutdown();
     }
 
-    /// <summary>트레이 아이콘, 오버레이 창, 창 이벤트 훅을 푼다. 두 번 불러도 된다.</summary>
+    /// <summary>전역 단축키, 트레이 아이콘, 오버레이 창, 창 이벤트 훅을 푼다. 두 번 불러도 된다.</summary>
     private void ReleaseResources()
     {
+        _hotkeys?.Dispose();
+        _hotkeys = null;
         _tray?.Dispose();
         _tray = null;
         _overlays?.Dispose();

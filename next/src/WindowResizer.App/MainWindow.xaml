@@ -36,6 +36,7 @@
             </MenuItem>
             <MenuItem Header="{DynamicResource Menu.Profile}">
                 <MenuItem Header="{DynamicResource Menu.Apply}" InputGestureText="Enter" Command="{Binding ApplyProfileCommand}" />
+                <MenuItem Header="{DynamicResource Menu.ApplyAll}" Command="{Binding ApplyAllProfilesCommand}" />
                 <MenuItem Header="{DynamicResource Menu.NewFromWindow}" InputGestureText="Ctrl+S" Command="{Binding NewProfileFromWindowCommand}" />
                 <MenuItem Header="{DynamicResource Menu.Edit}" Command="{Binding EditProfileCommand}" />
                 <MenuItem Header="{DynamicResource Menu.OverwritePosition}" Command="{Binding OverwritePositionCommand}" />
@@ -381,6 +382,110 @@
                     </StackPanel>
                 </ScrollViewer>
 
+                <!-- 단축키 (메뉴 지도 [단축키]). 등록 결과가 아래 목록에 그대로 보인다. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:AppPage.Hotkeys}}">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,14,0" DataContext="{Binding Hotkeys}">
+                        <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource Nav.Hotkeys}" />
+                        <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource Hotkeys.Subtitle}" />
+
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Hotkeys.ApplyAll}" />
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Hotkeys.ApplyAll.Hint}" />
+                        <CheckBox IsChecked="{Binding ApplyAllEnabled}" Content="{DynamicResource Hotkeys.ApplyAll.Enabled}" />
+                        <DockPanel Margin="28,4,0,0" IsEnabled="{Binding ApplyAllEnabled}">
+                            <Button DockPanel.Dock="Right" Margin="8,0,0,0" Content="{DynamicResource Hotkeys.Save}"
+                                    Command="{Binding SaveApplyAllCommand}" AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Save}" />
+                            <TextBox Text="{Binding ApplyAllCombination, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Combination}" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,4,0,0" Text="{DynamicResource Editor.HotkeyCombination.Hint}" />
+                        <TextBlock Margin="28,4,0,0" TextWrapping="Wrap" Text="{Binding ApplyAllError}" Foreground="{DynamicResource AppDangerBrush}" />
+                        <TextBlock Margin="28,2,0,20" TextWrapping="Wrap" Text="{Binding ApplyAllState}" Foreground="{DynamicResource AppMutedTextBrush}" />
+
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Hotkeys.Profile}" />
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Hotkeys.Profile.Hint}" />
+                        <ComboBox ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding SelectedProfile}" DisplayMemberPath="Name" Margin="0,0,0,20" VerticalContentAlignment="Center"
+                                  AutomationProperties.Name="{DynamicResource Hotkeys.Profile}" />
+                        <StackPanel Margin="0,-8,0,20" Visibility="{Binding HasSelectedProfile, Converter={StaticResource BoolToVisibility}}">
+                            <CheckBox IsChecked="{Binding ProfileHotkeysEnabled}" Content="{DynamicResource Hotkeys.Profile.Enabled}" />
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Hotkeys.Profile.Enabled.Hint}" />
+                            <ItemsControl ItemsSource="{Binding Sets}" Margin="28,0,0,0" IsEnabled="{Binding ProfileHotkeysEnabled}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="220" />
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0" IsChecked="{Binding Enabled}"
+                                                      AutomationProperties.Name="{DynamicResource Hotkeys.Set.Enabled}" />
+                                            <TextBox Grid.Column="1" Margin="0,0,8,0" IsEnabled="{Binding Enabled}"
+                                                     Text="{Binding Combination, UpdateSourceTrigger=PropertyChanged}"
+                                                     AutomationProperties.Name="{DynamicResource Hotkeys.Set.Combination}" />
+                                            <ComboBox Grid.Column="2" IsEnabled="{Binding Enabled}" VerticalContentAlignment="Center"
+                                                      ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                      DisplayMemberPath="Display" SelectedValuePath="Action" SelectedValue="{Binding Action}"
+                                                      AutomationProperties.Name="{DynamicResource Hotkeys.Set.Action}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,2,0,0" Text="{DynamicResource Hotkeys.Set.Hint}" />
+                            <DockPanel Margin="28,8,0,0">
+                                <Button DockPanel.Dock="Left" Content="{DynamicResource Hotkeys.Save}" Command="{Binding SaveProfileCommand}"
+                                        AutomationProperties.Name="{DynamicResource Hotkeys.Profile.Save}" />
+                                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ProfileError}"
+                                           Foreground="{DynamicResource AppDangerBrush}" />
+                            </DockPanel>
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Hotkeys.Registered}" />
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Hotkeys.Registered.Hint}" />
+                        <ItemsControl ItemsSource="{Binding Rows}" AutomationProperties.Name="{DynamicResource Hotkeys.Registered}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Text}" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Action}" Foreground="{DynamicResource AppMutedTextBrush}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding State}" TextWrapping="Wrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="{x:Type TextBlock}">
+                                                    <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsProblem}" Value="True">
+                                                            <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Foreground="{DynamicResource AppMutedTextBrush}" Text="{DynamicResource Hotkeys.Registered.Empty}">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Rows.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
                 <!-- 아직 채우지 않은 페이지. 자리만 있다. -->
                 <TextBlock Text="{DynamicResource Page.Pending}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="15"
                            HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -391,6 +496,9 @@
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Overlay}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Hotkeys}">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                             </Style.Triggers>

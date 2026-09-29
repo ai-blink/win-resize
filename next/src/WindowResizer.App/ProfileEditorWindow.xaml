@@ -125,9 +125,13 @@
                                 <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource Editor.RunMethod.Subtitle}" />
                                 <CheckBox IsChecked="{Binding HotkeyEnabled}" Content="{DynamicResource Editor.HotkeyEnabled}" />
                                 <!-- 체크를 켜야 아래가 열린다(계획 4.4) -->
-                                <TextBox Text="{Binding HotkeyCombination, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding HotkeyEnabled}"
+                                <TextBox Text="{Binding HotkeyCombination, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditSingleHotkey}"
                                          Margin="28,4,0,0" AutomationProperties.Name="{DynamicResource Editor.HotkeyCombination}" />
-                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,4,0,18" Text="{DynamicResource Editor.HotkeyCombination.Hint}" />
+                                <StackPanel Margin="28,4,0,18">
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource Editor.HotkeyCombination.Hint}" />
+                                    <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource Editor.HotkeyCombination.SetsNote}"
+                                               Visibility="{Binding HasHotkeySets, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
                                 <CheckBox IsChecked="{Binding OverlayEnabled}" Content="{DynamicResource Editor.OverlayEnabled}" />
                                 <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,18" Text="{DynamicResource Editor.OverlayEnabled.Hint}" />
                                 <CheckBox IsChecked="{Binding AutoApply}" Content="{DynamicResource Editor.AutoApply}" />

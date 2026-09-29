@@ -140,7 +140,22 @@ public sealed class ProfileEditorViewModel : ObservableObject
     public int Height { get => _height; set => Set(ref _height, value); }
     public bool IsMaximized { get => _isMaximized; set => Set(ref _isMaximized, value); }
 
-    public bool HotkeyEnabled { get => _hotkeyEnabled; set => Set(ref _hotkeyEnabled, value); }
+    public bool HotkeyEnabled
+    {
+        get => _hotkeyEnabled;
+        set
+        {
+            if (Set(ref _hotkeyEnabled, value)) OnPropertyChanged(nameof(CanEditSingleHotkey));
+        }
+    }
+
+    /// <summary>
+    /// 프로필에 단축키 세트가 있으면 등록은 세트만 본다. 그때 단일 조합 칸을 열어 두면 고쳐도 아무 일도 안 일어나므로
+    /// 닫고, 세트는 단축키 페이지에서 편집한다(D-026).
+    /// </summary>
+    public bool HasHotkeySets => Profile.HotkeySets.Count > 0;
+
+    public bool CanEditSingleHotkey => HotkeyEnabled && !HasHotkeySets;
     public string HotkeyCombination { get => _hotkeyCombination; set => Set(ref _hotkeyCombination, value); }
     public bool OverlayEnabled { get => _overlayEnabled; set => Set(ref _overlayEnabled, value); }
     public bool AutoApply { get => _autoApply; set => Set(ref _autoApply, value); }
@@ -217,7 +232,7 @@ public sealed class ProfileEditorViewModel : ObservableObject
 
         if (Width <= 0 || Height <= 0) return ("Editor.Error.SizeInvalid", EditorPage.Position);
 
-        if (HotkeyEnabled && !Core.Hotkeys.HotkeyCombination.TryParse(HotkeyCombination, out _))
+        if (CanEditSingleHotkey && !Core.Hotkeys.HotkeyCombination.TryParse(HotkeyCombination, out _))
             return ("Editor.Error.HotkeyInvalid", EditorPage.RunMethod);
 
         return null;

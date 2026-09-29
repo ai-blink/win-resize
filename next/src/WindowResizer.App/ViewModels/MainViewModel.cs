@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
 using WindowResizer.App.Mvvm;
+using WindowResizer.Core.Hotkeys;
 using WindowResizer.Core.Overlay;
 using WindowResizer.Core.Profiles;
 using WindowResizer.Core.Windowing;
@@ -66,7 +67,8 @@ public sealed class MainViewModel : ObservableObject
         Action? exit = null,
         Func<double>? now = null,
         OverlaySettings? overlaySettings = null,
-        Func<OverlaySettings, string?>? saveOverlay = null)
+        Func<OverlaySettings, string?>? saveOverlay = null,
+        HotkeyServices? hotkeys = null)
     {
         _enumerateWindows = enumerateWindows;
         _windows = windows;
@@ -96,6 +98,146 @@ public sealed class MainViewModel : ObservableObject
         Overlay = new OverlayViewModel(overlaySettings ?? new OverlaySettings(), saveOverlay ?? (_ => null), text, ShowStatus);
         SetProfileOverlayCommand = new ParameterCommand<ProfileRow>(row => SetProfileOverlay(row, !row.OverlayEnabled));
         CloseAllOverlaysCommand = new RelayCommand(CloseAllOverlays);
+
+        _hotkeyServices = hotkeys ?? new HotkeyServices();
+        Hotkeys = new HotkeysViewModel(this, _hotkeyServices, text);
+        ApplyAllProfilesCommand = new RelayCommand(ApplyAllProfiles);
+    }
+
+    private readonly HotkeyServices _hotkeyServices;
+
+    /// <summary>단축키 페이지. 프로필을 바꿔 저장할 때마다 등록을 다시 한다(<see cref="RebuildProfiles"/>).</summary>
+    public HotkeysViewModel Hotkeys { get; }
+
+    /// <summary>모든 프로필을 맞는 창 전부에 적용한다. 메뉴, 전체 적용 단축키가 같은 명령을 쓴다.</summary>
+    public ICommand ApplyAllProfilesCommand { get; }
+
+    public Profile? FindProfile(string id) => _document.Find(id);
+
+    /// <summary>지금 문서에서 등록할 프로필 단축키.</summary>
+    public HotkeyPlan PlanHotkeys() => HotkeyPlanner.Plan(_document);
+
+    /// <summary>
+    /// 프로필의 단축키 스위치와 세트를 바꿔 저장한다(D-022). 첫 세트는 단일 필드에도 적는다 -
+    /// PyQt5 편집 창이 그렇게 저장하고, 옛 프로그램이 읽는 자리다.
+    /// </summary>
+    public bool SaveProfileHotkeys(string profileId, bool enabled, IReadOnlyList<HotkeySet> sets)
+    {
+        var profile = _document.Find(profileId);
+        if (profile is null) return false;
+
+        var saved = Commit(() =>
+        {
+            profile.HotkeyEnabled = enabled;
+            profile.HotkeySets = sets.ToList();
+            profile.HotkeyCombination = sets.Count > 0 ? sets[0].Combination : "";
+            profile.HotkeyAction = sets.Count > 0 ? sets[0].Action : "apply_profile";
+            profile.ModifiedAt = _now();
+        }, SelectedProfile?.Id);
+
+        if (saved) Status = string.Format(_text("Status.HotkeysSaved"), profile.Name);
+        return saved;
+    }
+
+    /// <summary>
+    /// 단축키가 눌렸다(UI 스레드). 프로필을 고르지 않고 문서에서 id 로 찾는다 - 등록한 뒤 프로필이 지워졌을 수 있다.
+    /// 목록의 선택은 건드리지 않는다.
+    /// </summary>
+    public void RunHotkey(HotkeyBinding binding)
+    {
+        if (binding.Action == HotkeyAction.ApplyAllProfiles)
+        {
+            ApplyAllProfiles();
+            return;
+        }
+        if (binding.Action == HotkeyAction.AlwaysOnTopToggle)
+        {
+            ToggleForegroundTopmost();
+            return;
+        }
+
+        var row = Profiles.FirstOrDefault(p => p.Id == binding.ProfileId && !p.IsUnreadable);
+        if (row is null)
+        {
+            Status = _text("Status.HotkeyProfileGone");
+            return;
+        }
+
+        switch (binding.Action)
+        {
+            case HotkeyAction.ApplyProfile:
+                ApplyProfileRow(row, () => SelectedProfile?.Id);
+                break;
+            case HotkeyAction.AutoApplyToggle:
+                if (Commit(() =>
+                    {
+                        row.Profile.AutoApply = !row.Profile.AutoApply;
+                        row.Profile.ModifiedAt = _now();
+                    }, SelectedProfile?.Id))
+                    Status = string.Format(_text(row.Profile.AutoApply ? "Status.HotkeyAutoApplyOn" : "Status.HotkeyAutoApplyOff"), row.Name);
+                break;
+            default:
+                // 이 앱은 아직 창 잠금과 마우스 제한을 걸지 않는다 - 풀 것이 없다는 사실을 그대로 알린다.
+                Status = string.Format(_text("Status.HotkeyNothingToRelease"), row.Name);
+                break;
+        }
+    }
+
+    private void ToggleForegroundTopmost()
+    {
+        var result = _hotkeyServices.ToggleForegroundTopmost?.Invoke();
+        if (result is not { } toggled)
+        {
+            Status = _text("Status.HotkeyNoForeground");
+            return;
+        }
+
+        var title = string.IsNullOrWhiteSpace(toggled.Title) ? _text("Status.UntitledWindow") : toggled.Title;
+        Status = !toggled.Succeeded
+            ? string.Format(_text("Status.HotkeyTopmostFailed"), title)
+            : string.Format(_text(toggled.Topmost ? "Status.HotkeyTopmostOn" : "Status.HotkeyTopmostOff"), title);
+    }
+
+    /// <summary>
+    /// 모든 프로필을 맞는 창 전부에 적용한다(PyQt5 <c>auto_apply_profiles</c>). 먼저 목록을 새로 열어
+    /// 방금 뜬 창까지 잡는다. 한 창에 프로필 둘이 맞으면 둘 다 적용하고 나중 것이 남는다(PyQt5 와 같다).
+    /// </summary>
+    public void ApplyAllProfiles()
+    {
+        RefreshWindows();
+
+        var counts = new List<(Profile Profile, int Applied)>();
+        var failed = 0;
+        foreach (var (_, profile) in _document.Profiles)
+        {
+            if (profile.WindowConfig is not { } config) continue;
+
+            var applied = 0;
+            foreach (var window in Windows.Where(w => profile.Matches(w.Info)).ToList())
+            {
+                if (_applier.Apply(window.Handle, config) == ApplyOutcome.Applied) applied++;
+                else failed++;
+            }
+            if (applied > 0) counts.Add((profile, applied));
+        }
+
+        var total = counts.Sum(c => c.Applied);
+        if (total == 0 && failed == 0)
+        {
+            Status = _text("Status.AppliedAllNone");
+            return;
+        }
+
+        RefreshWindows();
+        var message = total == 0
+            ? string.Format(_text("Status.AppliedAllFailed"), failed)
+            : failed == 0
+                ? string.Format(_text("Status.AppliedAll"), total)
+                : string.Format(_text("Status.AppliedAllWithFailures"), total, failed);
+
+        if (total > 0 && !Commit(() => counts.ForEach(c => c.Profile.RecordApplied(c.Applied, _now())),
+                () => SelectedProfile?.Id, clearsUndo: false)) return;
+        Status = message;
     }
 
     /// <summary>오버레이 전역 설정. 오버레이 페이지, 메뉴 막대, 트레이가 같은 객체를 본다.</summary>
@@ -245,7 +387,15 @@ public sealed class MainViewModel : ObservableObject
     {
         var row = SelectedProfile;
         if (row is null || row.IsUnreadable) return;
+        ApplyProfileRow(row, () => row.Id);
+    }
 
+    /// <summary>
+    /// 프로필 하나를 맞는 창 전부에 적용한다. 버튼, 메뉴, Enter 와 프로필 단축키가 같은 이 길을 쓴다.
+    /// <paramref name="selectAfter"/> 는 저장 뒤 목록에서 선택할 프로필 - 단축키는 사용자의 선택을 옮기지 않는다.
+    /// </summary>
+    private void ApplyProfileRow(ProfileRow row, Func<string?> selectAfter)
+    {
         // 새로 뜬 창까지 한 번에 잡으려고 적용 직전에 목록을 새로 연다.
         RefreshWindows();
 
@@ -268,7 +418,7 @@ public sealed class MainViewModel : ObservableObject
 
         // 적용 횟수는 창은 이미 옮겼으니 저장 실패가 적용을 되돌리지 않는다. 실패만 알린다.
         // 적용 횟수는 위치를 바꾸지 않으므로 덮어쓰기 되돌리기를 지우지 않는다 - 덮어쓴 뒤 적용해 보고 되돌리는 흐름.
-        if (applied > 0 && !Commit(() => row.Profile.RecordApplied(applied, _now()), () => row.Id, clearsUndo: false)) return;
+        if (applied > 0 && !Commit(() => row.Profile.RecordApplied(applied, _now()), selectAfter, clearsUndo: false)) return;
         Status = message;
     }
 
@@ -428,6 +578,8 @@ public sealed class MainViewModel : ObservableObject
         foreach (var row in RowsOf(_document)) Profiles.Add(row);
         OnPropertyChanged(nameof(ProfileCount));
         SelectedProfile = selectId is null ? null : Profiles.FirstOrDefault(p => p.Id == selectId);
+        // 단축키는 프로필 문서가 정한다 - 저장, 삭제, 되돌림 어느 쪽이든 문서가 바뀌었으면 다시 맞춘다.
+        Hotkeys.Sync();
     }
 
     /// <summary>읽은 프로필 다음에 읽지 못한 프로필(흐린 줄). 파일에 쓰는 순서와 같다.</summary>

@@ -6,6 +6,29 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.3 - 2026-09-29
+
+Third preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.3.md](../doc/releases/v0.02.0-preview.3.md).
+
+### Highlights
+
+- Shortcuts page: a global apply-all shortcut and up to three shortcuts per
+  profile, each with its own action (apply profile, release locks, toggle always
+  on top, toggle auto apply). Every shortcut is listed with its registration result
+  and the reason when it fails.
+- New Profile > Apply all profiles menu item; the apply-all shortcut runs the same
+  path. The apply-all shortcut is imported once from v0.01.5 and stored separately.
+- Release locks and auto detection of new windows are not in this preview yet.
+
+### Verification
+
+- .NET build: 0 warnings, 0 errors; 144 tests, all passed; real key presses on
+  the running app (against a copy of the profiles) ran the apply-all, apply,
+  always-on-top and auto-apply shortcuts, and a conflicting combination was listed
+  with its reason.
+
 ## 0.02.0-preview.2 - 2026-09-29
 
 Second preview of the WPF (.NET 10) app, built from source; the distributed

@@ -26,6 +26,10 @@ public sealed class DialogWindowSmokeTests
         var windows = new NoWindows();
         var profile = Profile.FromWindow(new WindowInfo("t", "blender.exe", "", @"C:\B\blender.exe"),
             new WindowConfiguration { X = 1, Y = 2, Width = 300, Height = 200 }, "Blender");
+        // 세트가 있는 프로필: 편집 창은 단일 조합 칸을 닫고 안내를 보이며, 단축키 페이지는 등록 목록과 세트 편집을 그린다.
+        profile.HotkeyEnabled = true;
+        profile.HotkeySets.Add(new HotkeySet { Enabled = true, Combination = "Ctrl+Alt+F1", Action = "apply_profile" });
+        profile.HotkeySets.Add(new HotkeySet { Enabled = true, Combination = "not a key", Action = "apply_profile" });
         var editor = new ProfileEditorViewModel(profile, EditorPage.General, _ => false, () => [], windows, null!, k => k);
 
         var window = new ProfileEditorWindow { DataContext = editor, ShowActivated = false, Left = -4000 };
@@ -56,6 +60,9 @@ public sealed class DialogWindowSmokeTests
         document.Unreadable.Add(new UnreadableProfile("broken", """{ "name": "Old" }""", "bad enum"));
         var main = new MainViewModel(() => [row], windows, document, _ => null, null!, k => k);
         main.RefreshWindows();
+        main.Hotkeys.Sync();
+        main.Hotkeys.SelectedProfile = main.Hotkeys.ProfileChoices.First();
+        Assert.IsNotEmpty(main.Hotkeys.Rows, "잘못된 조합이 등록 목록에 보여야 한다");
         var mainWindow = new MainWindow { DataContext = main, ShowActivated = false, Left = -4000 };
         mainWindow.Show();
         foreach (var page in Enum.GetValues<AppPage>())

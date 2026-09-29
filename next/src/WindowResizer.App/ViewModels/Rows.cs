@@ -1,3 +1,4 @@
+using WindowResizer.Core.Hotkeys;
 using WindowResizer.Core.Profiles;
 using WindowResizer.Core.Windowing;
 
@@ -50,8 +51,11 @@ public sealed record ProfileRow(string Id, Profile Profile, bool IsUnreadable = 
 
     public string? TargetTooltip => Profile.MatchingCriteria?.ExecutablePathPattern;
 
-    public string Hotkey =>
-        Profile.HotkeyEnabled && !string.IsNullOrEmpty(Profile.HotkeyCombination) ? Profile.HotkeyCombination : "-";
+    /// <summary>등록되는 첫 단축키(세트가 있으면 세트의 첫 항목). 없으면 "-".</summary>
+    public string Hotkey => !Profile.HotkeyEnabled
+        ? "-"
+        : HotkeyPlanner.EffectiveSets(Profile).FirstOrDefault(s => s.Enabled && !string.IsNullOrWhiteSpace(s.Combination))
+            ?.Combination ?? "-";
 
     public bool MouseConstraint => Profile.MouseConstraint;
 

@@ -223,6 +223,21 @@ public sealed class Win32Windows : IWindowOperations
         return GetCursorPos(out var p) ? (p.X, p.Y) : (0, 0);
     }
 
+    /// <summary>
+    /// 지금 전경 창의 항상 위를 뒤집는다(PyQt5 <c>_toggle_always_on_top</c> 과 같이 프로필과 무관하다).
+    /// 전경 창이 없으면 null. 결과의 <c>Topmost</c> 는 뒤집은 뒤 창이 실제로 그 상태인가가 아니라 요청한 상태다 -
+    /// 실패하면 <c>Succeeded</c> 가 false 다.
+    /// </summary>
+    public static (string Title, bool Topmost, bool Succeeded)? ToggleForegroundTopmost()
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == 0) return null;
+
+        var wasTopmost = (GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+        var succeeded = new Win32Windows().SetTopmost(hwnd, !wasTopmost);
+        return (GetTitle(hwnd), !wasTopmost, succeeded);
+    }
+
     /// <summary>창 하나의 매칭 정보. 오버레이가 직전 창의 제목과 경로를 알려 줄 때 쓴다.</summary>
     public static WindowInfo DescribeWindow(nint hwnd)
     {
