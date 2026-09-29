@@ -6,6 +6,26 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.5 - 2026-09-30
+
+Fifth preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.5.md](../doc/releases/v0.02.0-preview.5.md).
+
+### Highlights
+
+- Log and about page: version, runtime, administrator state, executable, profiles
+  folder and registry keys, plus a log of every status line message and unhandled
+  error (info, warning, error; filter, maximum lines, auto scroll, clear, copy, export
+  to a text file). Menu: Tools > Log (Ctrl+D) and Help > About.
+- A screen exception is logged and shown in the status line instead of ending the app.
+
+### Verification
+
+- .NET build: 0 warnings, 0 errors; 227 tests, all passed. Real key presses and the
+  real save dialog on the running app (against a copy of the profiles and temporary
+  registry keys) exercised the page, the filter, copy, export and open folder.
+
 ## 0.02.0-preview.4 - 2026-09-30
 
 Fourth preview of the WPF (.NET 10) app, built from source; the distributed

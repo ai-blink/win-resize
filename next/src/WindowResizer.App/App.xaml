@@ -232,6 +232,17 @@
                 <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
 
+            <!-- 값이 길어도 드래그로 골라 복사할 수 있는 읽기 전용 글상자(정보 페이지). 테두리 없이 글처럼 보인다. -->
+            <Style x:Key="InfoValueStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="IsReadOnly" Value="True" />
+                <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Margin" Value="0,0,0,4" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
             <Style x:Key="SectionTitleStyle" TargetType="{x:Type TextBlock}">
                 <Setter Property="FontSize" Value="16" />
                 <Setter Property="FontWeight" Value="SemiBold" />

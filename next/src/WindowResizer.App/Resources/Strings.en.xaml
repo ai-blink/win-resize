@@ -44,7 +44,6 @@
     <sys:String x:Key="Menu.Profile">Profile</sys:String>
     <sys:String x:Key="Menu.Apply">Apply profile</sys:String>
 
-    <sys:String x:Key="Page.Pending">This page arrives in a later step.</sys:String>
 
     <sys:String x:Key="Common.Yes">Yes</sys:String>
     <sys:String x:Key="Common.No">No</sys:String>
@@ -301,4 +300,52 @@
     <sys:String x:Key="Status.StartupFailed">Could not change the startup setting: {0}</sys:String>
     <sys:String x:Key="Status.RememberOn">The window size and position are remembered</sys:String>
     <sys:String x:Key="Status.RememberOff">The window size and position are not remembered (the saved spot was cleared)</sys:String>
+
+    <!-- Log and about page -->
+    <sys:String x:Key="Menu.Tools">Tools</sys:String>
+    <sys:String x:Key="Menu.Log">Log</sys:String>
+    <sys:String x:Key="Menu.Help">Help</sys:String>
+    <sys:String x:Key="Menu.About">About</sys:String>
+    <sys:String x:Key="About.Subtitle">Shows what this app reads and writes right now. The log below keeps the status line messages and errors with their time.</sys:String>
+    <sys:String x:Key="About.Version">Version</sys:String>
+    <sys:String x:Key="About.Runtime">Runtime</sys:String>
+    <sys:String x:Key="About.Administrator">Administrator</sys:String>
+    <sys:String x:Key="About.Yes">Yes</sys:String>
+    <sys:String x:Key="About.No">No (windows running as administrator cannot be moved)</sys:String>
+    <sys:String x:Key="About.Executable">Executable</sys:String>
+    <sys:String x:Key="About.ProfilesFolder">Profiles folder</sys:String>
+    <sys:String x:Key="About.SettingsKey">Settings key</sys:String>
+    <sys:String x:Key="About.OverlayKey">Overlay key</sys:String>
+    <sys:String x:Key="About.HotkeyKey">Shortcuts key</sys:String>
+    <sys:String x:Key="About.OpenProfiles">Open profiles folder</sys:String>
+    <sys:String x:Key="About.CopyInfo">Copy info</sys:String>
+    <sys:String x:Key="About.CopySettingsKey">Copy settings key path</sys:String>
+    <sys:String x:Key="Log.Title">Log</sys:String>
+    <sys:String x:Key="Log.Level">Show level</sys:String>
+    <sys:String x:Key="Log.Level.Info">Show all</sys:String>
+    <sys:String x:Key="Log.Level.Warning">Warnings and errors</sys:String>
+    <sys:String x:Key="Log.Level.Error">Errors only</sys:String>
+    <sys:String x:Key="Log.Max">Maximum lines</sys:String>
+    <sys:String x:Key="Log.AutoScroll">Auto scroll</sys:String>
+    <sys:String x:Key="Log.Count">Lines: {0}</sys:String>
+    <sys:String x:Key="Log.Clear">Clear log</sys:String>
+    <sys:String x:Key="Log.Copy">Copy all</sys:String>
+    <sys:String x:Key="Log.Export">Export to file</sys:String>
+    <sys:String x:Key="Log.Empty">Nothing recorded</sys:String>
+    <sys:String x:Key="Log.SaveTitle">Save log</sys:String>
+    <sys:String x:Key="Log.FileFilter">Text files (*.txt)|*.txt|All files (*.*)|*.*</sys:String>
+    <sys:String x:Key="Log.ExportTitle">WindowResizer log</sys:String>
+    <sys:String x:Key="Log.Generated">Generated</sys:String>
+    <sys:String x:Key="Log.Started">WindowResizer {0} started</sys:String>
+    <sys:String x:Key="Status.LogCopied">Copied the visible log to the clipboard</sys:String>
+    <sys:String x:Key="Status.LogNothingToCopy">There is no log to copy</sys:String>
+    <sys:String x:Key="Status.LogNothingToExport">There is no log to export</sys:String>
+    <sys:String x:Key="Status.LogExported">Saved the log: {0}</sys:String>
+    <sys:String x:Key="Status.LogExportFailed">Could not save the log: {0}</sys:String>
+    <sys:String x:Key="Status.InfoCopied">Copied the info to the clipboard</sys:String>
+    <sys:String x:Key="Status.KeyCopied">Copied the settings key path to the clipboard</sys:String>
+    <sys:String x:Key="Status.CopyFailed">Could not copy to the clipboard (another program may be using it)</sys:String>
+    <sys:String x:Key="Status.FolderOpenFailed">Could not open the folder: {0}</sys:String>
+    <sys:String x:Key="Status.FolderMissing">The folder does not exist: {0}</sys:String>
+    <sys:String x:Key="Status.UnhandledError">Unhandled error ({0}): {1}</sys:String>
 </ResourceDictionary>

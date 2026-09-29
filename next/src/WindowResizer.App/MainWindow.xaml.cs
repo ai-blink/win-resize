@@ -10,6 +10,30 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Theming.UiScale.Attach(this);
+        DataContextChanged += (_, e) =>
+        {
+            if (e.NewValue is ViewModels.MainViewModel main)
+                main.Log.Rows.CollectionChanged += (_, change) =>
+                {
+                    if (change.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add) ScrollLogToEnd();
+                };
+        };
+    }
+
+    /// <summary>로그 페이지가 열릴 때, 자동 스크롤이 켜져 있으면 맨 아래(가장 최근 줄)를 보인다.</summary>
+    private void OnLogPageVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if ((bool)e.NewValue) ScrollLogToEnd();
+    }
+
+    private void ScrollLogToEnd()
+    {
+        if (DataContext is not ViewModels.MainViewModel { Log: { AutoScroll: true } log } || log.Rows.Count == 0) return;
+        // 줄이 붙은 뒤 목록이 크기를 다시 잡은 다음에 스크롤해야 마지막 줄이 보인다.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (log.Rows.Count > 0) LogList.ScrollIntoView(log.Rows[^1]);
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     /// <summary>슬라이더를 끄는 동안은 숫자만 바뀌고, 놓을 때 화면 크기를 적용한다(SettingsViewModel 참고).</summary>

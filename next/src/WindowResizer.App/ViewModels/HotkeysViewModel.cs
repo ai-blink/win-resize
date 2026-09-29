@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using WindowResizer.App.Mvvm;
+using WindowResizer.Core.Diagnostics;
 using WindowResizer.Core.Hotkeys;
 using WindowResizer.Core.Profiles;
 
@@ -206,7 +207,7 @@ public sealed class HotkeysViewModel : ObservableObject
         if (ApplyAll.Enabled && !HotkeyCombination.TryParse(text, out _))
         {
             Recheck();
-            _owner.ShowStatus(ApplyAll.Problem);
+            _owner.ShowStatus(ApplyAll.Problem, LogLevel.Warning);
             return;
         }
 
@@ -214,7 +215,7 @@ public sealed class HotkeysViewModel : ObservableObject
         var error = (_services.Save ?? (_ => null))(next);
         if (error is not null)
         {
-            _owner.ShowStatus(string.Format(_text("Status.SettingsSaveFailed"), error));
+            _owner.ShowStatus(string.Format(_text("Status.SettingsSaveFailed"), error), LogLevel.Warning);
             return;
         }
 
@@ -244,7 +245,7 @@ public sealed class HotkeysViewModel : ObservableObject
         if (row.Enabled && text.Length > 0 && !HotkeyCombination.TryParse(text, out _))
         {
             Recheck();
-            _owner.ShowStatus(string.Format(_text("Hotkeys.Error.SetInvalid"), text));
+            _owner.ShowStatus(string.Format(_text("Hotkeys.Error.SetInvalid"), text), LogLevel.Warning);
             return;
         }
 

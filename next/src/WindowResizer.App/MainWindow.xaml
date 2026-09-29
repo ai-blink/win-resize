@@ -15,6 +15,7 @@
         <KeyBinding Key="Q" Modifiers="Control" Command="{Binding ExitCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding NewProfileFromWindowCommand}" />
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+        <KeyBinding Key="D" Modifiers="Control" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.LogAndAbout}" />
     </Window.InputBindings>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -58,6 +59,13 @@
                 <Separator />
                 <MenuItem Header="{DynamicResource Overlay.CloseAll}" Command="{Binding CloseAllOverlaysCommand}" />
                 <MenuItem Header="{DynamicResource Menu.OverlayPage}" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.Overlay}" />
+            </MenuItem>
+            <!-- 메뉴 지도: 도구 > 디버그 창 열기(Ctrl+D)와 도움말 > 정보는 [로그와 정보] 페이지가 대신한다. -->
+            <MenuItem Header="{DynamicResource Menu.Tools}">
+                <MenuItem Header="{DynamicResource Menu.Log}" InputGestureText="Ctrl+D" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.LogAndAbout}" />
+            </MenuItem>
+            <MenuItem Header="{DynamicResource Menu.Help}">
+                <MenuItem Header="{DynamicResource Menu.About}" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:AppPage.LogAndAbout}" />
             </MenuItem>
         </Menu>
 
@@ -572,28 +580,117 @@
                     </Grid>
                 </ScrollViewer>
 
-                <!-- 아직 채우지 않은 페이지. 자리만 있다. -->
-                <TextBlock Text="{DynamicResource Page.Pending}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="15"
-                           HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock.Style>
-                        <Style TargetType="{x:Type TextBlock}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.WindowsAndProfiles}">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Overlay}">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Hotkeys}">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Settings}">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                <!-- 로그와 정보 (메뉴 지도 [로그와 정보]). 위는 정보, 아래는 로그 - 로그가 남는 높이를 다 쓴다. -->
+                <Grid Margin="0,0,14,0" x:Name="LogAndAboutPage" IsVisibleChanged="OnLogPageVisibleChanged"
+                      Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:AppPage.LogAndAbout}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" MaxWidth="900" HorizontalAlignment="Left" DataContext="{Binding About}">
+                        <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource Nav.LogAndAbout}" />
+                        <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource About.Subtitle}" />
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.Version}" />
+                            <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding Info.Version, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.Version}" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.Runtime}" />
+                            <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding Info.Runtime, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.Runtime}" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.Administrator}" />
+                            <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding AdministratorText, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.Administrator}" />
+                            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.Executable}" />
+                            <TextBox Grid.Row="3" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding Info.ExecutablePath, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.Executable}" />
+                            <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.ProfilesFolder}" />
+                            <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding Info.ProfilesFolder, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.ProfilesFolder}" />
+                            <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.SettingsKey}" />
+                            <TextBox Grid.Row="5" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding SettingsKeyPath, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.SettingsKey}" />
+                            <TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.OverlayKey}" />
+                            <TextBox Grid.Row="6" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding OverlayKeyPath, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.OverlayKey}" />
+                            <TextBlock Grid.Row="7" Grid.Column="0" Style="{StaticResource FieldHintStyle}" Margin="0,0,16,4" VerticalAlignment="Top" Text="{DynamicResource About.HotkeyKey}" />
+                            <TextBox Grid.Row="7" Grid.Column="1" Style="{StaticResource InfoValueStyle}" Text="{Binding HotkeyKeyPath, Mode=OneWay}" AutomationProperties.Name="{DynamicResource About.HotkeyKey}" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,14">
+                            <Button Content="{DynamicResource About.OpenProfiles}" Command="{Binding OpenProfilesFolderCommand}" Margin="0,0,8,0"
+                                    AutomationProperties.Name="{DynamicResource About.OpenProfiles}" />
+                            <Button Content="{DynamicResource About.CopyInfo}" Command="{Binding CopyInfoCommand}" Margin="0,0,8,0"
+                                    AutomationProperties.Name="{DynamicResource About.CopyInfo}" />
+                            <Button Content="{DynamicResource About.CopySettingsKey}" Command="{Binding CopySettingsKeyCommand}"
+                                    AutomationProperties.Name="{DynamicResource About.CopySettingsKey}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <DockPanel Grid.Row="1" MinHeight="180" DataContext="{Binding Log}">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{DynamicResource AppMutedTextBrush}"
+                                       Text="{Binding CountText}" />
+                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" Margin="0,0,16,0" Text="{DynamicResource Log.Title}" />
+                            <ComboBox DockPanel.Dock="Left" Width="150" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                                      ItemsSource="{Binding LevelOptions}" DisplayMemberPath="Display" SelectedValuePath="Level" SelectedValue="{Binding MinLevel}"
+                                      AutomationProperties.Name="{DynamicResource Log.Level}" />
+                            <ComboBox DockPanel.Dock="Left" Width="110" Margin="0,0,12,0" VerticalContentAlignment="Center"
+                                      ItemsSource="{x:Static vm:LogViewModel.MaxOptions}" SelectedItem="{Binding MaxEntries}"
+                                      AutomationProperties.Name="{DynamicResource Log.Max}" />
+                            <CheckBox VerticalAlignment="Center" IsChecked="{Binding AutoScroll}" Content="{DynamicResource Log.AutoScroll}" />
+                        </DockPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="{DynamicResource Log.Clear}" Command="{Binding ClearCommand}" Margin="0,0,8,0" AutomationProperties.Name="{DynamicResource Log.Clear}" />
+                            <Button Content="{DynamicResource Log.Copy}" Command="{Binding CopyCommand}" Margin="0,0,8,0" AutomationProperties.Name="{DynamicResource Log.Copy}" />
+                            <Button Content="{DynamicResource Log.Export}" Command="{Binding ExportCommand}" AutomationProperties.Name="{DynamicResource Log.Export}" />
+                        </StackPanel>
+                        <Grid>
+                            <ListBox x:Name="LogList" ItemsSource="{Binding Rows}" Background="{DynamicResource AppCanvasBrush}"
+                                     BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" Foreground="{DynamicResource AppTextBrush}"
+                                     FontFamily="Consolas, Malgun Gothic" FontSize="12" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     AutomationProperties.Name="{DynamicResource Log.Title}">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="{x:Type ListBoxItem}">
+                                        <Setter Property="Focusable" Value="False" />
+                                        <Setter Property="Padding" Value="8,2" />
+                                        <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                                    <Border Padding="{TemplateBinding Padding}"><ContentPresenter /></Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="{x:Type TextBlock}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Warning">
+                                                            <Setter Property="Foreground" Value="{DynamicResource AppAccentBrush}" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Error">
+                                                            <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AppMutedTextBrush}"
+                                       Text="{DynamicResource Log.Empty}" IsHitTestVisible="False"
+                                       Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                    </DockPanel>
+                </Grid>
             </Grid>
         </Grid>
 

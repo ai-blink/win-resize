@@ -76,14 +76,23 @@ public partial class App : Application
                 _settings,
                 settings => settingsStore.TrySave(settings, out var error) ? null : error!.Message,
                 startup.IsEnabled,
-                enabled => startup.Set(enabled, Environment.ProcessPath ?? "")));
+                enabled => startup.Set(enabled, Environment.ProcessPath ?? "")),
+            about: new AboutInfo(
+                AppInfo.DisplayVersion,
+                System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+                IsAdministrator(),
+                Environment.ProcessPath ?? "",
+                System.IO.Path.GetFullPath(ProfilesDirectory(e.Args)),
+                settingsStore.KeyPath, overlayStore.KeyPath, hotkeyStore.KeyPath));
         _viewModel = viewModel;
+        viewModel.ShowStatus(string.Format(Text("Log.Started"), AppInfo.DisplayVersion));
+        HookUnhandledExceptions();
         viewModel.Settings.Changed += OnSettingChanged;
 
         viewModel.Hotkeys.Sync();
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
-        if (notice is not null) viewModel.ShowStatus(notice);
+        if (notice is not null) viewModel.ShowStatus(notice, Core.Diagnostics.LogLevel.Warning);
 
         var window = new MainWindow { DataContext = viewModel };
         MainWindow = window;
@@ -120,6 +129,35 @@ public partial class App : Application
         e.Cancel = true;
         MainWindow!.Hide();
         _tray.NotifyHiddenOnce();
+    }
+
+    /// <summary>
+    /// 잡히지 않은 오류를 로그 페이지에 오류로 남긴다. 화면 스레드의 오류는 <b>처리한 것으로 표시해</b> 앱을 살려 둔다 -
+    /// 트레이에 상주하는 앱이 화면 한 곳의 예외로 통째로 사라지지 않게(대신 상태 줄과 로그에 남는다). 다른 스레드의
+    /// 오류는 런타임이 프로세스를 끝내므로 끝나기 전에 로그에 적기만 한다.
+    /// </summary>
+    private void HookUnhandledExceptions()
+    {
+        DispatcherUnhandledException += (_, e) =>
+        {
+            _viewModel?.LogException(e.Exception);
+            e.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception exception) _viewModel?.LogException(exception);
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Dispatcher.BeginInvoke(() => _viewModel?.LogException(e.Exception));
+            e.SetObserved();
+        };
+    }
+
+    private static bool IsAdministrator()
+    {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        return new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
     }
 
     /// <summary>설정 페이지에서 무언가 바뀌었다. 저장은 끝났고 여기서는 실제 화면에 적용만 한다.</summary>

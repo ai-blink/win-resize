@@ -36,6 +36,43 @@ public sealed class DialogService(Func<string, string> text) : IDialogService
         return picker.ShowDialog() == true ? picker.Selected : null;
     }
 
+    public bool CopyToClipboard(string text)
+    {
+        try
+        {
+            // 다른 프로그램이 클립보드를 쥐고 있으면 COMException 이 난다. 두 번째 인자 true 는 짧게 다시 시도한다.
+            Clipboard.SetDataObject(text, copy: true);
+            return true;
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            return false;
+        }
+    }
+
+    public string? ChooseSaveFile(string title, string suggestedFileName, string filter)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog { Title = title, FileName = suggestedFileName, Filter = filter, AddExtension = true };
+        var owner = Owner();
+        var ok = owner is null ? dialog.ShowDialog() : dialog.ShowDialog(owner);
+        return ok == true ? dialog.FileName : null;
+    }
+
+    public string? OpenFolder(string path)
+    {
+        try
+        {
+            if (!System.IO.Directory.Exists(path)) return string.Format(text("Status.FolderMissing"), path);
+            // UseShellExecute 로 탐색기가 열린다. 경로에 공백이 있어도 한 인자로 간다.
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            return null;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return ex.Message;
+        }
+    }
+
     private static Window? Owner() =>
         Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? Application.Current.MainWindow;
 }

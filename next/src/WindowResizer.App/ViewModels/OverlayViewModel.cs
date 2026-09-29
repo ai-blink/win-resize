@@ -15,14 +15,17 @@ public sealed class OverlayViewModel : ObservableObject
     private readonly Func<OverlaySettings, string?> _save;
     private readonly Func<string, string> _text;
     private readonly Action<string> _status;
+    private readonly Action<string> _warn;
 
+    /// <param name="warning">저장 실패처럼 경고로 기록할 문구를 받는 곳. 없으면 <paramref name="status"/> 로 보낸다.</param>
     public OverlayViewModel(OverlaySettings settings, Func<OverlaySettings, string?> save,
-        Func<string, string> text, Action<string> status)
+        Func<string, string> text, Action<string> status, Action<string>? warning = null)
     {
         Settings = settings;
         _save = save;
         _text = text;
         _status = status;
+        _warn = warning ?? status;
         SetDwellCommand = new ParameterCommand<bool>(dwell => IsDwell = dwell);
     }
 
@@ -127,6 +130,7 @@ public sealed class OverlayViewModel : ObservableObject
         OnPropertyChanged(property);
         Changed?.Invoke(property);
         var error = _save(Settings);
-        _status(error is null ? message : string.Format(_text("Status.SettingsSaveFailed"), error));
+        if (error is null) _status(message);
+        else _warn(string.Format(_text("Status.SettingsSaveFailed"), error));
     }
 }

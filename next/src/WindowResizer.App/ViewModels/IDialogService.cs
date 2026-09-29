@@ -1,8 +1,8 @@
 namespace WindowResizer.App.ViewModels;
 
 /// <summary>
-/// ViewModel 이 사용자에게 묻는 창들. 뷰(<c>DialogService</c>)가 WPF 창으로 구현하고 테스트는 가짜를 넘긴다.
-/// ViewModel 은 창을 직접 만들지 않는다.
+/// ViewModel 이 사용자에게 묻는 창들과 운영체제에 부탁하는 일(클립보드, 폴더 열기, 저장 위치 고르기).
+/// 뷰(<c>DialogService</c>)가 WPF 로 구현하고 테스트는 가짜를 넘긴다. ViewModel 은 창을 직접 만들지 않는다.
 /// </summary>
 public interface IDialogService
 {
@@ -17,4 +17,13 @@ public interface IDialogService
 
     /// <summary>조건에 맞는 창이 여러 개일 때 하나를 고르게 한다. 취소하면 null.</summary>
     WindowRow? ChooseWindow(IReadOnlyList<WindowRow> candidates);
+
+    /// <summary>클립보드에 글을 넣는다. 다른 프로그램이 클립보드를 쥐고 있으면 실패할 수 있다 - 성공하면 true.</summary>
+    bool CopyToClipboard(string text);
+
+    /// <summary>저장할 파일 위치를 고르게 한다. 취소하면 null. <paramref name="filter"/> 는 <c>텍스트 (*.txt)|*.txt</c> 꼴.</summary>
+    string? ChooseSaveFile(string title, string suggestedFileName, string filter);
+
+    /// <summary>탐색기로 폴더를 연다. 성공하면 null, 실패하면 원인.</summary>
+    string? OpenFolder(string path);
 }

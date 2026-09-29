@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Input;
 using WindowResizer.App.Mvvm;
+using WindowResizer.Core.Diagnostics;
 using WindowResizer.Core.Hotkeys;
 using WindowResizer.Core.Overlay;
 using WindowResizer.Core.Profiles;
@@ -70,7 +71,8 @@ public sealed class MainViewModel : ObservableObject
         OverlaySettings? overlaySettings = null,
         Func<OverlaySettings, string?>? saveOverlay = null,
         HotkeyServices? hotkeys = null,
-        SettingsServices? settings = null)
+        SettingsServices? settings = null,
+        AboutInfo? about = null)
     {
         _enumerateWindows = enumerateWindows;
         _windows = windows;
@@ -97,7 +99,11 @@ public sealed class MainViewModel : ObservableObject
         NavigateCommand = new ParameterCommand<AppPage>(page => Page = page);
         ExitCommand = new RelayCommand(exit ?? (() => { }));
 
-        Overlay = new OverlayViewModel(overlaySettings ?? new OverlaySettings(), saveOverlay ?? (_ => null), text, ShowStatus);
+        Activity = new ActivityLog();
+        Log = new LogViewModel(Activity, dialogs, text, ShowStatus);
+        About = new AboutViewModel(about ?? AboutInfo.Unknown, dialogs, text, ShowStatus);
+        Overlay = new OverlayViewModel(overlaySettings ?? new OverlaySettings(), saveOverlay ?? (_ => null), text, message => ShowStatus(message),
+            warning: message => ShowStatus(message, LogLevel.Warning));
         SetProfileOverlayCommand = new ParameterCommand<ProfileRow>(row => SetProfileOverlay(row, !row.OverlayEnabled));
         CloseAllOverlaysCommand = new RelayCommand(CloseAllOverlays);
 
@@ -110,7 +116,7 @@ public sealed class MainViewModel : ObservableObject
             settings?.Save ?? (_ => null),
             settings?.IsStartupEnabled ?? (() => false),
             settings?.SetStartup ?? (_ => null),
-            text, ShowStatus);
+            text, message => ShowStatus(message), warning: message => ShowStatus(message, LogLevel.Warning));
     }
 
     private readonly HotkeyServices _hotkeyServices;
@@ -122,7 +128,19 @@ public sealed class MainViewModel : ObservableObject
     /// 표시 언어가 바뀌었다. 화면의 고정 문구는 리소스 사전을 바꾸면 따라 바뀌지만, 이 클래스들이 문자열로 만들어 둔 것
     /// (단축키 줄 이름, 동작 콤보, 등록 결과 목록)은 다시 만들어야 한다.
     /// </summary>
-    public void RefreshTexts() => Hotkeys.RefreshTexts();
+    public void RefreshTexts()
+    {
+        Hotkeys.RefreshTexts();
+        Log.RefreshTexts();
+        About.RefreshTexts();
+    }
+
+    /// <summary>앱이 한 일의 기록(로그 페이지). 상태 줄에 뜬 문구와 잡히지 않은 오류가 쌓인다.</summary>
+    public ActivityLog Activity { get; }
+
+    public LogViewModel Log { get; }
+
+    public AboutViewModel About { get; }
 
     /// <summary>단축키 페이지. 프로필을 바꿔 저장할 때마다 등록을 다시 한다(<see cref="RebuildProfiles"/>).</summary>
     public HotkeysViewModel Hotkeys { get; }
@@ -180,7 +198,7 @@ public sealed class MainViewModel : ObservableObject
         var row = Profiles.FirstOrDefault(p => p.Id == binding.ProfileId && !p.IsUnreadable);
         if (row is null)
         {
-            Status = _text("Status.HotkeyProfileGone");
+            Alert(_text("Status.HotkeyProfileGone"));
             return;
         }
 
@@ -209,14 +227,13 @@ public sealed class MainViewModel : ObservableObject
         var result = _hotkeyServices.ToggleForegroundTopmost?.Invoke();
         if (result is not { } toggled)
         {
-            Status = _text("Status.HotkeyNoForeground");
+            Alert(_text("Status.HotkeyNoForeground"));
             return;
         }
 
         var title = string.IsNullOrWhiteSpace(toggled.Title) ? _text("Status.UntitledWindow") : toggled.Title;
-        Status = !toggled.Succeeded
-            ? string.Format(_text("Status.HotkeyTopmostFailed"), title)
-            : string.Format(_text(toggled.Topmost ? "Status.HotkeyTopmostOn" : "Status.HotkeyTopmostOff"), title);
+        if (!toggled.Succeeded) Alert(string.Format(_text("Status.HotkeyTopmostFailed"), title));
+        else Status = string.Format(_text(toggled.Topmost ? "Status.HotkeyTopmostOn" : "Status.HotkeyTopmostOff"), title);
     }
 
     /// <summary>
@@ -258,7 +275,8 @@ public sealed class MainViewModel : ObservableObject
 
         if (total > 0 && !Commit(() => counts.ForEach(c => c.Profile.RecordApplied(c.Applied, _now())),
                 () => SelectedProfile?.Id, clearsUndo: false)) return;
-        Status = message;
+        if (failed > 0) Alert(message);
+        else Status = message;
     }
 
     /// <summary>오버레이 전역 설정. 오버레이 페이지, 메뉴 막대, 트레이가 같은 객체를 본다.</summary>
@@ -299,19 +317,19 @@ public sealed class MainViewModel : ObservableObject
         var profile = _document.Find(profileId);
         if (profile?.WindowConfig is null)
         {
-            Status = _text("Status.OverlayProfileMissing");
+            Alert(_text("Status.OverlayProfileMissing"));
             return false;
         }
         if (target is not { } hwnd)
         {
-            Status = _text("Status.OverlayNoTarget");
+            Alert(_text("Status.OverlayNoTarget"));
             return false;
         }
 
         var title = string.IsNullOrWhiteSpace(targetTitle) ? _text("Status.UntitledWindow") : targetTitle;
         if (_applier.Apply(hwnd, profile.WindowConfig) != ApplyOutcome.Applied)
         {
-            Status = string.Format(_text("Status.OverlayApplyFailed"), title);
+            Alert(string.Format(_text("Status.OverlayApplyFailed"), title));
             return false;
         }
 
@@ -334,7 +352,19 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>시작 시 한 줄 알림(프로필을 백업에서 읽음 등). 창 목록 상태로 곧 덮인다.</summary>
-    public void ShowStatus(string message) => Status = message;
+    public void ShowStatus(string message, LogLevel level = LogLevel.Info)
+    {
+        _nextLevel = level;
+        Status = message;
+    }
+
+    /// <summary>잡히지 않은 오류를 로그에 오류로 남기고 상태 줄에도 알린다. 예외의 전체 내용(스택 포함)이 로그에 들어간다.</summary>
+    public void LogException(Exception exception)
+    {
+        _nextLevel = LogLevel.Error;
+        Status = string.Format(_text("Status.UnhandledError"), exception.GetType().Name, exception.Message);
+        Activity.Add(LogLevel.Error, exception.ToString());
+    }
 
     public ObservableCollection<WindowRow> Windows { get; } = new();
     public ICollectionView WindowsView { get; }
@@ -389,7 +419,22 @@ public sealed class MainViewModel : ObservableObject
     public string Status
     {
         get => _status;
-        private set => Set(ref _status, value);
+        // 상태 줄에 뜨는 모든 문구가 로그에도 남는다(로그 페이지). 수준은 Alert/ShowStatus 가 정한 것, 아니면 정보다.
+        private set
+        {
+            Activity.Add(_nextLevel, value);
+            _nextLevel = LogLevel.Info;
+            Set(ref _status, value);
+        }
+    }
+
+    private LogLevel _nextLevel = LogLevel.Info;
+
+    /// <summary>잘 안 된 일을 상태 줄에 알린다. 로그에는 경고로 남는다.</summary>
+    private void Alert(string message)
+    {
+        _nextLevel = LogLevel.Warning;
+        Status = message;
     }
 
     public int WindowCount => Windows.Count;
@@ -429,7 +474,7 @@ public sealed class MainViewModel : ObservableObject
         var targets = Windows.Where(w => row.Profile.Matches(w.Info)).ToList();
         if (targets.Count == 0 || config is null)
         {
-            Status = string.Format(_text("Status.NoMatch"), row.Name);
+            Alert(string.Format(_text("Status.NoMatch"), row.Name));
             return;
         }
 
@@ -445,7 +490,8 @@ public sealed class MainViewModel : ObservableObject
         // 적용 횟수는 창은 이미 옮겼으니 저장 실패가 적용을 되돌리지 않는다. 실패만 알린다.
         // 적용 횟수는 위치를 바꾸지 않으므로 덮어쓰기 되돌리기를 지우지 않는다 - 덮어쓴 뒤 적용해 보고 되돌리는 흐름.
         if (applied > 0 && !Commit(() => row.Profile.RecordApplied(applied, _now()), selectAfter, clearsUndo: false)) return;
-        Status = message;
+        if (failed > 0) Alert(message);
+        else Status = message;
     }
 
     /// <summary>
@@ -460,7 +506,7 @@ public sealed class MainViewModel : ObservableObject
         var capture = WindowCapture.Capture(_windows, window.Handle);
         if (!capture.Succeeded)
         {
-            Status = string.Format(_text("Status.CaptureRefused"), window.Info.Title, _text("Capture." + capture.Refusal));
+            Alert(string.Format(_text("Status.CaptureRefused"), window.Info.Title, _text("Capture." + capture.Refusal)));
             return;
         }
 
@@ -508,7 +554,7 @@ public sealed class MainViewModel : ObservableObject
         var capture = WindowCapture.Capture(_windows, window.Handle);
         if (!capture.Succeeded)
         {
-            Status = string.Format(_text("Status.CaptureRefused"), window.Info.Title, _text("Capture." + capture.Refusal));
+            Alert(string.Format(_text("Status.CaptureRefused"), window.Info.Title, _text("Capture." + capture.Refusal)));
             return;
         }
 
@@ -604,7 +650,7 @@ public sealed class MainViewModel : ObservableObject
             _document.Unreadable.Clear();
             _document.Unreadable.AddRange(unreadableBefore);
             RebuildProfiles(SelectedProfile?.Id);
-            Status = string.Format(_text("Status.SaveFailed"), error);
+            Alert(string.Format(_text("Status.SaveFailed"), error));
             return false;
         }
 

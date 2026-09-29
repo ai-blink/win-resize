@@ -44,7 +44,6 @@
     <sys:String x:Key="Menu.Profile">프로필</sys:String>
     <sys:String x:Key="Menu.Apply">프로필 적용</sys:String>
 
-    <sys:String x:Key="Page.Pending">이 페이지는 다음 단계에서 채워집니다.</sys:String>
 
     <sys:String x:Key="Common.Yes">예</sys:String>
     <sys:String x:Key="Common.No">아니오</sys:String>
@@ -301,4 +300,52 @@
     <sys:String x:Key="Status.StartupFailed">시작 프로그램 설정을 바꾸지 못했습니다: {0}</sys:String>
     <sys:String x:Key="Status.RememberOn">창 크기와 위치를 기억합니다</sys:String>
     <sys:String x:Key="Status.RememberOff">창 크기와 위치를 기억하지 않습니다(저장된 자리는 지웠습니다)</sys:String>
+
+    <!-- 로그와 정보 페이지 -->
+    <sys:String x:Key="Menu.Tools">도구</sys:String>
+    <sys:String x:Key="Menu.Log">로그</sys:String>
+    <sys:String x:Key="Menu.Help">도움말</sys:String>
+    <sys:String x:Key="Menu.About">정보</sys:String>
+    <sys:String x:Key="About.Subtitle">이 앱이 지금 무엇을 읽고 쓰는지 보여 줍니다. 아래 로그는 상태 줄에 뜬 문구와 오류를 시각과 함께 쌓아 둡니다.</sys:String>
+    <sys:String x:Key="About.Version">버전</sys:String>
+    <sys:String x:Key="About.Runtime">런타임</sys:String>
+    <sys:String x:Key="About.Administrator">관리자 권한</sys:String>
+    <sys:String x:Key="About.Yes">예</sys:String>
+    <sys:String x:Key="About.No">아니요 (관리자 권한으로 뜬 창은 옮기지 못합니다)</sys:String>
+    <sys:String x:Key="About.Executable">실행 파일</sys:String>
+    <sys:String x:Key="About.ProfilesFolder">프로필 폴더</sys:String>
+    <sys:String x:Key="About.SettingsKey">설정 키</sys:String>
+    <sys:String x:Key="About.OverlayKey">오버레이 키</sys:String>
+    <sys:String x:Key="About.HotkeyKey">단축키 키</sys:String>
+    <sys:String x:Key="About.OpenProfiles">프로필 폴더 열기</sys:String>
+    <sys:String x:Key="About.CopyInfo">정보 복사</sys:String>
+    <sys:String x:Key="About.CopySettingsKey">설정 키 경로 복사</sys:String>
+    <sys:String x:Key="Log.Title">로그</sys:String>
+    <sys:String x:Key="Log.Level">보기 수준</sys:String>
+    <sys:String x:Key="Log.Level.Info">전부 보기</sys:String>
+    <sys:String x:Key="Log.Level.Warning">경고 이상</sys:String>
+    <sys:String x:Key="Log.Level.Error">오류만</sys:String>
+    <sys:String x:Key="Log.Max">최대 줄 수</sys:String>
+    <sys:String x:Key="Log.AutoScroll">자동 스크롤</sys:String>
+    <sys:String x:Key="Log.Count">{0}줄</sys:String>
+    <sys:String x:Key="Log.Clear">로그 지우기</sys:String>
+    <sys:String x:Key="Log.Copy">전체 복사</sys:String>
+    <sys:String x:Key="Log.Export">파일로 내보내기</sys:String>
+    <sys:String x:Key="Log.Empty">기록이 없습니다</sys:String>
+    <sys:String x:Key="Log.SaveTitle">로그 저장</sys:String>
+    <sys:String x:Key="Log.FileFilter">텍스트 파일 (*.txt)|*.txt|모든 파일 (*.*)|*.*</sys:String>
+    <sys:String x:Key="Log.ExportTitle">WindowResizer 로그</sys:String>
+    <sys:String x:Key="Log.Generated">생성 시각</sys:String>
+    <sys:String x:Key="Log.Started">WindowResizer {0} 시작</sys:String>
+    <sys:String x:Key="Status.LogCopied">보이는 로그를 클립보드에 복사했습니다</sys:String>
+    <sys:String x:Key="Status.LogNothingToCopy">복사할 로그가 없습니다</sys:String>
+    <sys:String x:Key="Status.LogNothingToExport">내보낼 로그가 없습니다</sys:String>
+    <sys:String x:Key="Status.LogExported">로그를 저장했습니다: {0}</sys:String>
+    <sys:String x:Key="Status.LogExportFailed">로그를 저장하지 못했습니다: {0}</sys:String>
+    <sys:String x:Key="Status.InfoCopied">정보를 클립보드에 복사했습니다</sys:String>
+    <sys:String x:Key="Status.KeyCopied">설정 키 경로를 클립보드에 복사했습니다</sys:String>
+    <sys:String x:Key="Status.CopyFailed">클립보드에 복사하지 못했습니다(다른 프로그램이 클립보드를 쓰는 중일 수 있습니다)</sys:String>
+    <sys:String x:Key="Status.FolderOpenFailed">폴더를 열지 못했습니다: {0}</sys:String>
+    <sys:String x:Key="Status.FolderMissing">폴더가 없습니다: {0}</sys:String>
+    <sys:String x:Key="Status.UnhandledError">처리되지 않은 오류({0}): {1}</sys:String>
 </ResourceDictionary>

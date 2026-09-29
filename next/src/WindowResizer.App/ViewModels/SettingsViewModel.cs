@@ -39,6 +39,7 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly Func<bool, string?> _setStartup;
     private readonly Func<string, string> _text;
     private readonly Action<string> _status;
+    private readonly Action<string> _warn;
 
     private int _pendingScale;
     private bool _dragging;
@@ -46,7 +47,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(AppSettings settings, Func<AppSettings, string?> save,
         Func<bool> isStartupEnabled, Func<bool, string?> setStartup,
-        Func<string, string> text, Action<string> status)
+        Func<string, string> text, Action<string> status, Action<string>? warning = null)
     {
         Settings = settings;
         _save = save;
@@ -54,6 +55,7 @@ public sealed class SettingsViewModel : ObservableObject
         _setStartup = setStartup;
         _text = text;
         _status = status;
+        _warn = warning ?? status;
         _pendingScale = settings.ScalePercent;
         _startWithWindows = isStartupEnabled();
         ResetScaleCommand = new RelayCommand(() => ScalePercent = AppSettings.DefaultScalePercent);
@@ -151,7 +153,7 @@ public sealed class SettingsViewModel : ObservableObject
             var error = _setStartup(value);
             if (error is not null)
             {
-                _status(string.Format(_text("Status.StartupFailed"), error));
+                _warn(string.Format(_text("Status.StartupFailed"), error));
                 return;
             }
             _startWithWindows = value;
@@ -195,6 +197,7 @@ public sealed class SettingsViewModel : ObservableObject
     {
         Changed?.Invoke(property);
         var error = _save(Settings);
-        _status(error is null ? message() : string.Format(_text("Status.SettingsSaveFailed"), error));
+        if (error is null) _status(message());
+        else _warn(string.Format(_text("Status.SettingsSaveFailed"), error));
     }
 }

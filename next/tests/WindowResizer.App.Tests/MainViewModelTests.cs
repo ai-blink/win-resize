@@ -434,7 +434,7 @@ public sealed class MainViewModelTests
         var desktop = new FakeDesktop();
         var vm = desktop.CreateViewModel();
         var overlay = new OverlayViewModel(new Core.Overlay.OverlaySettings(), s => { saved.Add(s.ToValues()["interaction_mode"]); return null; },
-            key => key + ":{0}", vm.ShowStatus);
+            key => key + ":{0}", m => vm.ShowStatus(m));
 
         overlay.IsDwell = true;
         overlay.IsDwell = true;   // 같은 값은 저장하지 않는다
@@ -1092,6 +1092,12 @@ public sealed class MainViewModelTests
             LastCandidates = candidates;
             return Choose(candidates);
         }
+
+        public bool CopyToClipboard(string text) => true;
+
+        public string? ChooseSaveFile(string title, string suggestedFileName, string filter) => null;
+
+        public string? OpenFolder(string path) => null;
     }
 
     private sealed class RecordingWindows(FakeDesktop desktop) : IWindowOperations
