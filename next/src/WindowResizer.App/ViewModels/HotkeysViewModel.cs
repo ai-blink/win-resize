@@ -30,21 +30,78 @@ public sealed record HotkeyProfileChoice(string Id, string Name);
 /// <summary>등록 상태 목록의 한 줄.</summary>
 public sealed record HotkeyStatusRow(string Label, string Text, string Action, string State, bool IsProblem);
 
-/// <summary>프로필 단축키 세트 하나의 편집 값.</summary>
-public sealed class HotkeySetRow : ObservableObject
+/// <summary>
+/// 단축키 한 줄의 편집 상태: 초안(고치는 중인 값)과 저장한 값. 줄마다 따로 저장한다 - 한 줄을 저장해도 다른 줄의
+/// 저장 안 한 변경은 그대로다. <see cref="Problem"/> 은 이 줄의 조합이 전역 단축키로 못 쓰이는 이유(빨간 테두리)다.
+/// </summary>
+public sealed class HotkeyEditRow : ObservableObject
 {
     private bool _enabled;
     private string _combination = "";
     private HotkeyAction _action = HotkeyAction.ApplyProfile;
+    private (bool Enabled, string Combination, HotkeyAction Action) _saved = (false, "", HotkeyAction.ApplyProfile);
+    private string _problem = "";
 
-    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
-    public string Combination { get => _combination; set => Set(ref _combination, value); }
-    public HotkeyAction Action { get => _action; set => Set(ref _action, value); }
+    /// <summary>경고 상자와 문구에 쓰는 이름("전체 적용", "세트 1").</summary>
+    public string Label { get; init; } = "";
+
+    /// <summary>초안이 바뀌었다(다른 줄과의 중복 검사를 다시 하라는 신호).</summary>
+    public Action<HotkeyEditRow>? Edited { get; set; }
+
+    public ICommand? SaveCommand { get; init; }
+
+    public bool Enabled { get => _enabled; set { if (Set(ref _enabled, value)) Changed(); } }
+    public string Combination { get => _combination; set { if (Set(ref _combination, value ?? "")) Changed(); } }
+    public HotkeyAction Action { get => _action; set { if (Set(ref _action, value)) Changed(); } }
+
+    public bool IsDirty => (Enabled, Combination.Trim(), Action) != _saved;
+
+    /// <summary>비어 있으면 문제없다.</summary>
+    public string Problem
+    {
+        get => _problem;
+        set { if (Set(ref _problem, value)) OnPropertyChanged(nameof(HasProblem)); }
+    }
+
+    public bool HasProblem => _problem.Length > 0;
+
+    /// <summary>저장한 값 그대로 초안을 채운다(알림 없이). 문서에서 읽은 값을 보일 때 쓴다.</summary>
+    public void Load(bool enabled, string combination, HotkeyAction action)
+    {
+        _enabled = enabled;
+        _combination = combination;
+        _action = action;
+        _saved = (enabled, combination.Trim(), action);
+        OnPropertyChanged(nameof(Enabled));
+        OnPropertyChanged(nameof(Combination));
+        OnPropertyChanged(nameof(Action));
+        OnPropertyChanged(nameof(IsDirty));
+    }
+
+    /// <summary>지금 초안이 저장됐다.</summary>
+    public void MarkSaved()
+    {
+        _saved = (Enabled, Combination.Trim(), Action);
+        OnPropertyChanged(nameof(IsDirty));
+    }
+
+    /// <summary>마지막으로 저장한(또는 읽은) 값.</summary>
+    public (bool Enabled, string Combination, HotkeyAction Action) Saved => _saved;
+
+    private void Changed()
+    {
+        OnPropertyChanged(nameof(IsDirty));
+        Edited?.Invoke(this);
+    }
 }
 
 /// <summary>
 /// 단축키 페이지(메뉴 지도 [단축키]). 세 가지를 맡는다:
 /// 전체 적용 단축키 편집, 프로필별 세트(최대 3개)와 동작 편집, 등록 결과 목록.
+///
+/// 줄마다 저장하고, 줄마다 <b>바로 검사한다</b>: 형식이 틀렸거나, 다른 줄과 겹치거나, 다른 프로그램이나 Windows 가
+/// 이미 쓰는 조합이면 그 줄에 이유(빨간 테두리)가 붙는다. 등록할 수 없는 조합도 PyQt5 와 같이 저장은 하고, 저장하는
+/// 순간 경고 상자로 알린다.
 ///
 /// 무엇을 등록할지는 문서가 정한다(Core <see cref="HotkeyPlanner"/>) - 프로필을 저장하거나 지울 때마다
 /// <see cref="MainViewModel"/> 이 <see cref="Sync"/> 를 불러 통째로 다시 등록한다(PyQt5 와 같다).
@@ -61,15 +118,14 @@ public sealed class HotkeysViewModel : ObservableObject
     private readonly Action<Action> _post;
 
     private ApplyAllHotkey _applyAll;
-    private bool _applyAllEnabled;
-    private string _applyAllCombination;
-    private string _applyAllError = "";
     private string _applyAllState = "";
 
     private HotkeyProfileChoice? _selectedProfile;
     private bool _rebuildingChoices;
     private bool _profileHotkeysEnabled;
-    private string _profileError = "";
+    private bool _loading;
+    private bool _suppressReload;
+    private string _loadedSignature = "";
 
     public HotkeysViewModel(MainViewModel owner, HotkeyServices services, Func<string, string> text)
     {
@@ -79,55 +135,57 @@ public sealed class HotkeysViewModel : ObservableObject
         _post = services.Post ?? (action => action());
 
         _applyAll = services.ApplyAll ?? ApplyAllHotkey.Off;
-        _applyAllEnabled = _applyAll.Enabled;
-        _applyAllCombination = _applyAll.Combination;
+        ApplyAll = new HotkeyEditRow { Label = text("Hotkeys.ApplyAll.Label"), SaveCommand = new RelayCommand(SaveApplyAll), Edited = _ => Recheck() };
+        ApplyAll.Load(_applyAll.Enabled, _applyAll.Combination, HotkeyAction.ApplyAllProfiles);
 
         ActionOptions = HotkeyActions.ProfileActions
             .Select(a => new HotkeyActionOption(a, text("Hotkey.Action." + HotkeyActions.ToKey(a))))
             .ToList();
-        for (var i = 0; i < SetsPerProfile; i++) Sets.Add(new HotkeySetRow());
-
-        SaveApplyAllCommand = new RelayCommand(SaveApplyAll);
-        SaveProfileCommand = new RelayCommand(SaveProfile, () => SelectedProfile is not null);
+        for (var i = 0; i < SetsPerProfile; i++)
+        {
+            HotkeyEditRow? row = null;
+            row = new HotkeyEditRow
+            {
+                Label = string.Format(text("Hotkeys.Set.Name"), i + 1),
+                Edited = _ => Recheck(),
+                SaveCommand = new RelayCommand(() => SaveSet(row!)),
+            };
+            Sets.Add(row);
+        }
 
         if (services.Registrar is { } registrar)
             registrar.Activated += binding => _post(() => _owner.RunHotkey(binding));
     }
 
     public IReadOnlyList<HotkeyActionOption> ActionOptions { get; }
-    public ObservableCollection<HotkeySetRow> Sets { get; } = new();
+    public ObservableCollection<HotkeyEditRow> Sets { get; } = new();
     public ObservableCollection<HotkeyProfileChoice> ProfileChoices { get; } = new();
     public ObservableCollection<HotkeyStatusRow> Rows { get; } = new();
 
-    public ICommand SaveApplyAllCommand { get; }
-    public ICommand SaveProfileCommand { get; }
-
-    // --- 전체 적용 단축키 -------------------------------------------------------------
-
-    public bool ApplyAllEnabled { get => _applyAllEnabled; set => Set(ref _applyAllEnabled, value); }
-    public string ApplyAllCombination { get => _applyAllCombination; set => Set(ref _applyAllCombination, value); }
-
-    /// <summary>입력이 틀렸을 때의 이유. 비어 있으면 문제없다.</summary>
-    public string ApplyAllError { get => _applyAllError; private set => Set(ref _applyAllError, value); }
+    /// <summary>전체 적용 단축키 한 줄(동작은 정해져 있다).</summary>
+    public HotkeyEditRow ApplyAll { get; }
 
     /// <summary>저장한 전체 적용 단축키의 등록 결과 한 줄.</summary>
     public string ApplyAllState { get => _applyAllState; private set => Set(ref _applyAllState, value); }
 
+    // --- 저장 -------------------------------------------------------------------------------
+
     /// <summary>
     /// 검사하고 저장하고 다시 등록한다. PyQt5 와 같이 <b>등록에 실패해도 저장은 한다</b> -
-    /// 다른 프로그램이 쓰고 있는 조합은 그 프로그램을 닫으면 다시 쓸 수 있다.
+    /// 다른 프로그램이 쓰고 있는 조합은 그 프로그램을 닫으면 다시 쓸 수 있다. 대신 경고 상자로 알린다.
+    /// 형식이 틀리면 저장하지 않는다.
     /// </summary>
     public void SaveApplyAll()
     {
-        var text = ApplyAllCombination.Trim();
-        if (ApplyAllEnabled && !HotkeyCombination.TryParse(text, out _))
+        var text = ApplyAll.Combination.Trim();
+        if (ApplyAll.Enabled && !HotkeyCombination.TryParse(text, out _))
         {
-            ApplyAllError = _text("Hotkeys.Error.Invalid");
+            Recheck();
+            _owner.ShowStatus(ApplyAll.Problem);
             return;
         }
-        ApplyAllError = "";
 
-        var next = new ApplyAllHotkey(ApplyAllEnabled, text);
+        var next = new ApplyAllHotkey(ApplyAll.Enabled, text);
         var error = (_services.Save ?? (_ => null))(next);
         if (error is not null)
         {
@@ -136,16 +194,108 @@ public sealed class HotkeysViewModel : ObservableObject
         }
 
         _applyAll = next;
-        ApplyAllCombination = text;
+        ApplyAll.Combination = text;
+        ApplyAll.MarkSaved();
         Sync();
+
         _owner.ShowStatus(!next.Enabled
             ? _text("Status.HotkeyApplyAllOff")
             : Registered(ApplyAllRegistrationKey)
                 ? string.Format(_text("Status.HotkeyApplyAllOn"), next.Combination)
                 : _text("Status.HotkeyApplyAllNotRegistered"));
+        WarnIfProblem(ApplyAll);
     }
 
-    // --- 프로필 세트 ------------------------------------------------------------------
+    /// <summary>
+    /// 세트 한 줄을 저장한다. 문서에는 <b>활성화된 줄 중 조합이 있는 것만</b> 남는다(PyQt5 <c>_collect_hotkey_sets</c>) -
+    /// 다른 줄은 저장 안 한 초안이 아니라 마지막으로 저장한 값을 쓴다. 첫 세트는 단일 필드에도 적힌다
+    /// (<see cref="MainViewModel.SaveProfileHotkeys"/>).
+    /// </summary>
+    public void SaveSet(HotkeyEditRow row)
+    {
+        if (SelectedProfile is not { } choice) return;
+
+        var text = row.Combination.Trim();
+        if (row.Enabled && text.Length > 0 && !HotkeyCombination.TryParse(text, out _))
+        {
+            Recheck();
+            _owner.ShowStatus(string.Format(_text("Hotkeys.Error.SetInvalid"), text));
+            return;
+        }
+
+        if (!CommitSets(choice.Id, ProfileHotkeysEnabled, row, text)) return;
+
+        row.Combination = text;
+        row.MarkSaved();
+        Recheck();
+        WarnIfProblem(row);
+    }
+
+    /// <summary>
+    /// 문서에 세트를 쓴다. <paramref name="edited"/> 줄은 초안, 나머지는 저장한 값. 다시 등록은 <see cref="Sync"/> 가
+    /// 하지만 편집 칸은 다시 읽지 않는다 - 다른 줄의 저장 안 한 변경과 줄 위치를 지켜야 한다.
+    /// </summary>
+    private bool CommitSets(string profileId, bool enabled, HotkeyEditRow? edited, string editedText)
+    {
+        var sets = new List<HotkeySet>();
+        foreach (var r in Sets)
+        {
+            var (on, combination, action) = r == edited ? (r.Enabled, editedText, r.Action) : r.Saved;
+            if (on && combination.Length > 0)
+                sets.Add(new HotkeySet { Enabled = true, Combination = combination, Action = HotkeyActions.ToKey(action) });
+        }
+
+        _suppressReload = true;
+        try
+        {
+            if (!_owner.SaveProfileHotkeys(profileId, enabled, sets)) return false;
+        }
+        finally
+        {
+            _suppressReload = false;
+        }
+        _loadedSignature = Signature(_owner.FindProfile(profileId));
+        return true;
+    }
+
+    private void WarnIfProblem(HotkeyEditRow row)
+    {
+        if (!row.Enabled || !row.HasProblem) return;
+        _owner.Warn(_text("Hotkeys.Warn.Title"),
+            string.Format(_text("Hotkeys.Warn.Body"), row.Label, row.Combination.Trim(), row.Problem));
+    }
+
+    // --- 바로 검사 ----------------------------------------------------------------------------
+
+    /// <summary>
+    /// 모든 줄을 다시 검사한다. 한 줄이 바뀌면 그 줄과 겹치는 다른 줄의 결과도 달라지므로 전부 다시 본다.
+    /// 시험 등록은 등록기가 한다(<see cref="IHotkeyRegistrar.Probe"/>): 다른 프로그램이나 Windows 가 쓰는 조합이 여기서 걸린다.
+    /// </summary>
+    public void Recheck()
+    {
+        var all = new[] { ApplyAll }.Concat(Sets).ToList();
+        foreach (var row in all) row.Problem = Check(row, all);
+    }
+
+    private string Check(HotkeyEditRow row, IReadOnlyList<HotkeyEditRow> all)
+    {
+        if (!row.Enabled) return "";
+        var text = row.Combination.Trim();
+        if (text.Length == 0) return row == ApplyAll ? _text("Hotkeys.Check.Empty") : "";
+        if (!HotkeyCombination.TryParse(text, out var combination)) return _text("Hotkeys.Check.Invalid");
+
+        foreach (var other in all.Where(o => o != row && o.Enabled))
+        {
+            if (HotkeyCombination.TryParse(other.Combination.Trim(), out var theirs) && theirs == combination)
+                return string.Format(_text("Hotkeys.Check.Duplicate"), other.Label);
+        }
+
+        var error = _services.Registrar?.Probe(combination) ?? 0;
+        if (error == 0) return "";
+        return error == 1409 ? _text("Hotkeys.Check.Blocked") : string.Format(_text("Hotkeys.Check.Failed"), error);
+    }
+
+    // --- 프로필 세트 ------------------------------------------------------------------------
 
     /// <summary>편집할 프로필. 목록이 다시 만들어져도 같은 프로필이 계속 선택되어 있다.</summary>
     public HotkeyProfileChoice? SelectedProfile
@@ -156,64 +306,113 @@ public sealed class HotkeysViewModel : ObservableObject
             // 목록을 비우는 순간 화면이 null 을 써 넣는다. 그건 사용자의 선택이 아니다.
             if (value is null && _rebuildingChoices) return;
             if (!Set(ref _selectedProfile, value)) return;
-            LoadEditor();
+            OnPropertyChanged(nameof(HasSelectedProfile));
+            LoadEditor(force: true);
         }
     }
 
     public bool HasSelectedProfile => SelectedProfile is not null;
 
-    /// <summary>프로필의 단축키 전체 스위치(<c>hotkey_enabled</c>).</summary>
-    public bool ProfileHotkeysEnabled { get => _profileHotkeysEnabled; set => Set(ref _profileHotkeysEnabled, value); }
+    /// <summary>프로필의 단축키 전체 스위치(<c>hotkey_enabled</c>). 바꾸면 바로 저장한다(오버레이 설정과 같다).</summary>
+    public bool ProfileHotkeysEnabled
+    {
+        get => _profileHotkeysEnabled;
+        set
+        {
+            if (!Set(ref _profileHotkeysEnabled, value) || _loading) return;
+            if (SelectedProfile is not { } choice) return;
+            if (!CommitSets(choice.Id, value, null, "")) SetLoading(() => ProfileHotkeysEnabled = !value);
+        }
+    }
 
-    public string ProfileError { get => _profileError; private set => Set(ref _profileError, value); }
+    private void SetLoading(Action action)
+    {
+        _loading = true;
+        try { action(); }
+        finally { _loading = false; }
+    }
 
     /// <summary>
-    /// 검사하고 저장한다. 저장은 활성화된 세트 중 조합이 있는 것만 남긴다(PyQt5 <c>_collect_hotkey_sets</c>).
-    /// 첫 세트는 단일 필드(<c>hotkey_combination</c>, <c>hotkey_action</c>)에도 적는다 - 옛 프로그램이 읽는 자리다.
+    /// 선택한 프로필의 세트를 편집 줄에 읽어 온다. 문서가 우리 저장이 아닌 이유로 바뀐 게 아니면(같은 값) 다시 읽지 않는다 -
+    /// 적용 횟수 저장 같은 무관한 변경이 사용자가 고치는 중인 값을 지우면 안 된다.
     /// </summary>
-    public void SaveProfile()
+    private void LoadEditor(bool force)
     {
-        if (SelectedProfile is not { } choice) return;
-
-        var sets = new List<HotkeySet>();
-        foreach (var row in Sets.Where(s => s.Enabled && s.Combination.Trim().Length > 0))
-        {
-            var text = row.Combination.Trim();
-            if (!HotkeyCombination.TryParse(text, out _))
-            {
-                ProfileError = string.Format(_text("Hotkeys.Error.SetInvalid"), text);
-                return;
-            }
-            sets.Add(new HotkeySet { Enabled = true, Combination = text, Action = HotkeyActions.ToKey(row.Action) });
-        }
-        ProfileError = "";
-
-        _owner.SaveProfileHotkeys(choice.Id, ProfileHotkeysEnabled, sets);
-    }
-
-    private void LoadEditor()
-    {
-        OnPropertyChanged(nameof(HasSelectedProfile));
-        ProfileError = "";
+        if (_suppressReload) return;
 
         var profile = _selectedProfile is null ? null : _owner.FindProfile(_selectedProfile.Id);
-        ProfileHotkeysEnabled = profile?.HotkeyEnabled ?? false;
+        var signature = Signature(profile);
+        if (!force && signature == _loadedSignature) return;
+        _loadedSignature = signature;
 
-        var effective = profile is null ? [] : HotkeyPlanner.EffectiveSets(profile);
-        for (var i = 0; i < Sets.Count; i++)
+        SetLoading(() =>
         {
-            var source = i < effective.Count ? effective[i] : null;
-            Sets[i].Enabled = source?.Enabled ?? false;
-            Sets[i].Combination = source?.Combination ?? "";
-            Sets[i].Action = source is not null && HotkeyActions.TryParseProfileAction(source.Action, out var action)
-                ? action
-                : HotkeyAction.ApplyProfile;
-        }
+            ProfileHotkeysEnabled = profile?.HotkeyEnabled ?? false;
+            var effective = profile is null ? [] : HotkeyPlanner.EffectiveSets(profile);
+            for (var i = 0; i < Sets.Count; i++)
+            {
+                var source = i < effective.Count ? effective[i] : null;
+                var action = source is not null && HotkeyActions.TryParseProfileAction(source.Action, out var parsed)
+                    ? parsed
+                    : HotkeyAction.ApplyProfile;
+                Sets[i].Load(source?.Enabled ?? false, source?.Combination ?? "", action);
+            }
+        });
+        Recheck();
     }
 
-    // --- 등록 -------------------------------------------------------------------------
+    private static string Signature(Profile? profile)
+    {
+        if (profile is null) return "";
+        return profile.HotkeyEnabled + "|" + string.Join(";", HotkeyPlanner.EffectiveSets(profile)
+            .Select(s => $"{s.Enabled},{s.Combination},{s.Action}"));
+    }
+
+    // --- 등록 -------------------------------------------------------------------------------
 
     private const string ApplyAllRegistrationKey = "apply-all";
+
+    private bool _capturing;
+    private int _dialogs;
+
+    private bool Suspended => _capturing || _dialogs > 0;
+
+    /// <summary>
+    /// 감지 중일 때. 등록된 조합을 누르면 등록이 먼저 키를 잡아 가서 칸이 그 키를 못 받고 동작이 실행되어 버린다
+    /// (전체 적용 Ctrl+Alt+E 를 다시 감지하려다 창이 다 움직인다). 그래서 감지 중에는 등록을 푼다.
+    /// </summary>
+    public void SetCapturing(bool capturing)
+    {
+        _capturing = capturing;
+        ApplySuspension();
+    }
+
+    /// <summary>편집 창처럼 단축키 칸이 든 모달 창이 열려 있는 동안 등록을 푼다. 짝을 맞춰 <see cref="EndDialog"/> 를 부른다.</summary>
+    public void BeginDialog()
+    {
+        _dialogs++;
+        ApplySuspension();
+    }
+
+    public void EndDialog()
+    {
+        _dialogs = Math.Max(0, _dialogs - 1);
+        ApplySuspension();
+    }
+
+    private void ApplySuspension()
+    {
+        if (Suspended)
+        {
+            _services.Registrar?.Replace([]);
+            // 풀려 있으니 다음 Sync 는 같은 계획이어도 다시 등록해야 한다.
+            _lastAllRegistered = false;
+        }
+        else
+        {
+            Sync();
+        }
+    }
 
     private readonly Dictionary<string, bool> _registered = new();
     private IReadOnlyList<HotkeyBinding> _lastBindings = [];
@@ -224,12 +423,25 @@ public sealed class HotkeysViewModel : ObservableObject
 
     /// <summary>
     /// 문서와 전체 적용 단축키에서 등록 대상을 다시 뽑아 통째로 등록하고 목록을 갱신한다.
-    /// 프로필 목록이 바뀌었으니 편집 콤보도 함께 다시 만든다.
+    /// 프로필 목록이 바뀌었으니 편집 콤보도 함께 다시 만든다. 끝나면 모든 줄을 다시 검사한다 - 다른 프로그램이
+    /// 조합을 놓았거나 새로 잡았을 수 있다.
     /// </summary>
     public void Sync()
     {
         RebuildChoices();
+        try
+        {
+            // 입력 중이거나 편집 창이 열려 있으면 등록을 풀어 둔다. 계획은 다시 뽑지 않고, 풀 때 한 번에 맞춘다.
+            if (!Suspended) Register();
+        }
+        finally
+        {
+            Recheck();
+        }
+    }
 
+    private void Register()
+    {
         var plan = _owner.PlanHotkeys();
         var bindings = new List<HotkeyBinding>();
         if (_applyAll.Enabled && HotkeyCombination.TryParse(_applyAll.Combination, out var all))
@@ -295,9 +507,9 @@ public sealed class HotkeysViewModel : ObservableObject
             _rebuildingChoices = false;
         }
 
-        // 지운 프로필이면 비운다. 같은 프로필이면 record 값 비교가 같아 선택 알림이 없으므로 편집 값은 항상 다시 읽는다.
+        // 지운 프로필이면 비운다. 같은 프로필이면 record 값 비교가 같아 선택 알림이 없으므로 여기서 문서가 바뀌었는지 본다.
         SelectedProfile = keep is null ? null : ProfileChoices.FirstOrDefault(c => c.Id == keep);
-        LoadEditor();
+        LoadEditor(force: false);
     }
 
     private string ActionText(HotkeyAction action) => _text("Hotkey.Action." + HotkeyActions.ToKey(action));

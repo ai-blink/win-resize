@@ -37,6 +37,17 @@ public sealed class HotkeyRegistrar : IHotkeyRegistrar, IDisposable
         }
     }
 
+    public int Probe(HotkeyCombination combination)
+    {
+        lock (_gate)
+        {
+            if (_byId.Values.Any(b => b.Combination == combination)) return 0;
+            var id = _hotkeys.Register(combination, out var error);
+            if (id is { } probe) _hotkeys.Unregister(probe);
+            return id is null ? error : 0;
+        }
+    }
+
     private void OnPressed(int id, HotkeyCombination _)
     {
         HotkeyBinding? binding;

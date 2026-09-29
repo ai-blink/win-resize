@@ -110,6 +110,47 @@ public readonly record struct HotkeyCombination(HotkeyModifiers Modifiers, int V
         [0x2D] = "Insert", [0x1B] = "Escape",
     };
 
+    /// <summary>
+    /// 고를 수 있는 주 키 이름 전부(선택 목록용): A-Z, 0-9, F1-F24, 그리고 이름 있는 특수 키.
+    /// 전부 <see cref="Parse"/> 가 받고 <see cref="Format"/> 이 되돌린다.
+    /// </summary>
+    public static IReadOnlyList<string> KeyNames { get; } =
+        Enumerable.Range('A', 26).Select(c => ((char)c).ToString())
+            .Concat(Enumerable.Range('0', 10).Select(c => ((char)c).ToString()))
+            .Concat(Enumerable.Range(1, 24).Select(n => "F" + n))
+            .Concat(SpecialKeyNames.Values)
+            .ToList();
+
+    /// <summary>
+    /// 편집 중인 문자열을 수정키와 주 키로 나눈다. <see cref="Parse"/> 와 달리 <b>덜 쓴 문자열도 받는다</b>
+    /// (<c>"Ctrl+"</c>, <c>"Ctrl+Alt"</c>) - 선택 칸이 지금 상태를 그대로 보여 주려는 용도다. 모르는 조각은 주 키로 본다.
+    /// </summary>
+    public static (HotkeyModifiers Modifiers, string? Key) Split(string? text)
+    {
+        var modifiers = HotkeyModifiers.None;
+        string? key = null;
+        foreach (var raw in (text ?? "").Split('+'))
+        {
+            var name = raw.Trim();
+            if (name.Length == 0) continue;
+            if (ModifierNames.TryGetValue(name, out var modifier)) modifiers |= modifier;
+            else key = KeyNames.FirstOrDefault(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase)) ?? name;
+        }
+        return (modifiers, key);
+    }
+
+    /// <summary>수정키와 주 키를 저장 문자열로 합친다. 주 키가 없으면 수정키만(덜 쓴 상태), 아무것도 없으면 빈 문자열.</summary>
+    public static string Compose(HotkeyModifiers modifiers, string? key)
+    {
+        var parts = new List<string>();
+        if ((modifiers & HotkeyModifiers.Control) != 0) parts.Add("Ctrl");
+        if ((modifiers & HotkeyModifiers.Alt) != 0) parts.Add("Alt");
+        if ((modifiers & HotkeyModifiers.Shift) != 0) parts.Add("Shift");
+        if ((modifiers & HotkeyModifiers.Win) != 0) parts.Add("Win");
+        if (!string.IsNullOrEmpty(key)) parts.Add(key);
+        return string.Join("+", parts);
+    }
+
     public static bool TryParse(string? combination, out HotkeyCombination result)
     {
         try

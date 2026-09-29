@@ -391,16 +391,36 @@
 
                         <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Hotkeys.ApplyAll}" />
                         <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Hotkeys.ApplyAll.Hint}" />
-                        <CheckBox IsChecked="{Binding ApplyAllEnabled}" Content="{DynamicResource Hotkeys.ApplyAll.Enabled}" />
-                        <DockPanel Margin="28,4,0,0" IsEnabled="{Binding ApplyAllEnabled}">
-                            <Button DockPanel.Dock="Right" Margin="8,0,0,0" Content="{DynamicResource Hotkeys.Save}"
-                                    Command="{Binding SaveApplyAllCommand}" AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Save}" />
-                            <TextBox Text="{Binding ApplyAllCombination, UpdateSourceTrigger=PropertyChanged}"
-                                     AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Combination}" />
-                        </DockPanel>
-                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,4,0,0" Text="{DynamicResource Editor.HotkeyCombination.Hint}" />
-                        <TextBlock Margin="28,4,0,0" TextWrapping="Wrap" Text="{Binding ApplyAllError}" Foreground="{DynamicResource AppDangerBrush}" />
-                        <TextBlock Margin="28,2,0,20" TextWrapping="Wrap" Text="{Binding ApplyAllState}" Foreground="{DynamicResource AppMutedTextBrush}" />
+                        <!-- 줄마다 저장하고 줄마다 바로 검사한다. 못 쓰는 조합이면 빨간 테두리와 이유가 붙는다. -->
+                        <Border DataContext="{Binding ApplyAll}" BorderThickness="2" CornerRadius="6" Padding="8,6" Margin="0,0,0,4">
+                            <Border.Style>
+                                <Style TargetType="{x:Type Border}">
+                                    <Setter Property="BorderBrush" Value="Transparent" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AppDangerBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel>
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Margin="8,0,0,0" MinWidth="64" Content="{DynamicResource Hotkeys.Save}"
+                                            Command="{Binding SaveCommand}" AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Save}" />
+                                    <CheckBox VerticalAlignment="Center" Margin="0,0,10,0" IsChecked="{Binding Enabled}"
+                                              AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Enabled}" />
+                                    <local:HotkeyPicker Text="{Binding Combination, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Enabled}"
+                                                        DetectingChanged="OnPickerDetecting" HorizontalAlignment="Left"
+                                                        AutomationProperties.Name="{DynamicResource Hotkeys.ApplyAll.Combination}" />
+                                </DockPanel>
+                                <TextBlock Margin="34,4,0,0" TextWrapping="Wrap" Text="{Binding Problem}" Foreground="{DynamicResource AppDangerBrush}"
+                                           Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBlock Margin="34,4,0,0" Style="{StaticResource FieldHintStyle}" Text="{DynamicResource Hotkeys.Dirty}"
+                                           Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="10,0,0,0" Text="{DynamicResource Hotkeys.Capture.Hint}" />
+                        <TextBlock Margin="10,2,0,20" TextWrapping="Wrap" Text="{Binding ApplyAllState}" Foreground="{DynamicResource AppMutedTextBrush}" />
 
                         <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Hotkeys.Profile}" />
                         <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Hotkeys.Profile.Hint}" />
@@ -409,35 +429,44 @@
                         <StackPanel Margin="0,-8,0,20" Visibility="{Binding HasSelectedProfile, Converter={StaticResource BoolToVisibility}}">
                             <CheckBox IsChecked="{Binding ProfileHotkeysEnabled}" Content="{DynamicResource Hotkeys.Profile.Enabled}" />
                             <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Hotkeys.Profile.Enabled.Hint}" />
-                            <ItemsControl ItemsSource="{Binding Sets}" Margin="28,0,0,0" IsEnabled="{Binding ProfileHotkeysEnabled}">
+                            <ItemsControl ItemsSource="{Binding Sets}" Margin="0,0,0,0" IsEnabled="{Binding ProfileHotkeysEnabled}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="0,0,0,6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="220" />
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0" IsChecked="{Binding Enabled}"
-                                                      AutomationProperties.Name="{DynamicResource Hotkeys.Set.Enabled}" />
-                                            <TextBox Grid.Column="1" Margin="0,0,8,0" IsEnabled="{Binding Enabled}"
-                                                     Text="{Binding Combination, UpdateSourceTrigger=PropertyChanged}"
-                                                     AutomationProperties.Name="{DynamicResource Hotkeys.Set.Combination}" />
-                                            <ComboBox Grid.Column="2" IsEnabled="{Binding Enabled}" VerticalContentAlignment="Center"
-                                                      ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                      DisplayMemberPath="Display" SelectedValuePath="Action" SelectedValue="{Binding Action}"
-                                                      AutomationProperties.Name="{DynamicResource Hotkeys.Set.Action}" />
-                                        </Grid>
+                                        <Border BorderThickness="2" CornerRadius="6" Padding="8,6" Margin="0,0,0,4">
+                                            <Border.Style>
+                                <Style TargetType="{x:Type Border}">
+                                    <Setter Property="BorderBrush" Value="Transparent" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AppDangerBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Margin="8,0,0,0" MinWidth="64" Content="{DynamicResource Hotkeys.Save}"
+                                                            Command="{Binding SaveCommand}" AutomationProperties.Name="{DynamicResource Hotkeys.Profile.Save}" />
+                                                    <ComboBox DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" IsEnabled="{Binding Enabled}" VerticalContentAlignment="Center"
+                                                              ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                              DisplayMemberPath="Display" SelectedValuePath="Action" SelectedValue="{Binding Action}"
+                                                              AutomationProperties.Name="{DynamicResource Hotkeys.Set.Action}" />
+                                                    <CheckBox VerticalAlignment="Center" Margin="0,0,10,0" IsChecked="{Binding Enabled}"
+                                                              AutomationProperties.Name="{DynamicResource Hotkeys.Set.Enabled}" />
+                                                    <local:HotkeyPicker Text="{Binding Combination, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Enabled}"
+                                                                        DetectingChanged="OnPickerDetecting" HorizontalAlignment="Left"
+                                                                        AutomationProperties.Name="{Binding Label}" />
+                                                </DockPanel>
+                                                <TextBlock Margin="34,4,0,0" TextWrapping="Wrap" Text="{Binding Problem}" Foreground="{DynamicResource AppDangerBrush}"
+                                                           Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
+                                                <TextBlock Margin="34,4,0,0" Style="{StaticResource FieldHintStyle}" Text="{DynamicResource Hotkeys.Dirty}"
+                                                           Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}" />
+                                            </StackPanel>
+                                        </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,2,0,0" Text="{DynamicResource Hotkeys.Set.Hint}" />
-                            <DockPanel Margin="28,8,0,0">
-                                <Button DockPanel.Dock="Left" Content="{DynamicResource Hotkeys.Save}" Command="{Binding SaveProfileCommand}"
-                                        AutomationProperties.Name="{DynamicResource Hotkeys.Profile.Save}" />
-                                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ProfileError}"
-                                           Foreground="{DynamicResource AppDangerBrush}" />
-                            </DockPanel>
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="10,2,0,0" Text="{DynamicResource Hotkeys.Set.Hint}" />
                         </StackPanel>
 
                         <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Hotkeys.Registered}" />

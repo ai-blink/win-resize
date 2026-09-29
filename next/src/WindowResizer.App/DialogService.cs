@@ -20,6 +20,13 @@ public sealed class DialogService(Func<string, string> text) : IDialogService
         return answer == MessageBoxResult.Yes;
     }
 
+    public void Warn(string title, string message)
+    {
+        var owner = Owner();
+        if (owner is null) MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+        else MessageBox.Show(owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     public bool ShowEditor(ProfileEditorViewModel editor) =>
         new ProfileEditorWindow { DataContext = editor, Owner = Owner() }.ShowDialog() == true;
 

@@ -114,6 +114,9 @@ public sealed class MainViewModel : ObservableObject
 
     public Profile? FindProfile(string id) => _document.Find(id);
 
+    /// <summary>경고 상자. 사용자가 알아야 하지만 되돌릴 선택은 없는 일(등록하지 못한 단축키 등).</summary>
+    public void Warn(string title, string message) => _dialogs?.Warn(title, message);
+
     /// <summary>지금 문서에서 등록할 프로필 단축키.</summary>
     public HotkeyPlan PlanHotkeys() => HotkeyPlanner.Plan(_document);
 
@@ -440,7 +443,7 @@ public sealed class MainViewModel : ObservableObject
 
         var name = _document.UniqueName(Profile.ProgramName(window.Info));
         var editor = CreateEditor(Profile.FromWindow(window.Info, capture.Configuration!, name), null, EditorPage.Position);
-        if (!_dialogs.ShowEditor(editor)) return;
+        if (!ShowEditor(editor)) return;
 
         string? id = null;
         if (Commit(() => id = _document.Add(editor.Profile, _now()), () => id))
@@ -453,7 +456,7 @@ public sealed class MainViewModel : ObservableObject
         if (row is null || row.IsUnreadable) return;
 
         var editor = CreateEditor(ProfileJson.Clone(row.Profile), row.Id, EditorPage.General);
-        if (!_dialogs.ShowEditor(editor)) return;
+        if (!ShowEditor(editor)) return;
 
         if (Commit(() => _document.Replace(row.Id, editor.Profile, _now()), row.Id))
             Status = string.Format(_text("Status.ProfileSaved"), editor.Profile.Name);
@@ -526,6 +529,20 @@ public sealed class MainViewModel : ObservableObject
 
     private string Describe(WindowConfiguration? c) =>
         c is null ? "-" : $"{c.X}, {c.Y}, {c.Width}x{c.Height}" + (c.IsMaximized ? " " + _text("Status.MaximizedMark") : "");
+
+    /// <summary>편집 창을 연다. 창에 단축키 입력 칸이 있어서, 열려 있는 동안은 전역 단축키 등록을 풀어 둔다.</summary>
+    private bool ShowEditor(ProfileEditorViewModel editor)
+    {
+        Hotkeys.BeginDialog();
+        try
+        {
+            return _dialogs.ShowEditor(editor);
+        }
+        finally
+        {
+            Hotkeys.EndDialog();
+        }
+    }
 
     public ProfileEditorViewModel CreateEditor(Profile working, string? id, EditorPage page) =>
         new(working, page,

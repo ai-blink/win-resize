@@ -9,6 +9,9 @@ public interface IDialogService
     /// <summary>삭제 확인. 되돌릴 수 없는 동작만 묻는다.</summary>
     bool ConfirmDelete(string profileName);
 
+    /// <summary>경고 상자. 확인 하나만 있다 - 사용자가 알아야 하지만 되돌릴 선택은 없는 일에 쓴다.</summary>
+    void Warn(string title, string message);
+
     /// <summary>프로필 편집 창을 모달로 연다. 저장을 눌러 닫혔으면 true.</summary>
     bool ShowEditor(ProfileEditorViewModel editor);
 

@@ -27,6 +27,36 @@ public sealed class HotkeyPlanTests
     }
 
     [TestMethod]
+    public void Every_selectable_key_name_parses_and_formats_back_and_five_key_combinations_work()
+    {
+        Assert.HasCount(26 + 10 + 24 + 15, HotkeyCombination.KeyNames);
+        foreach (var key in HotkeyCombination.KeyNames)
+        {
+            var parsed = HotkeyCombination.Parse("Ctrl+" + key);
+            Assert.AreEqual("Ctrl+" + key, parsed.Format(), key);
+        }
+
+        // 수정키 넷 + 주 키 하나가 Windows 전역 단축키의 최대다.
+        var five = HotkeyCombination.Parse("Ctrl+Alt+Shift+Win+F23");
+        Assert.AreEqual(HotkeyModifiers.Control | HotkeyModifiers.Alt | HotkeyModifiers.Shift | HotkeyModifiers.Win, five.Modifiers);
+        Assert.AreEqual("Ctrl+Alt+Shift+Win+F23", five.Format());
+    }
+
+    [TestMethod]
+    public void Split_and_compose_handle_half_written_strings_for_the_picker()
+    {
+        Assert.AreEqual((HotkeyModifiers.Control | HotkeyModifiers.Alt, (string?)"E"), HotkeyCombination.Split("alt+ctrl+e"));
+        Assert.AreEqual((HotkeyModifiers.Control, (string?)null), HotkeyCombination.Split("Ctrl+"));
+        Assert.AreEqual((HotkeyModifiers.None, (string?)null), HotkeyCombination.Split(""));
+        Assert.AreEqual((HotkeyModifiers.None, (string?)"nonsense"), HotkeyCombination.Split("nonsense"), "모르는 조각은 주 키로 보되 지우지 않는다");
+
+        Assert.AreEqual("Ctrl+Alt", HotkeyCombination.Compose(HotkeyModifiers.Alt | HotkeyModifiers.Control, null));
+        Assert.AreEqual("Ctrl+Alt+E", HotkeyCombination.Compose(HotkeyModifiers.Alt | HotkeyModifiers.Control, "E"));
+        Assert.AreEqual("", HotkeyCombination.Compose(HotkeyModifiers.None, null));
+        Assert.AreEqual("F5", HotkeyCombination.Compose(HotkeyModifiers.None, "F5"));
+    }
+
+    [TestMethod]
     public void The_real_pyqt5_file_imports_as_ctrl_alt_e_enabled()
     {
         // 이 PC 의 application_hotkeys.json 그대로(modifiers 3 = Alt|Ctrl, key_code 69 = E).

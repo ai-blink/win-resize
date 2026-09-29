@@ -75,6 +75,29 @@ public sealed class HotkeyRegistrarLiveTests
         Assert.IsTrue(results[1].Registered, "하나가 실패해도 나머지는 등록해야 한다");
     }
 
+    [TestMethod]
+    [TestCategory("Live")]
+    public void Probe_reports_a_combination_held_by_someone_else_but_never_holds_one_itself()
+    {
+        var probe = HotkeyCombination.Parse(ProbeText);
+        using var holder = new HotkeyRegistrar();
+        var held = holder.Replace([Binding("holder")]).Single();
+        if (!held.Registered) Assert.Inconclusive("조합을 잡지 못했다: " + held.ErrorCode);
+
+        using var checker = new HotkeyRegistrar();
+        Assert.AreEqual(1409, checker.Probe(probe), "남이 쥔 조합은 충돌 코드");
+        Assert.AreEqual(0, holder.Probe(probe), "자기가 등록해 둔 조합은 남의 것으로 오해하지 않는다");
+
+        // Windows 가 예약한 조합(Win+L)은 아무도 안 쥐어도 못 쓴다.
+        Assert.AreNotEqual(0, checker.Probe(HotkeyCombination.Parse("Win+L")));
+
+        // 시험 등록은 바로 풀린다: 잡고 있던 쪽을 놓으면 다른 등록기가 그 조합을 쓸 수 있다.
+        holder.Replace([]);
+        Assert.AreEqual(0, checker.Probe(probe));
+        Assert.AreEqual(0, checker.Probe(probe), "시험이 조합을 붙잡고 있지 않다");
+        Assert.IsTrue(holder.Replace([Binding("again")]).Single().Registered);
+    }
+
     private static void PressProbe()
     {
         var keys = new ushort[] { 0x11, 0x12, 0x10, 0x86 }; // Ctrl Alt Shift F23

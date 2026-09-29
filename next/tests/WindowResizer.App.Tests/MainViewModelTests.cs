@@ -734,10 +734,14 @@ public sealed class MainViewModelTests
         Assert.AreEqual((nint)1, desktop.Operations.Moves.Single().Handle, "버튼과 같은 전체 적용 경로다");
 
         registrar.ErrorFor = _ => 1409;
-        vm.Hotkeys.ApplyAllCombination = "Ctrl+Alt+F3";
-        vm.Hotkeys.SaveApplyAllCommand.Execute(null);
+        registrar.ProbeErrorFor = _ => 1409;
+        vm.Hotkeys.ApplyAll.Combination = "Ctrl+Alt+F3";
+        vm.Hotkeys.ApplyAll.SaveCommand!.Execute(null);
         Assert.AreEqual(new ApplyAllHotkey(true, "Ctrl+Alt+F3"), desktop.SavedApplyAll.Last());
         Assert.AreEqual("Status.HotkeyApplyAllNotRegistered:{0}", vm.Status);
+        Assert.HasCount(1, desktop.Dialogs.Warnings, "등록에 실패해도 저장은 하고, 경고 상자로 알린다");
+        Assert.StartsWith("Hotkeys.Warn.Body", desktop.Dialogs.Warnings[0].Message);
+        Assert.StartsWith("Hotkeys.Check.Blocked", vm.Hotkeys.ApplyAll.Problem);
         Assert.StartsWith("Hotkeys.State.InUse", vm.Hotkeys.ApplyAllState);
     }
 
@@ -747,17 +751,19 @@ public sealed class MainViewModelTests
         var desktop = new FakeDesktop();
         desktop.UseHotkeys();
         var vm = desktop.CreateViewModel();
-        vm.Hotkeys.ApplyAllEnabled = true;
-        vm.Hotkeys.ApplyAllCombination = "Ctrl+";
+        vm.Hotkeys.ApplyAll.Enabled = true;
+        vm.Hotkeys.ApplyAll.Combination = "Ctrl+";
 
-        vm.Hotkeys.SaveApplyAllCommand.Execute(null);
+        vm.Hotkeys.ApplyAll.SaveCommand!.Execute(null);
 
-        Assert.AreEqual("Hotkeys.Error.Invalid:{0}", vm.Hotkeys.ApplyAllError);
+        Assert.AreEqual("Hotkeys.Check.Invalid:{0}", vm.Hotkeys.ApplyAll.Problem);
+        Assert.IsTrue(vm.Hotkeys.ApplyAll.HasProblem);
         Assert.IsEmpty(desktop.SavedApplyAll);
+        Assert.IsEmpty(desktop.Dialogs.Warnings, "형식이 틀린 건 저장 자체를 막는다 - 팝업이 아니라 줄에 이유를 붙인다");
     }
 
     [TestMethod]
-    public void The_hotkey_editor_reads_a_single_combination_as_the_first_set_and_saves_only_filled_enabled_rows()
+    public void The_hotkey_editor_reads_a_single_combination_as_the_first_set_and_each_row_saves_on_its_own()
     {
         var desktop = new FakeDesktop();
         desktop.UseHotkeys();
@@ -769,22 +775,129 @@ public sealed class MainViewModelTests
         Assert.AreEqual("Ctrl+Alt+F1", vm.Hotkeys.Sets[0].Combination);
         Assert.IsTrue(vm.Hotkeys.Sets[0].Enabled);
         Assert.IsFalse(vm.Hotkeys.Sets[1].Enabled);
+        Assert.IsFalse(vm.Hotkeys.Sets[0].IsDirty, "읽어 온 값은 저장된 값이다");
 
-        // 켜져 있어도 조합이 비었으면 저장하지 않는다. 저장하면 편집 값은 문서에서 다시 읽는다.
-        vm.Hotkeys.Sets[1].Enabled = true;
-        vm.Hotkeys.SaveProfileCommand.Execute(null);
-        Assert.AreEqual("", vm.Hotkeys.ProfileError);
-        Assert.HasCount(1, desktop.Document.Find("id-p")!.HotkeySets);
-        Assert.IsFalse(vm.Hotkeys.Sets[1].Enabled);
-
+        // 세트 2 와 3 을 고치되 세트 3 만 저장한다: 세트 2 의 초안은 저장되지도 지워지지도 않는다.
         vm.Hotkeys.Sets[1].Enabled = true;
         vm.Hotkeys.Sets[1].Combination = "Ctrl+Alt+F8";
-        vm.Hotkeys.Sets[1].Action = HotkeyAction.AlwaysOnTopToggle;
-        vm.Hotkeys.SaveProfileCommand.Execute(null);
+        vm.Hotkeys.Sets[2].Enabled = true;
+        vm.Hotkeys.Sets[2].Combination = "Ctrl+Alt+F9";
+        vm.Hotkeys.Sets[2].Action = HotkeyAction.AlwaysOnTopToggle;
+        Assert.IsTrue(vm.Hotkeys.Sets[1].IsDirty);
+
+        vm.Hotkeys.Sets[2].SaveCommand!.Execute(null);
+
         var saved = desktop.Document.Find("id-p")!.HotkeySets;
-        CollectionAssert.AreEqual(new[] { "Ctrl+Alt+F1", "Ctrl+Alt+F8" }, saved.Select(s => s.Combination).ToArray());
+        CollectionAssert.AreEqual(new[] { "Ctrl+Alt+F1", "Ctrl+Alt+F9" }, saved.Select(s => s.Combination).ToArray(), "저장 안 한 세트 2 는 문서에 없다");
         CollectionAssert.AreEqual(new[] { "apply_profile", "always_on_top_toggle" }, saved.Select(s => s.Action).ToArray());
+        Assert.IsFalse(vm.Hotkeys.Sets[2].IsDirty);
+        Assert.IsTrue(vm.Hotkeys.Sets[1].IsDirty, "다른 줄의 저장 안 한 변경은 남는다");
+        Assert.AreEqual("Ctrl+Alt+F8", vm.Hotkeys.Sets[1].Combination);
         Assert.AreEqual("id-p", vm.Hotkeys.SelectedProfile?.Id, "저장 뒤에도 같은 프로필이 선택돼 있어야 한다");
+
+        vm.Hotkeys.Sets[1].SaveCommand!.Execute(null);
+        CollectionAssert.AreEqual(new[] { "Ctrl+Alt+F1", "Ctrl+Alt+F8", "Ctrl+Alt+F9" },
+            desktop.Document.Find("id-p")!.HotkeySets.Select(s => s.Combination).ToArray());
+    }
+
+    [TestMethod]
+    public void Unsaved_edits_survive_an_unrelated_save_but_an_outside_change_reloads_the_rows()
+    {
+        var desktop = new FakeDesktop(Row(1, "p"));
+        desktop.UseHotkeys();
+        var vm = desktop.CreateViewModel(HotkeyProfile("p", "Ctrl+Alt+F1"));
+        vm.Hotkeys.Sync();
+        vm.Hotkeys.SelectedProfile = vm.Hotkeys.ProfileChoices.Single();
+        vm.Hotkeys.Sets[1].Enabled = true;
+        vm.Hotkeys.Sets[1].Combination = "Ctrl+Alt+F8";
+
+        // 적용 횟수 저장은 단축키와 무관하다 - 고치는 중인 값을 지우면 안 된다.
+        vm.SelectedProfile = vm.Profiles.Single();
+        vm.ApplyProfileCommand.Execute(null);
+        Assert.AreEqual("Ctrl+Alt+F8", vm.Hotkeys.Sets[1].Combination);
+        Assert.IsTrue(vm.Hotkeys.Sets[1].IsDirty);
+
+        // 편집 창 같은 바깥 변경으로 세트가 바뀌면 문서 값으로 다시 읽는다.
+        vm.SaveProfileHotkeys("id-p", true, [new HotkeySet { Enabled = true, Combination = "Ctrl+Alt+F5", Action = "apply_profile" }]);
+        Assert.AreEqual("Ctrl+Alt+F5", vm.Hotkeys.Sets[0].Combination);
+        Assert.AreEqual("", vm.Hotkeys.Sets[1].Combination);
+        Assert.IsFalse(vm.Hotkeys.Sets[1].IsDirty);
+    }
+
+    [TestMethod]
+    public void Every_edit_is_checked_at_once_and_a_bad_combination_gets_a_reason_on_its_row()
+    {
+        var desktop = new FakeDesktop();
+        var registrar = desktop.UseHotkeys(new ApplyAllHotkey(true, "Ctrl+Alt+E"));
+        registrar.ProbeErrorFor = c => c == HotkeyCombination.Parse("Win+L") ? 1409 : c == HotkeyCombination.Parse("Ctrl+Alt+F7") ? 5 : 0;
+        var vm = desktop.CreateViewModel(HotkeyProfile("p", "Ctrl+Alt+F1"));
+        vm.Hotkeys.Sync();
+        vm.Hotkeys.SelectedProfile = vm.Hotkeys.ProfileChoices.Single();
+        var row = vm.Hotkeys.Sets[1];
+        row.Enabled = true;
+
+        row.Combination = "Ctrl+Alt+F2";
+        Assert.IsFalse(row.HasProblem);
+
+        row.Combination = "Win+L";
+        Assert.StartsWith("Hotkeys.Check.Blocked", row.Problem, "다른 프로그램이나 Windows 가 쓰는 조합");
+
+        row.Combination = "Ctrl+Alt+F7";
+        Assert.AreEqual("Hotkeys.Check.Failed:5", row.Problem);
+
+        row.Combination = "Ctrl+Alt";
+        Assert.StartsWith("Hotkeys.Check.Invalid", row.Problem, "주 키가 없는 덜 쓴 조합");
+
+        row.Combination = "Ctrl+Alt+E";
+        Assert.AreEqual("Hotkeys.Check.Duplicate:Hotkeys.ApplyAll.Label:{0}", row.Problem, "전체 적용 단축키와 겹친다");
+        Assert.IsTrue(vm.Hotkeys.ApplyAll.HasProblem, "겹치면 양쪽 줄에 다 이유가 붙는다");
+
+        row.Enabled = false;
+        Assert.IsFalse(row.HasProblem, "꺼진 줄은 검사하지 않는다");
+        Assert.IsFalse(vm.Hotkeys.ApplyAll.HasProblem, "겹침이 사라지면 상대 줄도 풀린다");
+    }
+
+    [TestMethod]
+    public void Saving_a_combination_that_cannot_be_registered_keeps_it_and_warns_with_the_reason()
+    {
+        var desktop = new FakeDesktop();
+        var registrar = desktop.UseHotkeys();
+        registrar.ErrorFor = _ => 1409;
+        registrar.ProbeErrorFor = _ => 1409;
+        var vm = desktop.CreateViewModel(Profile("p", "x", 0, 0, 10, 10));
+        vm.Hotkeys.Sync();
+        vm.Hotkeys.SelectedProfile = vm.Hotkeys.ProfileChoices.Single();
+        vm.Hotkeys.ProfileHotkeysEnabled = true;
+        var row = vm.Hotkeys.Sets[0];
+        row.Enabled = true;
+        row.Combination = "Ctrl+Alt+F5";
+
+        row.SaveCommand!.Execute(null);
+
+        Assert.AreEqual("Ctrl+Alt+F5", desktop.Document.Find("id-p")!.HotkeySets.Single().Combination, "PyQt5 처럼 등록에 실패해도 저장은 한다");
+        Assert.IsTrue(row.HasProblem, "빨간 테두리가 남는다");
+        var warning = desktop.Dialogs.Warnings.Single();
+        Assert.AreEqual("Hotkeys.Warn.Title:{0}", warning.Title);
+        Assert.StartsWith("Hotkeys.Warn.Body", warning.Message);
+        Assert.StartsWith("Hotkeys.Check.Blocked", row.Problem, "경고에 쓰이는 이유가 줄에도 그대로 붙어 있다");
+    }
+
+    [TestMethod]
+    public void The_profile_master_switch_saves_at_once_and_is_undone_if_the_save_fails()
+    {
+        var desktop = new FakeDesktop();
+        desktop.UseHotkeys();
+        var vm = desktop.CreateViewModel(HotkeyProfile("p", "Ctrl+Alt+F1"));
+        vm.Hotkeys.Sync();
+        vm.Hotkeys.SelectedProfile = vm.Hotkeys.ProfileChoices.Single();
+
+        vm.Hotkeys.ProfileHotkeysEnabled = false;
+        Assert.IsFalse(desktop.Document.Find("id-p")!.HotkeyEnabled);
+
+        desktop.SaveError = "disk full";
+        vm.Hotkeys.ProfileHotkeysEnabled = true;
+        Assert.IsFalse(vm.Hotkeys.ProfileHotkeysEnabled, "저장에 실패하면 스위치를 되돌린다");
+        Assert.IsFalse(desktop.Document.Find("id-p")!.HotkeyEnabled);
     }
 
     [TestMethod]
@@ -796,13 +909,15 @@ public sealed class MainViewModelTests
         vm.Hotkeys.Sync();
         vm.Hotkeys.SelectedProfile = vm.Hotkeys.ProfileChoices.Single();
         vm.Hotkeys.ProfileHotkeysEnabled = true;
+        var saves = desktop.Saves;
         vm.Hotkeys.Sets[0].Enabled = true;
         vm.Hotkeys.Sets[0].Combination = "Ctrl+Ctrl+A";
 
-        vm.Hotkeys.SaveProfileCommand.Execute(null);
+        vm.Hotkeys.Sets[0].SaveCommand!.Execute(null);
 
-        Assert.AreEqual("Hotkeys.Error.SetInvalid:Ctrl+Ctrl+A", vm.Hotkeys.ProfileError);
-        Assert.AreEqual(0, desktop.Saves);
+        Assert.AreEqual("Hotkeys.Error.SetInvalid:Ctrl+Ctrl+A", vm.Status);
+        Assert.IsTrue(vm.Hotkeys.Sets[0].HasProblem);
+        Assert.AreEqual(saves, desktop.Saves);
     }
 
     [TestMethod]
@@ -816,6 +931,45 @@ public sealed class MainViewModelTests
 
         Assert.AreEqual("Ctrl+F2", withSets.Hotkey);
         Assert.AreEqual("-", off.Hotkey);
+    }
+
+    [TestMethod]
+    public void Registrations_are_released_while_a_hotkey_box_has_focus_and_come_back_after()
+    {
+        var desktop = new FakeDesktop();
+        var registrar = desktop.UseHotkeys(new ApplyAllHotkey(true, "Ctrl+Alt+E"));
+        var vm = desktop.CreateViewModel(HotkeyProfile("a", "Ctrl+Alt+F1"));
+        vm.Hotkeys.Sync();
+        Assert.HasCount(2, registrar.Last, "전체 적용 + 프로필 하나");
+
+        // 등록된 조합을 다시 누르려면 등록이 먼저 키를 잡아 가면 안 된다.
+        vm.Hotkeys.SetCapturing(true);
+        Assert.IsEmpty(registrar.Last);
+
+        // 입력 중에 문서가 바뀌어도(다른 저장) 등록을 되살리지 않는다.
+        vm.SaveProfileHotkeys("id-a", true, [new HotkeySet { Enabled = true, Combination = "Ctrl+Alt+F2", Action = "apply_profile" }]);
+        Assert.IsEmpty(registrar.Last);
+
+        vm.Hotkeys.SetCapturing(false);
+        CollectionAssert.AreEqual(new[] { "Ctrl+Alt+E", "Ctrl+Alt+F2" }, registrar.Last.Select(b => b.Text).ToArray());
+    }
+
+    [TestMethod]
+    public void Registrations_are_released_while_the_profile_editor_is_open()
+    {
+        var desktop = new FakeDesktop();
+        var registrar = desktop.UseHotkeys();
+        var vm = desktop.CreateViewModel(HotkeyProfile("a", "Ctrl+Alt+F1"));
+        vm.Hotkeys.Sync();
+        vm.SelectedProfile = vm.Profiles.Single();
+
+        IReadOnlyList<HotkeyBinding>? whileOpen = null;
+        desktop.Dialogs.OnEditor = _ => whileOpen = registrar.Last;
+        vm.EditProfileCommand.Execute(null);
+
+        Assert.IsNotNull(whileOpen);
+        Assert.IsEmpty(whileOpen, "편집 창이 열린 동안에는 등록이 풀려 있어야 한다");
+        CollectionAssert.AreEqual(new[] { "Ctrl+Alt+F1" }, registrar.Last.Select(b => b.Text).ToArray(), "닫으면 되살아난다");
     }
 
     private static ProfileRow HotkeyProfile(string name, string combination, HotkeyAction action = HotkeyAction.ApplyProfile)
@@ -891,11 +1045,18 @@ public sealed class MainViewModelTests
         public event Action<HotkeyBinding>? Activated;
         public List<IReadOnlyList<HotkeyBinding>> Calls { get; } = new();
         public Func<HotkeyBinding, int> ErrorFor { get; set; } = _ => 0;
+        public Func<HotkeyCombination, int> ProbeErrorFor { get; set; } = _ => 0;
+
+        private HashSet<HotkeyCombination> _registered = new();
+
+        /// <summary>실제 등록기와 같이, 자기가 <b>등록에 성공한</b> 조합만 0 이다(실패한 시도는 남의 것으로 본다).</summary>
+        public int Probe(HotkeyCombination combination) => _registered.Contains(combination) ? 0 : ProbeErrorFor(combination);
         public IReadOnlyList<HotkeyBinding> Last => Calls[^1];
 
         public IReadOnlyList<HotkeyRegistration> Replace(IReadOnlyList<HotkeyBinding> bindings)
         {
             Calls.Add(bindings.ToList());
+            _registered = bindings.Where(b => ErrorFor(b) == 0).Select(b => b.Combination).ToHashSet();
             return bindings.Select(b => new HotkeyRegistration(b, ErrorFor(b) == 0, ErrorFor(b))).ToList();
         }
 
@@ -913,6 +1074,10 @@ public sealed class MainViewModelTests
         public IReadOnlyList<WindowRow>? LastCandidates { get; private set; }
 
         public bool ConfirmDelete(string profileName) => ConfirmAnswer;
+
+        public List<(string Title, string Message)> Warnings { get; } = new();
+
+        public void Warn(string title, string message) => Warnings.Add((title, message));
 
         public bool ShowEditor(ProfileEditorViewModel editor)
         {
