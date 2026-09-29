@@ -22,28 +22,31 @@ public sealed class TrayIcon : IDisposable
     {
         _text = text;
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add(text("Tray.Open"), null, (_, _) => open());
+        _labels.Add((menu.Items.Add(text("Tray.Open"), null, (_, _) => open()), "Tray.Open"));
         menu.Items.Add(new Forms.ToolStripSeparator());
 
         var dwell = Toggle(text("Tray.OverlayDwell"), () => overlay.IsDwell, v => overlay.IsDwell = v);
         var hidden = Toggle(text("Tray.OverlayHidden"), () => overlay.Hidden, v => overlay.Hidden = v);
         var toggle = Toggle(text("Tray.OverlaySwitch"), () => overlay.ToggleVisible, v => overlay.ToggleVisible = v);
+        _labels.Add((dwell.Item, "Tray.OverlayDwell"));
+        _labels.Add((hidden.Item, "Tray.OverlayHidden"));
+        _labels.Add((toggle.Item, "Tray.OverlaySwitch"));
         menu.Items.Add(dwell.Item);
         menu.Items.Add(hidden.Item);
         menu.Items.Add(toggle.Item);
-        menu.Items.Add(text("Tray.OverlayCloseAll"), null, (_, _) => closeAllOverlays());
+        _labels.Add((menu.Items.Add(text("Tray.OverlayCloseAll"), null, (_, _) => closeAllOverlays()), "Tray.OverlayCloseAll"));
         menu.Opening += (_, _) =>
         {
             foreach (var (item, get) in new[] { dwell, hidden, toggle }) item.Checked = get();
         };
 
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(text("Tray.Exit"), null, (_, _) => exit());
+        _labels.Add((menu.Items.Add(text("Tray.Exit"), null, (_, _) => exit()), "Tray.Exit"));
 
         _icon = new Forms.NotifyIcon
         {
             Icon = System.Drawing.SystemIcons.Application,
-            Text = text("App.Title") + " " + AppInfo.DisplayVersion,
+            Text = IconText(),
             ContextMenuStrip = menu,
             Visible = true,
         };
@@ -51,6 +54,17 @@ public sealed class TrayIcon : IDisposable
         {
             if (e.Button == Forms.MouseButtons.Left) open();
         };
+    }
+
+    private readonly List<(Forms.ToolStripItem Item, string Key)> _labels = new();
+
+    private string IconText() => _text("App.Title") + " " + AppInfo.DisplayVersion;
+
+    /// <summary>표시 언어가 바뀌었다 - 메뉴 항목과 아이콘 설명을 새 언어로 다시 적는다.</summary>
+    public void RefreshTexts()
+    {
+        foreach (var (item, key) in _labels) item.Text = _text(key);
+        _icon.Text = IconText();
     }
 
     /// <summary>

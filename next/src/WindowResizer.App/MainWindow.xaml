@@ -515,6 +515,92 @@
                     </StackPanel>
                 </ScrollViewer>
 
+                <!-- 설정 (시안 C: 카드 + 오른쪽 고정 미리보기, notes/mocks/2026-09-30_settings-page). 바꾸면 바로 저장하고 적용한다. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:AppPage.Settings}}">
+                    <Grid MaxWidth="1040" HorizontalAlignment="Left" Margin="0,0,14,0" DataContext="{Binding Settings}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="300" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" MaxWidth="700" HorizontalAlignment="Left" Margin="0,0,24,0">
+                            <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource Nav.Settings}" />
+                            <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource Settings.Subtitle}" />
+
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Settings.Theme}" />
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,6" Text="{DynamicResource Settings.Theme.Hint}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,18">
+                                <RadioButton Style="{StaticResource ChoiceCardStyle}" GroupName="ThemeChoice"
+                                             IsChecked="{Binding IsThemeSystem}" AutomationProperties.Name="{DynamicResource Settings.Theme.System}">
+                                    <StackPanel>
+                                        <TextBlock Text="{DynamicResource Settings.Theme.System}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{DynamicResource Settings.Theme.System.Hint}" FontSize="12" Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource AppMutedTextBrush}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton Style="{StaticResource ChoiceCardStyle}" GroupName="ThemeChoice"
+                                             IsChecked="{Binding IsThemeLight}" AutomationProperties.Name="{DynamicResource Settings.Theme.Light}">
+                                    <TextBlock Text="{DynamicResource Settings.Theme.Light}" FontWeight="SemiBold" />
+                                </RadioButton>
+                                <RadioButton Style="{StaticResource ChoiceCardStyle}" GroupName="ThemeChoice"
+                                             IsChecked="{Binding IsThemeDark}" AutomationProperties.Name="{DynamicResource Settings.Theme.Dark}">
+                                    <TextBlock Text="{DynamicResource Settings.Theme.Dark}" FontWeight="SemiBold" />
+                                </RadioButton>
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Settings.Scale}" />
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,6" Text="{DynamicResource Settings.Scale.Hint}" />
+                            <DockPanel Margin="0,4,0,18">
+                                <Button DockPanel.Dock="Right" Margin="12,0,0,0" Content="{DynamicResource Settings.Scale.Reset}"
+                                        Command="{Binding ResetScaleCommand}" AutomationProperties.Name="{DynamicResource Settings.Scale.Reset}" />
+                                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" MinWidth="52" TextAlignment="Right"
+                                           FontWeight="SemiBold" Text="{Binding ScaleText}" />
+                                <Slider x:Name="ScaleSlider" Minimum="75" Maximum="125" TickFrequency="5" IsSnapToTickEnabled="True"
+                                        SmallChange="5" LargeChange="5" VerticalAlignment="Center"
+                                        Value="{Binding ScalePercent}" AutomationProperties.Name="{DynamicResource Settings.Scale}"
+                                        Thumb.DragStarted="OnScaleDragStarted" Thumb.DragCompleted="OnScaleDragCompleted" />
+                            </DockPanel>
+
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Settings.Language}" />
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,6" Text="{DynamicResource Settings.Language.Hint}" />
+                            <ComboBox Width="200" HorizontalAlignment="Left" Margin="0,4,0,18" VerticalContentAlignment="Center"
+                                      ItemsSource="{x:Static vm:SettingsViewModel.LanguageOptions}" DisplayMemberPath="Display"
+                                      SelectedValuePath="Code" SelectedValue="{Binding Language}"
+                                      AutomationProperties.Name="{DynamicResource Settings.Language}" />
+
+                            <CheckBox IsChecked="{Binding StartWithWindows}" Content="{DynamicResource Settings.Startup}" />
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Settings.Startup.Hint}" />
+                            <CheckBox IsChecked="{Binding RememberWindow}" Content="{DynamicResource Settings.Remember}" />
+                            <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Settings.Remember.Hint}" />
+                        </StackPanel>
+
+                        <!-- 미리보기: 페이지 자신이 이미 적용된 배율이라, 견본은 고른 값 / 적용된 값 만큼만 더 곱해 그린다. -->
+                        <Border Grid.Column="1" VerticalAlignment="Top" Margin="0,4,0,0" Padding="14" CornerRadius="8" BorderThickness="1"
+                                Background="{DynamicResource AppCanvasBrush}" BorderBrush="{DynamicResource AppBorderBrush}" ClipToBounds="True"
+                                AutomationProperties.Name="{DynamicResource Settings.Preview}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Settings.Preview}" />
+                                <Border Padding="12" CornerRadius="6" BorderThickness="1" HorizontalAlignment="Left"
+                                        Background="{DynamicResource AppPanelBrush}" BorderBrush="{DynamicResource AppBorderBrush}">
+                                    <Border.LayoutTransform>
+                                        <ScaleTransform ScaleX="{Binding PreviewFactor}" ScaleY="{Binding PreviewFactor}" />
+                                    </Border.LayoutTransform>
+                                    <StackPanel>
+                                        <TextBlock Text="{DynamicResource Nav.WindowsAndProfiles}" FontWeight="SemiBold" />
+                                        <TextBlock Text="12 / 5" FontSize="12" Foreground="{DynamicResource AppMutedTextBrush}" Margin="0,2,0,8" />
+                                        <Border Background="{DynamicResource AppAccentBrush}" CornerRadius="6" Padding="12,5" HorizontalAlignment="Left">
+                                            <TextBlock Text="{DynamicResource Menu.ApplyAll}" Foreground="{DynamicResource AppOnAccentBrush}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,10,0,0" TextWrapping="Wrap"
+                                           Text="{DynamicResource Settings.Preview.Sample}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+
                 <!-- 아직 채우지 않은 페이지. 자리만 있다. -->
                 <TextBlock Text="{DynamicResource Page.Pending}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="15"
                            HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -528,6 +614,9 @@
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Hotkeys}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Page}" Value="{x:Static vm:AppPage.Settings}">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                             </Style.Triggers>

@@ -6,6 +6,27 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.4 - 2026-09-30
+
+Fourth preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.4.md](../doc/releases/v0.02.0-preview.4.md).
+
+### Highlights
+
+- Settings page: theme (light, dark, follow system), display size 75-125%, language
+  (Korean or English), run at Windows startup (tray only), and remembering the window
+  size and position. Changes are saved and applied at once, no restart. The slider
+  applies the size when released; a preview sample follows while dragging.
+- The theme and display size are imported once from v0.01.5 and stored separately.
+  Windows high contrast always wins over the chosen theme.
+
+### Verification
+
+- .NET build: 0 warnings, 0 errors; 201 tests, all passed. Real key presses and a
+  real mouse drag on the running app (against a copy of the profiles and temporary
+  registry keys) exercised every setting, including reopening at the saved window place.
+
 ## 0.02.0-preview.3 - 2026-09-29
 
 Third preview of the WPF (.NET 10) app, built from source; the distributed

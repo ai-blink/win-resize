@@ -70,6 +70,34 @@ public sealed class DialogWindowSmokeTests
             main.Page = page;
             mainWindow.UpdateLayout();
         }
+
+        // 화면 크기: 등록한 창은 루트에 배율 변환이 걸리고 최소 크기와 창 크기가 같은 비율로 커진다. 끝나면 되돌린다(정적 값).
+        var baseMin = mainWindow.MinWidth;
+        var baseWidth = mainWindow.Width;
+        main.Page = AppPage.Settings;
+        try
+        {
+            Theming.UiScale.Set(1.25);
+            mainWindow.UpdateLayout();
+            Assert.AreEqual(baseMin * 1.25, mainWindow.MinWidth, 0.01);
+            // 창 크기는 장치 픽셀로 반올림돼 1 DIP 안팎으로 어긋난다.
+            Assert.AreEqual(baseWidth * 1.25, mainWindow.Width, 1.0);
+            var transform = (System.Windows.Media.ScaleTransform)((FrameworkElement)mainWindow.Content).LayoutTransform;
+            Assert.AreEqual(1.25, transform.ScaleX, 0.0001);
+
+            // 견본은 고른 값 / 적용된 값. 끄는 동안 바뀐 미리보기도 바인딩 오류 없이 다시 그려진다.
+            main.Settings.BeginScaleDrag();
+            main.Settings.ScalePercent = 75;
+            mainWindow.UpdateLayout();
+            main.Settings.ScalePercent = 100;
+            main.Settings.EndScaleDrag();
+            mainWindow.UpdateLayout();
+        }
+        finally
+        {
+            Theming.UiScale.Set(1.0);
+        }
+        Assert.AreEqual(baseMin, mainWindow.MinWidth, 0.01);
         mainWindow.Close();
 
         // 오버레이 버튼: 모양 4 x 게이지 4 를 드웰 진행 중 상태로 그리고, 활성화 방지 스타일이 실제로 걸렸는지 본다.

@@ -1,6 +1,7 @@
 using System.Windows;
 using WindowResizer.App.Theming;
 using WindowResizer.App.ViewModels;
+using WindowResizer.Core.Settings;
 using WindowResizer.Infrastructure.Persistence;
 using WindowResizer.Infrastructure.Settings;
 using WindowResizer.Infrastructure.Windowing;
@@ -17,6 +18,9 @@ namespace WindowResizer.App;
 ///   <c>--overlay-key &lt;HKCU 아래 경로&gt;</c>  오버레이 설정 키를 바꾼다(PyQt5 키에서 가져오지도 않는다).
 ///   라이브 검증이 사용자 설정을 건드리지 않게 쓴다.
 ///   <c>--hotkey-key &lt;HKCU 아래 경로&gt;</c>  전체 적용 단축키 키를 바꾼다(PyQt5 파일에서 가져오지도 않는다). 같은 이유다.
+///   <c>--settings-key &lt;HKCU 아래 경로&gt;</c>  앱 설정(테마, 화면 크기, 언어, 창 기억) 키를 바꾼다(PyQt5 키에서 가져오지도 않는다).
+///   <c>--run-key &lt;HKCU 아래 경로&gt;</c>  "Windows 시작 때 자동 실행"이 쓰는 Run 키를 바꾼다. 실제 시작 목록을 건드리지 않게.
+///   <c>--minimized</c>  창을 열지 않고 트레이로만 뜬다(시작 프로그램으로 등록되면 이 인자가 붙는다).
 /// </summary>
 public partial class App : Application
 {
@@ -27,7 +31,17 @@ public partial class App : Application
         // 이전 실행이 커서를 가둔 채 죽었으면 푼다(S3c 실측: Windows 는 풀어 주지 않는다).
         CursorClip.ReleaseStale();
 
-        Theme.Apply(Resources, Theme.DetectSystem());
+        // 언어, 테마, 배율은 창과 문구를 만들기 전에 정해 둔다 - 첫 화면이 기본값으로 한 번 그려졌다 바뀌지 않게.
+        var settingsKey = ArgValue(e.Args, "--settings-key");
+        var settingsStore = settingsKey is null ? new AppSettingsStore() : new AppSettingsStore(settingsKey, legacyThemeKeyPath: null, legacyScaleKeyPath: null);
+        _settings = settingsStore.Load();
+        ApplyLanguage(_settings.Language);
+        ApplyTheme();
+        UiScale.Set(_settings.ScaleFactor);
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+
+        var runKey = ArgValue(e.Args, "--run-key");
+        var startup = runKey is null ? new StartupRegistration() : new StartupRegistration(runKey);
 
         var store = new ProfileStore(ProfilesDirectory(e.Args));
         var loaded = store.Load();
@@ -57,17 +71,27 @@ public partial class App : Application
                 hotkey => hotkeyStore.TrySave(hotkey, out var error) ? null : error!.Message,
                 Win32Windows.ToggleForegroundTopmost,
                 // 등록기는 자기 스레드에서 알린다. 화면 상태는 UI 스레드에서만 만진다.
-                action => Dispatcher.BeginInvoke(action)));
+                action => Dispatcher.BeginInvoke(action)),
+            settings: new SettingsServices(
+                _settings,
+                settings => settingsStore.TrySave(settings, out var error) ? null : error!.Message,
+                startup.IsEnabled,
+                enabled => startup.Set(enabled, Environment.ProcessPath ?? "")));
+        _viewModel = viewModel;
+        viewModel.Settings.Changed += OnSettingChanged;
 
         viewModel.Hotkeys.Sync();
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
         if (notice is not null) viewModel.ShowStatus(notice);
 
-        MainWindow = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow { DataContext = viewModel };
+        MainWindow = window;
+        RestoreBounds(window);
         MainWindow.Closing += OnMainWindowClosing;
         _tray = new TrayIcon(Text, ShowMainWindow, Quit, viewModel.Overlay, viewModel.CloseAllOverlays);
-        MainWindow.Show();
+        // 시작 프로그램으로 뜬 것이면 창 없이 트레이로만 뜬다.
+        if (!e.Args.Contains(StartupRegistration.MinimizedArgument)) MainWindow.Show();
 
         // 오버레이 버튼(O3). 직전 창 추적은 창 이벤트 감시기를 따른다(D-023) - 이 프로세스의 창은 감시기가 거른다.
         _windowEvents = new WindowEventWatcher();
@@ -75,6 +99,8 @@ public partial class App : Application
         _overlays = new Overlay.OverlayController(viewModel, _foreground, Text);
     }
 
+    private AppSettings _settings = new();
+    private MainViewModel? _viewModel;
     private HotkeyRegistrar? _hotkeys;
     private TrayIcon? _tray;
     private WindowEventWatcher? _windowEvents;
@@ -88,10 +114,97 @@ public partial class App : Application
     /// </summary>
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // 숨기든 끝내든 이 창이 마지막으로 있던 자리를 적어 둔다.
+        RememberBounds(MainWindow!);
         if (_quitting || _tray is null) return;
         e.Cancel = true;
         MainWindow!.Hide();
         _tray.NotifyHiddenOnce();
+    }
+
+    /// <summary>설정 페이지에서 무언가 바뀌었다. 저장은 끝났고 여기서는 실제 화면에 적용만 한다.</summary>
+    private void OnSettingChanged(string property)
+    {
+        switch (property)
+        {
+            case "Theme":
+                ApplyTheme();
+                break;
+            case "AppliedScale":
+                UiScale.Set(_settings.ScaleFactor);
+                break;
+            case "Language":
+                ApplyLanguage(_settings.Language);
+                _viewModel?.RefreshTexts();
+                _tray?.RefreshTexts();
+                break;
+        }
+    }
+
+    /// <summary>설정과 Windows 의 현재 모드로 색을 정한다. 이미 그 모드면 브러시를 다시 만들지 않는다.</summary>
+    private void ApplyTheme()
+    {
+        var mode = Theme.Resolve(_settings.Theme);
+        if (mode != Theme.Current || !_themeApplied)
+        {
+            Theme.Apply(Resources, mode);
+            _themeApplied = true;
+        }
+    }
+
+    private bool _themeApplied;
+
+    /// <summary>Windows 앱 모드나 고대비가 바뀌었다(다른 스레드에서 온다). "시스템 따르기"이거나 고대비일 때만 뜻이 있다.</summary>
+    private void OnUserPreferenceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(ApplyTheme);
+
+    /// <summary>
+    /// 문구 사전을 바꿔 끼운다. XAML 은 전부 <c>DynamicResource</c> 라 열려 있는 창도 바로 따라 바뀐다.
+    /// 모르는 언어는 <see cref="AppSettings"/> 가 이미 기본으로 돌려 놓았다.
+    /// </summary>
+    private void ApplyLanguage(string code)
+    {
+        var next = new ResourceDictionary { Source = new Uri($"Resources/Strings.{code}.xaml", UriKind.Relative) };
+        var merged = Resources.MergedDictionaries;
+        var index = -1;
+        for (var i = 0; i < merged.Count; i++)
+            if (merged[i].Source?.OriginalString.Contains("Strings.", StringComparison.Ordinal) == true) index = i;
+        if (index >= 0) merged[index] = next;
+        else merged.Insert(0, next);
+    }
+
+    /// <summary>
+    /// 기억한 창 자리로 연다. 모니터를 뺐거나 해상도가 바뀌었으면 보이는 곳으로 옮긴다.
+    /// 저장한 값은 그때의 논리 단위(DIP)라 Windows 배율이 바뀌면 물리 크기는 달라지지만 화면 안에는 있다.
+    /// </summary>
+    private void RestoreBounds(Window window)
+    {
+        if (!_settings.RememberWindow || _settings.Window is not { } saved) return;
+
+        var fit = saved.Fit(
+            (int)SystemParameters.VirtualScreenLeft, (int)SystemParameters.VirtualScreenTop,
+            (int)SystemParameters.VirtualScreenWidth, (int)SystemParameters.VirtualScreenHeight,
+            (int)Math.Ceiling(window.MinWidth), (int)Math.Ceiling(window.MinHeight));
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.Left = fit.Left;
+        window.Top = fit.Top;
+        window.Width = fit.Width;
+        window.Height = fit.Height;
+        if (fit.Maximized) window.WindowState = WindowState.Maximized;
+    }
+
+    private void RememberBounds(Window window)
+    {
+        // 한 번도 열리지 않은 창(--minimized)의 자리는 우리가 정한 값이 아니다.
+        if (!window.IsLoaded || _viewModel is null) return;
+        var bounds = window.WindowState == WindowState.Normal
+            ? new Rect(window.Left, window.Top, window.Width, window.Height)
+            : window.RestoreBounds;
+        if (bounds.IsEmpty || double.IsNaN(bounds.Width)) return;
+        _viewModel.Settings.RememberBounds(new SavedWindowBounds(
+            (int)Math.Round(bounds.Left), (int)Math.Round(bounds.Top),
+            (int)Math.Round(bounds.Width), (int)Math.Round(bounds.Height),
+            window.WindowState == WindowState.Maximized));
     }
 
     private void ShowMainWindow()
@@ -112,6 +225,7 @@ public partial class App : Application
     /// <summary>전역 단축키, 트레이 아이콘, 오버레이 창, 창 이벤트 훅을 푼다. 두 번 불러도 된다.</summary>
     private void ReleaseResources()
     {
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _hotkeys?.Dispose();
         _hotkeys = null;
         _tray?.Dispose();

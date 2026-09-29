@@ -273,4 +273,34 @@
 
     <sys:String x:Key="Picker.Title">창 선택</sys:String>
     <sys:String x:Key="Picker.Subtitle">조건과 맞는 창이 여러 개입니다. 위치를 가져올 창을 고르세요.</sys:String>
+
+    <!-- 설정 페이지 -->
+    <sys:String x:Key="Settings.Subtitle">테마, 화면 크기, 언어와 시작 방식을 정합니다. 바꾸면 바로 저장됩니다.</sys:String>
+    <sys:String x:Key="Settings.Theme">테마</sys:String>
+    <sys:String x:Key="Settings.Theme.Hint">밝게와 어둡게는 고정입니다. 시스템 따르기는 Windows 앱 모드를 따라 바뀝니다. Windows 고대비가 켜져 있으면 항상 그 색을 씁니다.</sys:String>
+    <sys:String x:Key="Settings.Theme.System">시스템 따르기</sys:String>
+    <sys:String x:Key="Settings.Theme.System.Hint">Windows 설정과 같이 바뀝니다</sys:String>
+    <sys:String x:Key="Settings.Theme.Light">밝게</sys:String>
+    <sys:String x:Key="Settings.Theme.Dark">어둡게</sys:String>
+    <sys:String x:Key="Settings.Scale">화면 크기</sys:String>
+    <sys:String x:Key="Settings.Scale.Hint">75%에서 125%까지 5% 단위입니다. 슬라이더를 놓으면 적용됩니다.</sys:String>
+    <sys:String x:Key="Settings.Scale.Reset">기본값 100%</sys:String>
+    <sys:String x:Key="Settings.Language">언어</sys:String>
+    <sys:String x:Key="Settings.Language.Hint">바꾸면 창을 다시 열지 않아도 바로 바뀝니다.</sys:String>
+    <sys:String x:Key="Settings.Startup">Windows 시작 때 자동 실행</sys:String>
+    <sys:String x:Key="Settings.Startup.Hint">현재 사용자의 시작 항목에 넣습니다(관리자 권한 불필요). 시작할 때는 창 없이 트레이로만 뜹니다.</sys:String>
+    <sys:String x:Key="Settings.Remember">창 크기와 위치 기억</sys:String>
+    <sys:String x:Key="Settings.Remember.Hint">다음 실행 때 마지막 크기와 위치로 엽니다. 화면 밖이면 화면 안으로 옮깁니다.</sys:String>
+    <sys:String x:Key="Settings.Preview">미리보기</sys:String>
+    <sys:String x:Key="Settings.Preview.Sample">고른 크기로 보면 이렇게 보입니다</sys:String>
+    <sys:String x:Key="Status.ThemeSystem">테마: 시스템 따르기</sys:String>
+    <sys:String x:Key="Status.ThemeLight">테마: 밝게</sys:String>
+    <sys:String x:Key="Status.ThemeDark">테마: 어둡게</sys:String>
+    <sys:String x:Key="Status.Scale">화면 크기를 {0}%로 바꿨습니다</sys:String>
+    <sys:String x:Key="Status.Language">표시 언어를 한국어로 바꿨습니다</sys:String>
+    <sys:String x:Key="Status.StartupOn">Windows 시작 때 자동 실행하도록 등록했습니다</sys:String>
+    <sys:String x:Key="Status.StartupOff">Windows 시작 때 자동 실행을 해제했습니다</sys:String>
+    <sys:String x:Key="Status.StartupFailed">시작 프로그램 설정을 바꾸지 못했습니다: {0}</sys:String>
+    <sys:String x:Key="Status.RememberOn">창 크기와 위치를 기억합니다</sys:String>
+    <sys:String x:Key="Status.RememberOff">창 크기와 위치를 기억하지 않습니다(저장된 자리는 지웠습니다)</sys:String>
 </ResourceDictionary>

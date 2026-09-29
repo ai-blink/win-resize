@@ -38,6 +38,21 @@ public static class Theme
 
     public static ThemeMode Current { get; private set; }
 
+    /// <summary>
+    /// 설정 페이지의 선택을 실제 모드로 옮긴다. Windows 고대비가 켜져 있으면 선택과 무관하게 고대비다 -
+    /// 밝게/어둡게 고정이 시스템 고대비의 색을 덮어 글자가 안 보이게 되는 것을 막는다(D-020).
+    /// </summary>
+    public static ThemeMode Resolve(Core.Settings.ThemeChoice choice)
+    {
+        if (SystemParameters.HighContrast) return ThemeMode.HighContrast;
+        return choice switch
+        {
+            Core.Settings.ThemeChoice.Light => ThemeMode.Light,
+            Core.Settings.ThemeChoice.Dark => ThemeMode.Dark,
+            _ => DetectSystem(),
+        };
+    }
+
     /// <summary>시스템 설정을 읽는다. 고대비가 먼저다.</summary>
     public static ThemeMode DetectSystem()
     {

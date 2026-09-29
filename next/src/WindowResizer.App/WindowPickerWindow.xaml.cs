@@ -9,6 +9,7 @@ public partial class WindowPickerWindow : Window
     public WindowPickerWindow(IReadOnlyList<WindowRow> candidates)
     {
         InitializeComponent();
+        Theming.UiScale.Attach(this);
         Candidates.ItemsSource = candidates;
         Candidates.SelectedIndex = 0;
     }

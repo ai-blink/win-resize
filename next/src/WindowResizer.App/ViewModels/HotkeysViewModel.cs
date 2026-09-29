@@ -43,7 +43,8 @@ public sealed class HotkeyEditRow : ObservableObject
     private string _problem = "";
 
     /// <summary>경고 상자와 문구에 쓰는 이름("전체 적용", "세트 1").</summary>
-    public string Label { get; init; } = "";
+    public string Label { get => _label; set => Set(ref _label, value); }
+    private string _label = "";
 
     /// <summary>초안이 바뀌었다(다른 줄과의 중복 검사를 다시 하라는 신호).</summary>
     public Action<HotkeyEditRow>? Edited { get; set; }
@@ -138,9 +139,7 @@ public sealed class HotkeysViewModel : ObservableObject
         ApplyAll = new HotkeyEditRow { Label = text("Hotkeys.ApplyAll.Label"), SaveCommand = new RelayCommand(SaveApplyAll), Edited = _ => Recheck() };
         ApplyAll.Load(_applyAll.Enabled, _applyAll.Combination, HotkeyAction.ApplyAllProfiles);
 
-        ActionOptions = HotkeyActions.ProfileActions
-            .Select(a => new HotkeyActionOption(a, text("Hotkey.Action." + HotkeyActions.ToKey(a))))
-            .ToList();
+        _actionOptions = BuildActionOptions();
         for (var i = 0; i < SetsPerProfile; i++)
         {
             HotkeyEditRow? row = null;
@@ -157,7 +156,33 @@ public sealed class HotkeysViewModel : ObservableObject
             registrar.Activated += binding => _post(() => _owner.RunHotkey(binding));
     }
 
-    public IReadOnlyList<HotkeyActionOption> ActionOptions { get; }
+    private IReadOnlyList<HotkeyActionOption> _actionOptions;
+
+    public IReadOnlyList<HotkeyActionOption> ActionOptions
+    {
+        get => _actionOptions;
+        private set => Set(ref _actionOptions, value);
+    }
+
+    private List<HotkeyActionOption> BuildActionOptions() => HotkeyActions.ProfileActions
+        .Select(a => new HotkeyActionOption(a, _text("Hotkey.Action." + HotkeyActions.ToKey(a))))
+        .ToList();
+
+    /// <summary>
+    /// 표시 언어가 바뀌었다: 문자열로 만들어 둔 것(동작 콤보, 줄 이름, 등록 결과 목록)을 새 언어로 다시 만든다.
+    /// 입력 중인 초안과 저장값은 건드리지 않는다.
+    /// </summary>
+    public void RefreshTexts()
+    {
+        ActionOptions = BuildActionOptions();
+        ApplyAll.Label = _text("Hotkeys.ApplyAll.Label");
+        for (var i = 0; i < Sets.Count; i++) Sets[i].Label = string.Format(_text("Hotkeys.Set.Name"), i + 1);
+
+        // 등록 목록은 같은 계획이면 다시 만들지 않으므로 다시 만들라고 알린다.
+        _lastAllRegistered = false;
+        Sync();
+    }
+
     public ObservableCollection<HotkeyEditRow> Sets { get; } = new();
     public ObservableCollection<HotkeyProfileChoice> ProfileChoices { get; } = new();
     public ObservableCollection<HotkeyStatusRow> Rows { get; } = new();

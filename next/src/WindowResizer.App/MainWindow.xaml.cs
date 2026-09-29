@@ -9,6 +9,18 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Theming.UiScale.Attach(this);
+    }
+
+    /// <summary>슬라이더를 끄는 동안은 미리보기만 바뀌고, 놓을 때 화면 크기를 적용한다(SettingsViewModel 참고).</summary>
+    private void OnScaleDragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
+    {
+        if (DataContext is ViewModels.MainViewModel main) main.Settings.BeginScaleDrag();
+    }
+
+    private void OnScaleDragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        if (DataContext is ViewModels.MainViewModel main) main.Settings.EndScaleDrag();
     }
 
     /// <summary>

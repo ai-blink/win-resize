@@ -11,6 +11,7 @@ public partial class ProfileEditorWindow : Window
     public ProfileEditorWindow()
     {
         InitializeComponent();
+        Theming.UiScale.Attach(this);
     }
 
     private void OnSave(object sender, RoutedEventArgs e)

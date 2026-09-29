@@ -6,6 +6,7 @@ using WindowResizer.App.Mvvm;
 using WindowResizer.Core.Hotkeys;
 using WindowResizer.Core.Overlay;
 using WindowResizer.Core.Profiles;
+using WindowResizer.Core.Settings;
 using WindowResizer.Core.Windowing;
 
 namespace WindowResizer.App.ViewModels;
@@ -68,7 +69,8 @@ public sealed class MainViewModel : ObservableObject
         Func<double>? now = null,
         OverlaySettings? overlaySettings = null,
         Func<OverlaySettings, string?>? saveOverlay = null,
-        HotkeyServices? hotkeys = null)
+        HotkeyServices? hotkeys = null,
+        SettingsServices? settings = null)
     {
         _enumerateWindows = enumerateWindows;
         _windows = windows;
@@ -102,9 +104,25 @@ public sealed class MainViewModel : ObservableObject
         _hotkeyServices = hotkeys ?? new HotkeyServices();
         Hotkeys = new HotkeysViewModel(this, _hotkeyServices, text);
         ApplyAllProfilesCommand = new RelayCommand(ApplyAllProfiles);
+
+        Settings = new SettingsViewModel(
+            settings?.Settings ?? new AppSettings(),
+            settings?.Save ?? (_ => null),
+            settings?.IsStartupEnabled ?? (() => false),
+            settings?.SetStartup ?? (_ => null),
+            text, ShowStatus);
     }
 
     private readonly HotkeyServices _hotkeyServices;
+
+    /// <summary>설정 페이지(테마, 화면 크기, 언어, 시작 프로그램, 창 기억).</summary>
+    public SettingsViewModel Settings { get; }
+
+    /// <summary>
+    /// 표시 언어가 바뀌었다. 화면의 고정 문구는 리소스 사전을 바꾸면 따라 바뀌지만, 이 클래스들이 문자열로 만들어 둔 것
+    /// (단축키 줄 이름, 동작 콤보, 등록 결과 목록)은 다시 만들어야 한다.
+    /// </summary>
+    public void RefreshTexts() => Hotkeys.RefreshTexts();
 
     /// <summary>단축키 페이지. 프로필을 바꿔 저장할 때마다 등록을 다시 한다(<see cref="RebuildProfiles"/>).</summary>
     public HotkeysViewModel Hotkeys { get; }
@@ -338,7 +356,12 @@ public sealed class MainViewModel : ObservableObject
     public AppPage Page
     {
         get => _page;
-        set => Set(ref _page, value);
+        set
+        {
+            if (!Set(ref _page, value)) return;
+            // 작업 관리자에서 시작 앱을 껐을 수 있다 - 설정 페이지는 열 때마다 Windows 의 실제 등록 상태를 다시 읽는다.
+            if (value == AppPage.Settings) Settings.RefreshStartup();
+        }
     }
 
     public WindowRow? SelectedWindow

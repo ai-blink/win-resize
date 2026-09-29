@@ -273,4 +273,34 @@
 
     <sys:String x:Key="Picker.Title">Choose a window</sys:String>
     <sys:String x:Key="Picker.Subtitle">Several windows match. Choose the one to take the position from.</sys:String>
+
+    <!-- Settings page -->
+    <sys:String x:Key="Settings.Subtitle">Choose the theme, display size, language and startup. Changes are saved right away.</sys:String>
+    <sys:String x:Key="Settings.Theme">Theme</sys:String>
+    <sys:String x:Key="Settings.Theme.Hint">Light and Dark are fixed. Follow system changes with the Windows app mode. When Windows high contrast is on, its colors are always used.</sys:String>
+    <sys:String x:Key="Settings.Theme.System">Follow system</sys:String>
+    <sys:String x:Key="Settings.Theme.System.Hint">Changes together with Windows</sys:String>
+    <sys:String x:Key="Settings.Theme.Light">Light</sys:String>
+    <sys:String x:Key="Settings.Theme.Dark">Dark</sys:String>
+    <sys:String x:Key="Settings.Scale">Display size</sys:String>
+    <sys:String x:Key="Settings.Scale.Hint">75% to 125% in 5% steps. Applies when you release the slider.</sys:String>
+    <sys:String x:Key="Settings.Scale.Reset">Default 100%</sys:String>
+    <sys:String x:Key="Settings.Language">Language</sys:String>
+    <sys:String x:Key="Settings.Language.Hint">Changes right away without reopening the window.</sys:String>
+    <sys:String x:Key="Settings.Startup">Run when Windows starts</sys:String>
+    <sys:String x:Key="Settings.Startup.Hint">Adds an entry for the current user (no administrator rights needed). At startup it opens in the tray only, without a window.</sys:String>
+    <sys:String x:Key="Settings.Remember">Remember window size and position</sys:String>
+    <sys:String x:Key="Settings.Remember.Hint">Opens at the last size and position next time. Moved on screen if it was off screen.</sys:String>
+    <sys:String x:Key="Settings.Preview">Preview</sys:String>
+    <sys:String x:Key="Settings.Preview.Sample">This is how it looks at the chosen size</sys:String>
+    <sys:String x:Key="Status.ThemeSystem">Theme: follow system</sys:String>
+    <sys:String x:Key="Status.ThemeLight">Theme: light</sys:String>
+    <sys:String x:Key="Status.ThemeDark">Theme: dark</sys:String>
+    <sys:String x:Key="Status.Scale">Display size set to {0}%</sys:String>
+    <sys:String x:Key="Status.Language">Display language changed to English</sys:String>
+    <sys:String x:Key="Status.StartupOn">Registered to run when Windows starts</sys:String>
+    <sys:String x:Key="Status.StartupOff">Removed from running when Windows starts</sys:String>
+    <sys:String x:Key="Status.StartupFailed">Could not change the startup setting: {0}</sys:String>
+    <sys:String x:Key="Status.RememberOn">The window size and position are remembered</sys:String>
+    <sys:String x:Key="Status.RememberOff">The window size and position are not remembered (the saved spot was cleared)</sys:String>
 </ResourceDictionary>
