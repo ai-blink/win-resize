@@ -23,6 +23,7 @@ public sealed class OverlayController : IDisposable
     private readonly Func<string, string> _text;
     private readonly Win32Windows _windows = new();
     private readonly Dictionary<string, OverlayButtonWindow> _buttons = new();
+    private OverlayToggleWindow? _toggle;
     private bool _reconcileQueued;
     private bool _disposed;
 
@@ -34,9 +35,13 @@ public sealed class OverlayController : IDisposable
         _main.Profiles.CollectionChanged += OnProfilesChanged;
         _main.Overlay.Changed += OnSettingsChanged;
         Reconcile();
+        SyncToggle();
     }
 
     public IReadOnlyCollection<OverlayButtonWindow> Buttons => _buttons.Values;
+
+    /// <summary>감추기 스위치 창. 스위치를 띄우지 않는 설정이면 null.</summary>
+    public OverlayToggleWindow? Toggle => _toggle;
 
     /// <summary>프로필 목록에 맞춘다. 있는 창은 고치고, 새로 켠 것은 만들고, 끈 것은 닫는다. 몇 번 불러도 같다.</summary>
     public void Reconcile()
@@ -112,14 +117,62 @@ public sealed class OverlayController : IDisposable
     {
         if (property == nameof(OverlayViewModel.Hidden))
         {
+            // 감추는 것은 프로필 버튼뿐이다. 스위치는 자기 자신을 숨기지 않는다 - 숨으면 다시 켤 방법이 없다.
             foreach (var button in _buttons.Values)
             {
                 if (_main.Overlay.Hidden) button.Hide();
                 else button.Show();
             }
+        }
+        else
+        {
+            Reconcile();
+        }
+        SyncToggle();
+    }
+
+    /// <summary>설정에 맞춰 스위치를 띄우거나 치우고, 그림(감춤 여부)과 잠금을 맞춘다. 몇 번 불러도 같다.</summary>
+    private void SyncToggle()
+    {
+        if (_disposed) return;
+        var settings = _main.Overlay.Settings;
+
+        if (!settings.ToggleVisible)
+        {
+            if (_toggle is null) return;
+            _toggle.Close();
+            _toggle = null;
             return;
         }
-        Reconcile();
+
+        if (_toggle is null)
+        {
+            _toggle = new OverlayToggleWindow(_text);
+            _toggle.Clicked += _ => _main.Overlay.Hidden = !_main.Overlay.Hidden;
+            _toggle.Moved += (_, point) => _main.Overlay.RememberTogglePosition(point);
+            // 스위치를 치우면 감춘 버튼도 다시 보인다(뷰모델이 처리). 여기서는 설정만 바꾼다.
+            _toggle.CloseRequested += _ => _main.Overlay.ToggleVisible = false;
+            _toggle.Configure(settings.Hidden, settings.Locked);
+            PlaceToggle(_toggle);
+            return;
+        }
+        _toggle.Configure(settings.Hidden, settings.Locked);
+    }
+
+    /// <summary>저장된 자리가 지금 화면에 있으면 거기, 아니면 오른쪽 아래 기본 자리(PyQt5 <c>_default_toggle_position</c>).</summary>
+    private void PlaceToggle(OverlayToggleWindow toggle)
+    {
+        toggle.Show();
+        var size = _windows.GetRect(toggle.Handle) ?? new PixelRect(0, 0, (int)toggle.Width, (int)toggle.Height);
+        var monitors = _windows.EnumerateMonitors();
+        var saved = _main.Overlay.Settings.TogglePosition;
+
+        var point = saved is { } s && OverlayPlacement.IsVisibleOn(s, size.Width, size.Height, monitors.Select(m => m.Bounds))
+            ? s
+            : OverlayPlacement.DefaultToggle((monitors.FirstOrDefault(m => m.IsPrimary) ?? monitors.First()).WorkArea, size.Width, size.Height);
+
+        Win32Windows.MoveTo(toggle.Handle, point.X, point.Y);
+        if (saved != point) _main.Overlay.RememberTogglePosition(point);
     }
 
     /// <summary>
@@ -139,5 +192,7 @@ public sealed class OverlayController : IDisposable
         _main.Overlay.Changed -= OnSettingsChanged;
         foreach (var button in _buttons.Values) button.Close();
         _buttons.Clear();
+        _toggle?.Close();
+        _toggle = null;
     }
 }

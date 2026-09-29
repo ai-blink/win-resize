@@ -177,6 +177,10 @@
     <sys:String x:Key="Overlay.Button.TipDwell">Rest the mouse here for {0:0.0} s to apply profile '{1}' to the window you were just using</sys:String>
     <sys:String x:Key="Overlay.Button.TipDrag">Drag to move</sys:String>
     <sys:String x:Key="Overlay.Button.TipLocked">Position is locked</sys:String>
+    <!-- Overlay O4: hide switch -->
+    <sys:String x:Key="Overlay.Toggle.Close">Close this switch</sys:String>
+    <sys:String x:Key="Overlay.Toggle.TipHide">Hide the overlay buttons</sys:String>
+    <sys:String x:Key="Overlay.Toggle.TipShow">Show the overlay buttons again</sys:String>
     <sys:String x:Key="Status.OverlayApplied">Applied profile '{0}' to '{1}'</sys:String>
     <sys:String x:Key="Status.OverlayApplyFailed">Could not apply the profile to '{0}'</sys:String>
     <sys:String x:Key="Status.OverlayNoTarget">No target window. Click the window you want, then try again</sys:String>

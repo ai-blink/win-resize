@@ -6,6 +6,28 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.2 - 2026-09-29
+
+Second preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.2.md](../doc/releases/v0.02.0-preview.2.md).
+
+### Highlights
+
+- Overlay buttons on screen: click or dwell to apply a profile to the window you
+  were just using; drag, lock, right-click to close, green or red result flash.
+- Buttons never take focus; a click no longer raises WindowResizer's own window.
+- Hide switch: an eye button that hides and shows all overlay buttons, never
+  hides itself, and remembers its position.
+- Overlay settings from v0.01.5 carry over the first time.
+
+### Verification
+
+- .NET build: 0 warnings, 0 errors; 112 tests, all passed on repeated runs (a
+  focus-dependent live test can be skipped as inconclusive when Windows blocks a
+  focus change); real-click checks on the running app for focus, exact placement,
+  the hide switch and drag.
+
 ## 0.02.0-preview.1 - 2026-09-27
 
 First preview of the rewritten WPF (.NET 10) app, built from source; the

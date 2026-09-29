@@ -85,6 +85,24 @@ public sealed class DialogWindowSmokeTests
             button.Close();
         }
 
+        // 감추기 스위치: 두 상태(보임/감춤)와 잠금 여부로 그리고, 활성화 방지가 걸렸는지 본다.
+        var hideSwitch = new Overlay.OverlayToggleWindow(k => k);
+        hideSwitch.Show();
+        try
+        {
+            Assert.IsTrue(hideSwitch.IsNoActivate, "스위치가 활성화되면 직전 창이 바뀐다");
+            foreach (var hidden in new[] { false, true })
+            foreach (var locked in new[] { false, true })
+            {
+                hideSwitch.Configure(hidden, locked);
+                hideSwitch.UpdateLayout();
+            }
+        }
+        finally
+        {
+            hideSwitch.Close();
+        }
+
         System.Diagnostics.PresentationTraceSources.DataBindingSource.Listeners.Remove(bindingErrors);
         Assert.IsEmpty(bindingErrors.Messages, string.Join(Environment.NewLine, bindingErrors.Messages));
     }

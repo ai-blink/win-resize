@@ -16,10 +16,14 @@ public enum GestureRelease
 /// - 누른 뒤 맨해튼 거리 5px 미만으로 움직였으면 클릭, 그 이상이면 드래그다. 잠겨 있으면 드래그하지 않는다.
 /// - 드웰은 들어오면 차기 시작하고, 나가면 취소되며 다시 장전된다. 한 번 머무름에 한 번만 발동한다.
 /// - 누르면(배치하려는 것이므로) 드웰을 멈춘다.
+///
+/// 감추기 스위치는 문턱이 3px 로 더 낮다(<see cref="SwitchDragThresholdPx"/>). 스위치는 작아서 끌기 시작한 것을
+/// 클릭으로 오해하기 쉽고, 그 오해의 대가가 "버튼이 전부 사라졌다"이다(PyQt5 overlay_toggle_button.py).
 /// </summary>
-public sealed class OverlayGesture
+public sealed class OverlayGesture(int dragThresholdPx = OverlayGesture.DragThresholdPx)
 {
     public const int DragThresholdPx = 5;
+    public const int SwitchDragThresholdPx = 3;
 
     private ScreenPoint? _pressCursor;
     private ScreenPoint _pressWindow;
@@ -47,7 +51,7 @@ public sealed class OverlayGesture
 
         var dx = cursor.X - press.X;
         var dy = cursor.Y - press.Y;
-        if (!_dragged && Math.Abs(dx) + Math.Abs(dy) < DragThresholdPx) return null;
+        if (!_dragged && Math.Abs(dx) + Math.Abs(dy) < dragThresholdPx) return null;
 
         _dragged = true;
         return new ScreenPoint(_pressWindow.X + dx, _pressWindow.Y + dy);

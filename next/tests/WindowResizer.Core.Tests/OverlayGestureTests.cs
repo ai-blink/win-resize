@@ -26,6 +26,19 @@ public sealed class OverlayGestureTests
     }
 
     [TestMethod]
+    public void The_switch_starts_a_drag_at_three_pixels_where_a_button_needs_five()
+    {
+        var hideSwitch = new OverlayGesture(OverlayGesture.SwitchDragThresholdPx);
+        hideSwitch.Press(new ScreenPoint(10, 10), Window);
+        Assert.IsNull(hideSwitch.Move(new ScreenPoint(11, 11)), "맨해튼 2px 은 아직 클릭이다");
+        Assert.IsNotNull(hideSwitch.Move(new ScreenPoint(12, 11)), "3px 부터 드래그 - 끌다 만 것이 클릭으로 읽히면 버튼이 전부 사라진다");
+
+        var button = new OverlayGesture();
+        button.Press(new ScreenPoint(10, 10), Window);
+        Assert.IsNull(button.Move(new ScreenPoint(12, 11)), "같은 3px 이 프로필 버튼에서는 클릭이다");
+    }
+
+    [TestMethod]
     public void Locked_buttons_do_not_move_and_still_click()
     {
         var g = new OverlayGesture { Locked = true };

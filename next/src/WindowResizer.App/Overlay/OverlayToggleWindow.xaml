@@ -1,0 +1,19 @@
+<Window x:Class="WindowResizer.App.Overlay.OverlayToggleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False" ShowActivated="False"
+        Focusable="False" Cursor="Hand" Width="44" Height="44" Left="-10000" Top="-10000">
+    <!-- 눈 아이콘은 글꼴에 기대지 않고 직접 그린다(PyQt5 와 같다). 그림은 코드(Render)가 상태에 맞춰 채운다. -->
+    <Canvas x:Name="Surface" Width="44" Height="44">
+        <Ellipse x:Name="Face" Width="41" Height="41" Canvas.Left="1.5" Canvas.Top="1.5" />
+        <Path x:Name="Eye" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+        <Ellipse x:Name="Pupil" />
+        <Line x:Name="Slash" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+        <Canvas.ContextMenu>
+            <ContextMenu>
+                <MenuItem x:Name="CloseItem" Click="OnCloseClicked" />
+            </ContextMenu>
+        </Canvas.ContextMenu>
+    </Canvas>
+</Window>
