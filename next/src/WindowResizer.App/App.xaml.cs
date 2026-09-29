@@ -14,6 +14,8 @@ namespace WindowResizer.App;
 ///   <c>--profiles-dir &lt;폴더&gt;</c>  프로필 폴더를 바꾼다. 기본은 실행 파일 옆 <c>profiles</c>(D-019).
 ///   개발 빌드는 <c>next\...\bin</c> 에서 뜨므로, 실사용 프로필을 보려면 <c>C:\app\profiles</c> 를 넘긴다.
 ///   S4b 부터 이 폴더에 <b>쓴다</b>(적용 횟수, 편집, 삭제). 개발 중에는 실사용 폴더가 아니라 사본을 넘긴다.
+///   <c>--overlay-key &lt;HKCU 아래 경로&gt;</c>  오버레이 설정 키를 바꾼다(PyQt5 키에서 가져오지도 않는다).
+///   라이브 검증이 사용자 설정을 건드리지 않게 쓴다.
 /// </summary>
 public partial class App : Application
 {
@@ -29,7 +31,8 @@ public partial class App : Application
         var store = new ProfileStore(ProfilesDirectory(e.Args));
         var loaded = store.Load();
         var windows = new Win32Windows();
-        var overlayStore = new OverlaySettingsStore();
+        var overlayKey = ArgValue(e.Args, "--overlay-key");
+        var overlayStore = overlayKey is null ? new OverlaySettingsStore() : new OverlaySettingsStore(overlayKey, legacyKeyPath: null);
 
         var viewModel = new MainViewModel(
             () => windows.EnumerateUserWindows()
@@ -52,9 +55,17 @@ public partial class App : Application
         MainWindow.Closing += OnMainWindowClosing;
         _tray = new TrayIcon(Text, ShowMainWindow, Quit, viewModel.Overlay, viewModel.CloseAllOverlays);
         MainWindow.Show();
+
+        // 오버레이 버튼(O3). 직전 창 추적은 창 이벤트 감시기를 따른다(D-023) - 이 프로세스의 창은 감시기가 거른다.
+        _windowEvents = new WindowEventWatcher();
+        _foreground = new ForegroundTracker(_windowEvents);
+        _overlays = new Overlay.OverlayController(viewModel, _foreground, Text);
     }
 
     private TrayIcon? _tray;
+    private WindowEventWatcher? _windowEvents;
+    private ForegroundTracker? _foreground;
+    private Overlay.OverlayController? _overlays;
     private bool _quitting;
 
     /// <summary>
@@ -80,9 +91,21 @@ public partial class App : Application
     private void Quit()
     {
         _quitting = true;
+        ReleaseResources();
+        Shutdown();
+    }
+
+    /// <summary>트레이 아이콘, 오버레이 창, 창 이벤트 훅을 푼다. 두 번 불러도 된다.</summary>
+    private void ReleaseResources()
+    {
         _tray?.Dispose();
         _tray = null;
-        Shutdown();
+        _overlays?.Dispose();
+        _overlays = null;
+        _foreground?.Dispose();
+        _foreground = null;
+        _windowEvents?.Dispose();
+        _windowEvents = null;
     }
 
     /// <summary>로그오프나 종료 때는 숨기지 말고 끝낸다. 숨기려고 닫기를 취소하면 Windows 종료를 막는다.</summary>
@@ -94,7 +117,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _tray?.Dispose();
+        ReleaseResources();
         base.OnExit(e);
     }
 
@@ -118,9 +141,11 @@ public partial class App : Application
         _ => null,
     };
 
-    private static string ProfilesDirectory(string[] args)
+    private static string ProfilesDirectory(string[] args) => ArgValue(args, "--profiles-dir") ?? ProfileStore.DefaultDirectory;
+
+    private static string? ArgValue(string[] args, string name)
     {
-        var index = Array.IndexOf(args, "--profiles-dir");
-        return index >= 0 && index + 1 < args.Length ? args[index + 1] : ProfileStore.DefaultDirectory;
+        var index = Array.IndexOf(args, name);
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
 }

@@ -90,6 +90,22 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern nint GetForegroundWindow();
 
+    public const long WS_EX_NOACTIVATE = 0x08000000;
+    public const uint SWP_NOZORDER = 0x0004;
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+    public static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct CURSORPOINT
+    {
+        public int X, Y;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetCursorPos(out CURSORPOINT point);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern int GetWindowTextW(nint hwnd, StringBuilder text, int maxCount);
 

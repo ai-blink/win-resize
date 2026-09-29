@@ -65,6 +65,26 @@ public sealed class DialogWindowSmokeTests
         }
         mainWindow.Close();
 
+        // 오버레이 버튼: 모양 4 x 게이지 4 를 드웰 진행 중 상태로 그리고, 활성화 방지 스타일이 실제로 걸렸는지 본다.
+        var button = new Overlay.OverlayButtonWindow("p", k => k + " {0} {1}");
+        button.Show();
+        try
+        {
+            Assert.IsTrue(button.IsNoActivate, "WS_EX_NOACTIVATE/TOOLWINDOW 가 걸리지 않았다 - 누르면 대상 창이 바뀐다");
+            foreach (var shape in Core.Profiles.OverlayStyle.Shapes)
+            foreach (var gauge in Core.Profiles.OverlayStyle.Gauges)
+            {
+                button.Configure("Blender", new Core.Profiles.OverlayStyle { Shape = shape, Gauge = gauge, BackgroundColor = "not-a-colour" },
+                    new Core.Overlay.OverlaySettings { Activation = Core.Overlay.OverlayActivation.Dwell });
+                button.ShowFeedback(success: shape == "pill");
+                button.UpdateLayout();
+            }
+        }
+        finally
+        {
+            button.Close();
+        }
+
         System.Diagnostics.PresentationTraceSources.DataBindingSource.Listeners.Remove(bindingErrors);
         Assert.IsEmpty(bindingErrors.Messages, string.Join(Environment.NewLine, bindingErrors.Messages));
     }

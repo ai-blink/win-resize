@@ -125,6 +125,38 @@ public sealed class MainViewModel : ObservableObject
             Status = string.Format(_text(enabled ? "Status.OverlayProfileOn" : "Status.OverlayProfileOff"), profile.Name);
     }
 
+    /// <summary>
+    /// 오버레이 버튼이 누른 프로필을 창 하나에 적용한다. PyQt5 <c>apply_profile(id, window_info)</c> 와 같이
+    /// <b>매칭 조건을 보지 않는다</b> - 버튼은 "직전에 쓰던 창에 이 배치를" 이라는 뜻이다. 성공하면 적용 횟수를
+    /// 저장한다(되돌리기는 지우지 않는다). 결과는 상태 줄과 반환값(버튼의 성공/실패 색)으로 알린다.
+    /// </summary>
+    /// <param name="target">대상 창. 없으면(추적 대상이 닫힘) null.</param>
+    public bool ApplyProfileToWindow(string profileId, nint? target, string targetTitle)
+    {
+        var profile = _document.Find(profileId);
+        if (profile?.WindowConfig is null)
+        {
+            Status = _text("Status.OverlayProfileMissing");
+            return false;
+        }
+        if (target is not { } hwnd)
+        {
+            Status = _text("Status.OverlayNoTarget");
+            return false;
+        }
+
+        var title = string.IsNullOrWhiteSpace(targetTitle) ? _text("Status.UntitledWindow") : targetTitle;
+        if (_applier.Apply(hwnd, profile.WindowConfig) != ApplyOutcome.Applied)
+        {
+            Status = string.Format(_text("Status.OverlayApplyFailed"), title);
+            return false;
+        }
+
+        if (!Commit(() => profile.RecordApplied(1, _now()), () => SelectedProfile?.Id, clearsUndo: false)) return true;
+        Status = string.Format(_text("Status.OverlayApplied"), profile.Name, title);
+        return true;
+    }
+
     public void CloseAllOverlays()
     {
         var open = _document.Profiles.Where(p => p.Value.OverlayStyle?.Enabled == true).Select(p => p.Value).ToList();

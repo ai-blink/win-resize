@@ -171,7 +171,17 @@
     <sys:String x:Key="Overlay.CloseAll">Close all</sys:String>
     <sys:String x:Key="Overlay.Profiles">Buttons per profile</sys:String>
     <sys:String x:Key="Overlay.Profiles.Hint">Each profile that is on gets one button. This is the same setting as the editor's How to run page.</sys:String>
-    <sys:String x:Key="Overlay.ButtonsPending">The button windows arrive in the next step. For now only the settings are saved.</sys:String>
+    <!-- Overlay O3: button windows -->
+    <sys:String x:Key="Overlay.Button.Close">Close this button</sys:String>
+    <sys:String x:Key="Overlay.Button.TipClick">Click to apply profile '{1}' to the window you were just using</sys:String>
+    <sys:String x:Key="Overlay.Button.TipDwell">Rest the mouse here for {0:0.0} s to apply profile '{1}' to the window you were just using</sys:String>
+    <sys:String x:Key="Overlay.Button.TipDrag">Drag to move</sys:String>
+    <sys:String x:Key="Overlay.Button.TipLocked">Position is locked</sys:String>
+    <sys:String x:Key="Status.OverlayApplied">Applied profile '{0}' to '{1}'</sys:String>
+    <sys:String x:Key="Status.OverlayApplyFailed">Could not apply the profile to '{0}'</sys:String>
+    <sys:String x:Key="Status.OverlayNoTarget">No target window. Click the window you want, then try again</sys:String>
+    <sys:String x:Key="Status.OverlayProfileMissing">This button's profile was not found</sys:String>
+    <sys:String x:Key="Status.UntitledWindow">untitled window</sys:String>
     <sys:String x:Key="Tray.OverlayDwell">Overlay dwell mode</sys:String>
     <sys:String x:Key="Tray.OverlayHidden">Hide overlay buttons</sys:String>
     <sys:String x:Key="Tray.OverlaySwitch">Show the hide switch</sys:String>

@@ -171,7 +171,17 @@
     <sys:String x:Key="Overlay.CloseAll">모두 닫기</sys:String>
     <sys:String x:Key="Overlay.Profiles">프로필별 버튼</sys:String>
     <sys:String x:Key="Overlay.Profiles.Hint">켠 프로필마다 버튼이 하나 뜹니다. 편집 창의 실행 방법 페이지와 같은 값입니다.</sys:String>
-    <sys:String x:Key="Overlay.ButtonsPending">버튼 창은 다음 단계에서 화면에 뜹니다. 지금은 설정만 저장됩니다.</sys:String>
+    <!-- 오버레이 O3: 버튼 창 -->
+    <sys:String x:Key="Overlay.Button.Close">이 버튼 닫기</sys:String>
+    <sys:String x:Key="Overlay.Button.TipClick">클릭하면 직전에 쓰던 창에 '{1}' 프로필을 적용합니다</sys:String>
+    <sys:String x:Key="Overlay.Button.TipDwell">마우스를 {0:0.0}초 올려 두면 직전에 쓰던 창에 '{1}' 프로필을 적용합니다</sys:String>
+    <sys:String x:Key="Overlay.Button.TipDrag">드래그하면 위치를 옮길 수 있습니다</sys:String>
+    <sys:String x:Key="Overlay.Button.TipLocked">위치가 잠겨 있습니다</sys:String>
+    <sys:String x:Key="Status.OverlayApplied">'{0}' 프로필을 '{1}'에 적용했습니다</sys:String>
+    <sys:String x:Key="Status.OverlayApplyFailed">'{0}'에 프로필을 적용하지 못했습니다</sys:String>
+    <sys:String x:Key="Status.OverlayNoTarget">적용할 대상 창을 찾지 못했습니다. 적용할 창을 한 번 누른 뒤 다시 시도하세요</sys:String>
+    <sys:String x:Key="Status.OverlayProfileMissing">이 버튼의 프로필을 찾지 못했습니다</sys:String>
+    <sys:String x:Key="Status.UntitledWindow">제목 없는 창</sys:String>
     <sys:String x:Key="Tray.OverlayDwell">오버레이 드웰 모드</sys:String>
     <sys:String x:Key="Tray.OverlayHidden">오버레이 버튼 감추기</sys:String>
     <sys:String x:Key="Tray.OverlaySwitch">감추기 스위치 표시</sys:String>

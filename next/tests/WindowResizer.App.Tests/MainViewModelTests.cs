@@ -497,6 +497,40 @@ public sealed class MainViewModelTests
         Assert.AreEqual(3, desktop.Saves, "켜진 것이 없으면 저장하지 않는다");
     }
 
+    // --- 오버레이 O3: 버튼이 누른 프로필을 직전 창에 ---------------------------------------------
+
+    [TestMethod]
+    public void Overlay_apply_ignores_matching_counts_the_window_and_keeps_the_undo()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) });
+        var vm = desktop.CreateViewModel(Profile("b", "only-blender", 5, 6, 640, 480));
+        vm.RefreshWindows();
+        vm.SelectedWindow = vm.Windows.Single();
+        vm.SelectedProfile = vm.Profiles.Single();
+        vm.OverwritePositionCommand.Execute(null);
+
+        var ok = vm.ApplyProfileToWindow("id-b", 42, "Untitled - Notepad");
+
+        Assert.IsTrue(ok);
+        Assert.AreEqual((nint)42, desktop.Operations.Moves.Last().Handle, "조건과 맞지 않는 창에도 적용한다(버튼의 뜻)");
+        Assert.AreEqual(1, desktop.Document.Find("id-b")!.AppliedCount);
+        Assert.AreEqual("Status.OverlayApplied:b", vm.Status);
+        Assert.IsTrue(vm.CanUndo, "적용 횟수 저장은 되돌리기를 지우지 않는다");
+    }
+
+    [TestMethod]
+    public void Overlay_apply_without_a_target_or_profile_fails_and_moves_nothing()
+    {
+        var desktop = new FakeDesktop();
+        var vm = desktop.CreateViewModel(Profile("b", "x", 5, 6, 640, 480));
+
+        Assert.IsFalse(vm.ApplyProfileToWindow("id-b", null, ""));
+        Assert.AreEqual("Status.OverlayNoTarget:{0}", vm.Status);
+        Assert.IsFalse(vm.ApplyProfileToWindow("gone", 42, "x"));
+        Assert.IsEmpty(desktop.Operations.Moves);
+        Assert.AreEqual(0, desktop.Saves);
+    }
+
     private static WindowRow Row(nint handle, string title, string process = "app.exe") =>
         new(handle, new WindowInfo(Title: title, ProcessName: process), 100, new PixelRect(0, 0, 300, 200), false, false);
 

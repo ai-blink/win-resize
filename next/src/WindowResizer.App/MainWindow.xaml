@@ -378,7 +378,6 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,14,0,0" Text="{DynamicResource Overlay.ButtonsPending}" />
                     </StackPanel>
                 </ScrollViewer>
 

@@ -182,6 +182,47 @@ public sealed class Win32Windows : IWindowOperations
         return buffer.ToString();
     }
 
+    /// <summary>
+    /// 오버레이 창이 절대 활성화되지 않게 한다(PyQt5 <c>apply_no_activate_style</c>). 활성화되는 순간 "직전에 쓰던
+    /// 창"이 오버레이 자신으로 바뀌어 엉뚱한 창에 프로필을 적용한다. WS_EX_TOOLWINDOW 는 작업 표시줄과 Alt+Tab
+    /// 에서 감춘다. 성공하면 true(스타일을 다시 읽어 확인한다).
+    /// </summary>
+    public static bool MakeOverlayWindow(nint hwnd)
+    {
+        var style = (long)GetWindowLongPtr(hwnd, GWL_EXSTYLE) | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, (nint)style);
+        var after = (long)GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        return (after & WS_EX_NOACTIVATE) != 0 && (after & WS_EX_TOOLWINDOW) != 0;
+    }
+
+    /// <summary>
+    /// 창 메시지 훅(WPF <c>HwndSourceHook</c> 모양). 클릭으로 활성화하려는 <c>WM_MOUSEACTIVATE</c> 에 "활성화하지 않음"
+    /// 으로 답한다. 2026-09-27 실측: WS_EX_NOACTIVATE 만 건 WPF 버튼을 누르자 이 앱의 본창이 전경으로 올라왔다 -
+    /// 그러면 직전 창이 바뀌어 엉뚱한 창에 적용된다. 스타일과 이 훅을 두 겹으로 둔다(PyQt5 도 두 겹이었다).
+    /// </summary>
+    public static nint NoActivateHook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
+    {
+        const int WM_MOUSEACTIVATE = 0x0021;
+        const int MA_NOACTIVATE = 3;
+        if (message != WM_MOUSEACTIVATE) return 0;
+        handled = true;
+        return MA_NOACTIVATE;
+    }
+
+    /// <summary>크기와 겹침 순서는 두고 왼쪽 위만 옮긴다. 좌표는 물리 픽셀이다.</summary>
+    public static bool MoveTo(nint hwnd, int x, int y)
+    {
+        using var _ = new DpiScope();
+        return SetWindowPos(hwnd, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
+    /// <summary>마우스 커서 위치. 물리 픽셀 화면 좌표.</summary>
+    public static (int X, int Y) GetCursorPosition()
+    {
+        using var _ = new DpiScope();
+        return GetCursorPos(out var p) ? (p.X, p.Y) : (0, 0);
+    }
+
     /// <summary>창 하나의 매칭 정보. 오버레이가 직전 창의 제목과 경로를 알려 줄 때 쓴다.</summary>
     public static WindowInfo DescribeWindow(nint hwnd)
     {
