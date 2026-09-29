@@ -4,10 +4,10 @@
              Focusable="False">
     <!-- 수정키 칩 4개 + 주 키 목록 + 감지 버튼. 값은 저장 문자열(Ctrl+Alt+E) 하나다(HotkeyPicker.Text). -->
     <StackPanel Orientation="Horizontal">
-        <ToggleButton x:Name="CtrlChip" Content="Ctrl" MinWidth="46" Margin="0,0,4,0" AutomationProperties.Name="Ctrl" />
-        <ToggleButton x:Name="AltChip" Content="Alt" MinWidth="46" Margin="0,0,4,0" AutomationProperties.Name="Alt" />
-        <ToggleButton x:Name="ShiftChip" Content="Shift" MinWidth="46" Margin="0,0,4,0" AutomationProperties.Name="Shift" />
-        <ToggleButton x:Name="WinChip" Content="Win" MinWidth="46" Margin="0,0,8,0" AutomationProperties.Name="Win" />
+        <ToggleButton x:Name="CtrlChip" Content="Ctrl" Style="{StaticResource ChipToggleStyle}" Margin="0,0,6,0" AutomationProperties.Name="Ctrl" />
+        <ToggleButton x:Name="AltChip" Content="Alt" Style="{StaticResource ChipToggleStyle}" Margin="0,0,6,0" AutomationProperties.Name="Alt" />
+        <ToggleButton x:Name="ShiftChip" Content="Shift" Style="{StaticResource ChipToggleStyle}" Margin="0,0,6,0" AutomationProperties.Name="Shift" />
+        <ToggleButton x:Name="WinChip" Content="Win" Style="{StaticResource ChipToggleStyle}" Margin="0,0,10,0" AutomationProperties.Name="Win" />
         <ComboBox x:Name="KeyBox" MinWidth="110" Margin="0,0,8,0" VerticalContentAlignment="Center"
                   AutomationProperties.Name="{DynamicResource Hotkeys.Key}" />
         <Button x:Name="DetectButton" MinWidth="72" AutomationProperties.Name="{DynamicResource Hotkeys.Detect}"

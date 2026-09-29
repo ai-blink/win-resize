@@ -108,8 +108,13 @@ public partial class HotkeyPicker : UserControl
         DetectingChanged?.Invoke(this, detecting);
     }
 
-    private void ShowDetectLabel() =>
+    private void ShowDetectLabel()
+    {
         DetectButton.Content = TryFindResource(_detecting ? "Hotkeys.Detecting" : "Hotkeys.Detect") ?? (_detecting ? "..." : "Detect");
+        // 감지 중에는 강조 버튼으로 바꿔 "지금 키를 기다린다"가 한눈에 보이게 한다.
+        if (_detecting) DetectButton.Style = TryFindResource("AccentButtonStyle") as Style;
+        else DetectButton.ClearValue(StyleProperty);   // null 을 대입하면 앱 기본 버튼 스타일까지 꺼진다(회색 시스템 버튼)
+    }
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
