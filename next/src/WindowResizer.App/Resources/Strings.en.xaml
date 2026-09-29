@@ -291,8 +291,6 @@
     <sys:String x:Key="Settings.Startup.Hint">Adds an entry for the current user (no administrator rights needed). At startup it opens in the tray only, without a window.</sys:String>
     <sys:String x:Key="Settings.Remember">Remember window size and position</sys:String>
     <sys:String x:Key="Settings.Remember.Hint">Opens at the last size and position next time. Moved on screen if it was off screen.</sys:String>
-    <sys:String x:Key="Settings.Preview">Preview</sys:String>
-    <sys:String x:Key="Settings.Preview.Sample">This is how it looks at the chosen size</sys:String>
     <sys:String x:Key="Status.ThemeSystem">Theme: follow system</sys:String>
     <sys:String x:Key="Status.ThemeLight">Theme: light</sys:String>
     <sys:String x:Key="Status.ThemeDark">Theme: dark</sys:String>

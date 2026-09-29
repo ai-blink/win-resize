@@ -291,8 +291,6 @@
     <sys:String x:Key="Settings.Startup.Hint">현재 사용자의 시작 항목에 넣습니다(관리자 권한 불필요). 시작할 때는 창 없이 트레이로만 뜹니다.</sys:String>
     <sys:String x:Key="Settings.Remember">창 크기와 위치 기억</sys:String>
     <sys:String x:Key="Settings.Remember.Hint">다음 실행 때 마지막 크기와 위치로 엽니다. 화면 밖이면 화면 안으로 옮깁니다.</sys:String>
-    <sys:String x:Key="Settings.Preview">미리보기</sys:String>
-    <sys:String x:Key="Settings.Preview.Sample">고른 크기로 보면 이렇게 보입니다</sys:String>
     <sys:String x:Key="Status.ThemeSystem">테마: 시스템 따르기</sys:String>
     <sys:String x:Key="Status.ThemeLight">테마: 밝게</sys:String>
     <sys:String x:Key="Status.ThemeDark">테마: 어둡게</sys:String>

@@ -22,9 +22,9 @@ public sealed record LanguageOption(string Code, string Display);
 /// 값을 바꾸면 바로 저장하고 <see cref="Changed"/> 로 알린다(App 이 테마, 배율, 언어를 실제로 적용한다).
 /// 저장이 실패해도 화면 값은 유지한다 - 다음 저장이 다시 시도한다.
 ///
-/// 화면 크기만 예외다: 슬라이더를 끄는 동안에는 <b>미리보기만</b> 바뀌고 놓을 때 적용한다. 배율을 적용하면 슬라이더
-/// 자신도 커지거나 줄어 손 밑에서 움직이므로 끄는 도중 바로 적용하면 값이 튄다. 키보드와 트랙 클릭은 끄는 것이 아니라
-/// 바로 적용한다.
+/// 화면 크기만 예외다: 슬라이더를 끄는 동안에는 옆의 숫자만 바뀌고 놓을 때 적용한다. 끄는 도중에 적용해 보니(2026-09-30 실측)
+/// 배율이 바뀌며 슬라이더 자신이 커지거나 줄어 썸이 커서 밑에서 달아나고, 값이 110%와 105% 사이를 오간다(커서를 108 px
+/// 옮겨도 5 %p 만 움직임). 키보드와 트랙 클릭은 끄는 것이 아니라 바로 적용한다.
 /// </summary>
 public sealed class SettingsViewModel : ObservableObject
 {
@@ -100,17 +100,14 @@ public sealed class SettingsViewModel : ObservableObject
             _pendingScale = scale;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ScaleText));
-            OnPropertyChanged(nameof(PreviewFactor));
             if (!_dragging) CommitScale();
         }
     }
 
     public int AppliedScale => Settings.ScalePercent;
 
+    /// <summary>끄는 동안에도 슬라이더 옆 숫자는 따라 움직인다(적용은 놓을 때).</summary>
     public string ScaleText => _pendingScale + "%";
-
-    /// <summary>미리보기 견본을 지금 화면에서 몇 배로 그릴지 = 고른 값 / 적용된 값. 페이지 자신이 이미 적용된 배율이다.</summary>
-    public double PreviewFactor => _pendingScale / (double)Settings.ScalePercent;
 
     public void BeginScaleDrag() => _dragging = true;
 
@@ -125,7 +122,6 @@ public sealed class SettingsViewModel : ObservableObject
         if (_pendingScale == Settings.ScalePercent) return;
         Settings.ScalePercent = _pendingScale;
         OnPropertyChanged(nameof(AppliedScale));
-        OnPropertyChanged(nameof(PreviewFactor));
         Commit("AppliedScale", () => string.Format(_text("Status.Scale"), Settings.ScalePercent));
     }
 

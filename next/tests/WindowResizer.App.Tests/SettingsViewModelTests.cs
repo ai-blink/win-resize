@@ -3,7 +3,7 @@ using WindowResizer.Core.Settings;
 
 namespace WindowResizer.App.Tests;
 
-/// <summary>설정 페이지의 화면 쪽 규칙: 바꾸면 바로 저장하고 알린다, 화면 크기는 끄는 동안 미리보기만.</summary>
+/// <summary>설정 페이지의 화면 쪽 규칙: 바꾸면 바로 저장하고 알린다, 화면 크기는 끄는 동안 숫자만.</summary>
 [TestClass]
 public sealed class SettingsViewModelTests
 {
@@ -68,11 +68,10 @@ public sealed class SettingsViewModelTests
         Assert.AreEqual(115, h.Settings.ScalePercent);
         CollectionAssert.AreEqual(new[] { "AppliedScale" }, h.Changes);
         Assert.AreEqual("Status.Scale", h.Statuses.Single());
-        Assert.AreEqual(1.0, h.Vm.PreviewFactor);
     }
 
     [TestMethod]
-    public void While_dragging_only_the_preview_changes_and_letting_go_applies()
+    public void While_dragging_only_the_number_changes_and_letting_go_applies()
     {
         var h = new Harness();
         h.Vm.BeginScaleDrag();
@@ -84,7 +83,6 @@ public sealed class SettingsViewModelTests
         Assert.IsEmpty(h.Changes);
         Assert.AreEqual(0, h.Saves);
         Assert.AreEqual("125%", h.Vm.ScaleText);
-        Assert.AreEqual(1.25, h.Vm.PreviewFactor, 0.0001, "견본은 고른 값 / 적용된 값");
 
         h.Vm.EndScaleDrag();
 

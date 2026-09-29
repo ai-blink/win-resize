@@ -17,7 +17,7 @@ executable is still v0.01.5. Details:
 - Settings page: theme (light, dark, follow system), display size 75-125%, language
   (Korean or English), run at Windows startup (tray only), and remembering the window
   size and position. Changes are saved and applied at once, no restart. The slider
-  applies the size when released; a preview sample follows while dragging.
+  applies the size when released; the number beside it follows while dragging.
 - The theme and display size are imported once from v0.01.5 and stored separately.
   Windows high contrast always wins over the chosen theme.
 

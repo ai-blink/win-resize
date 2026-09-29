@@ -515,16 +515,11 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- 설정 (시안 C: 카드 + 오른쪽 고정 미리보기, notes/mocks/2026-09-30_settings-page). 바꾸면 바로 저장하고 적용한다. -->
+                <!-- 설정 (시안 C 에서 미리보기 열을 뺀 모양, notes/mocks/2026-09-30_settings-page). 바꾸면 바로 저장하고 적용한다. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                               Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:AppPage.Settings}}">
-                    <Grid MaxWidth="1040" HorizontalAlignment="Left" Margin="0,0,14,0" DataContext="{Binding Settings}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="300" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" MaxWidth="700" HorizontalAlignment="Left" Margin="0,0,24,0">
+                    <Grid MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,14,0" DataContext="{Binding Settings}">
+                        <StackPanel>
                             <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource Nav.Settings}" />
                             <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource Settings.Subtitle}" />
 
@@ -574,30 +569,6 @@
                             <CheckBox IsChecked="{Binding RememberWindow}" Content="{DynamicResource Settings.Remember}" />
                             <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,10" Text="{DynamicResource Settings.Remember.Hint}" />
                         </StackPanel>
-
-                        <!-- 미리보기: 페이지 자신이 이미 적용된 배율이라, 견본은 고른 값 / 적용된 값 만큼만 더 곱해 그린다. -->
-                        <Border Grid.Column="1" VerticalAlignment="Top" Margin="0,4,0,0" Padding="14" CornerRadius="8" BorderThickness="1"
-                                Background="{DynamicResource AppCanvasBrush}" BorderBrush="{DynamicResource AppBorderBrush}" ClipToBounds="True"
-                                AutomationProperties.Name="{DynamicResource Settings.Preview}">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Settings.Preview}" />
-                                <Border Padding="12" CornerRadius="6" BorderThickness="1" HorizontalAlignment="Left"
-                                        Background="{DynamicResource AppPanelBrush}" BorderBrush="{DynamicResource AppBorderBrush}">
-                                    <Border.LayoutTransform>
-                                        <ScaleTransform ScaleX="{Binding PreviewFactor}" ScaleY="{Binding PreviewFactor}" />
-                                    </Border.LayoutTransform>
-                                    <StackPanel>
-                                        <TextBlock Text="{DynamicResource Nav.WindowsAndProfiles}" FontWeight="SemiBold" />
-                                        <TextBlock Text="12 / 5" FontSize="12" Foreground="{DynamicResource AppMutedTextBrush}" Margin="0,2,0,8" />
-                                        <Border Background="{DynamicResource AppAccentBrush}" CornerRadius="6" Padding="12,5" HorizontalAlignment="Left">
-                                            <TextBlock Text="{DynamicResource Menu.ApplyAll}" Foreground="{DynamicResource AppOnAccentBrush}" />
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,10,0,0" TextWrapping="Wrap"
-                                           Text="{DynamicResource Settings.Preview.Sample}" />
-                            </StackPanel>
-                        </Border>
                     </Grid>
                 </ScrollViewer>
 

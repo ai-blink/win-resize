@@ -84,14 +84,6 @@ public sealed class DialogWindowSmokeTests
             Assert.AreEqual(baseWidth * 1.25, mainWindow.Width, 1.0);
             var transform = (System.Windows.Media.ScaleTransform)((FrameworkElement)mainWindow.Content).LayoutTransform;
             Assert.AreEqual(1.25, transform.ScaleX, 0.0001);
-
-            // 견본은 고른 값 / 적용된 값. 끄는 동안 바뀐 미리보기도 바인딩 오류 없이 다시 그려진다.
-            main.Settings.BeginScaleDrag();
-            main.Settings.ScalePercent = 75;
-            mainWindow.UpdateLayout();
-            main.Settings.ScalePercent = 100;
-            main.Settings.EndScaleDrag();
-            mainWindow.UpdateLayout();
         }
         finally
         {
