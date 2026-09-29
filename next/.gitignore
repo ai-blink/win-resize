@@ -2,6 +2,8 @@
 bin/
 obj/
 TestResults/
+# tools/publish.ps1 산출물(self-contained 단일 파일, 수십 MB)
+publish/
 
 # 사용자별 IDE 설정
 *.user

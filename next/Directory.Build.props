@@ -5,8 +5,8 @@
   <PropertyGroup>
     <Version>0.2.0</Version>
     <!-- 네 번째 자리는 프리뷰 번호(preview.3 -> .3). -->
-    <FileVersion>0.2.0.5</FileVersion>
-    <InformationalVersion>0.02.0-preview.5</InformationalVersion>
+    <FileVersion>0.2.0.6</FileVersion>
+    <InformationalVersion>0.02.0-preview.6</InformationalVersion>
     <!-- .NET 은 기본으로 +커밋해시를 붙인다. 화면에 보이는 버전이 패치노트와 같아야 하므로 끈다. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>WindowResizer</Product>

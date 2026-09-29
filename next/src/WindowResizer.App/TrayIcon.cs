@@ -14,6 +14,8 @@ namespace WindowResizer.App;
 public sealed class TrayIcon : IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
+    // 트레이 칸 크기(보통 16 px, 배율에 따라 커진다)에 맞는 프레임을 고른다.
+    private readonly System.Drawing.Icon _appIcon = AppIcon.Load(Forms.SystemInformation.SmallIconSize);
     private readonly Func<string, string> _text;
     private bool _hiddenNoticeShown;
 
@@ -45,7 +47,7 @@ public sealed class TrayIcon : IDisposable
 
         _icon = new Forms.NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = _appIcon,
             Text = IconText(),
             ContextMenuStrip = menu,
             Visible = true,
@@ -92,5 +94,6 @@ public sealed class TrayIcon : IDisposable
         _icon.Visible = false;
         _icon.ContextMenuStrip?.Dispose();
         _icon.Dispose();
+        _appIcon.Dispose();
     }
 }

@@ -92,6 +92,23 @@ public sealed class DialogWindowSmokeTests
         Assert.AreEqual(baseMin, mainWindow.MinWidth, 0.01);
         mainWindow.Close();
 
+        // 앱 아이콘: 한 ICO 에 16-256 px 아홉 프레임이 있어야 작업 표시줄과 트레이에서 뭉개지지 않는다(원본 PNG 는 256 px 한
+        // 장이었다). 창은 앱 기본 스타일에서, 트레이는 같은 리소스를 GDI 아이콘으로 읽어 프레임을 고른다.
+        // (Application 은 프로세스에 하나뿐이라 다른 STA 테스트를 만들지 않고 여기서 함께 본다.)
+        var frames = System.Windows.Media.Imaging.BitmapDecoder
+            .Create(AppIcon.Uri, System.Windows.Media.Imaging.BitmapCreateOptions.None, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad)
+            .Frames.Select(f => f.PixelWidth).OrderBy(w => w).ToArray();
+        CollectionAssert.AreEqual(new[] { 16, 20, 24, 32, 40, 48, 64, 128, 256 }, frames);
+        using (var small = AppIcon.Load(new System.Drawing.Size(16, 16)))
+        using (var large = AppIcon.Load(new System.Drawing.Size(32, 32)))
+        {
+            Assert.AreEqual(16, small.Width);
+            Assert.AreEqual(32, large.Width);
+        }
+        Assert.IsNotNull(mainWindow.Icon, "메인 창 XAML 루트의 Icon 이 빠졌다(Window 암시적 스타일은 파생 창에 적용되지 않는다)");
+        Assert.IsNotNull(window.Icon, "편집 창도 같은 아이콘을 받는다");
+        Assert.IsNotNull(picker.Icon, "창 고르기 창도 같은 아이콘을 받는다");
+
         // 오버레이 버튼: 모양 4 x 게이지 4 를 드웰 진행 중 상태로 그리고, 활성화 방지 스타일이 실제로 걸렸는지 본다.
         var button = new Overlay.OverlayButtonWindow("p", k => k + " {0} {1}");
         button.Show();

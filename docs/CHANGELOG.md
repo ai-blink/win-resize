@@ -6,6 +6,26 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.6 - 2026-09-30
+
+Sixth preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.6.md](../doc/releases/v0.02.0-preview.6.md).
+
+### Highlights
+
+- App icon (the existing 3D window artwork, now nine sizes from 16 to 256 px) on the exe,
+  window title bars, taskbar and tray.
+- `next/tools/publish.ps1` builds a self-contained single-file exe (72.3 MB) that runs without
+  .NET installed; it does not replace the v0.01.5 executable.
+- The 100/125/150/200% scaling smoke was skipped on request and is not verified.
+
+### Verification
+
+- .NET build: 0 warnings, 0 errors; 227 tests, all passed. The published exe ran against a copy
+  of the profiles: one file, no module from the installed .NET, icon on the title bar, taskbar
+  and tray.
+
 ## 0.02.0-preview.5 - 2026-09-30
 
 Fifth preview of the WPF (.NET 10) app, built from source; the distributed

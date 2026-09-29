@@ -4,6 +4,7 @@
         xmlns:vm="clr-namespace:WindowResizer.App.ViewModels"
         xmlns:local="clr-namespace:WindowResizer.App"
         Title="{DynamicResource Editor.Title}"
+        Icon="pack://application:,,,/WindowResizer.App;component/Assets/app.ico"
         Width="820" Height="600" MinWidth="680" MinHeight="480"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         Background="{DynamicResource AppSurfaceBrush}"
