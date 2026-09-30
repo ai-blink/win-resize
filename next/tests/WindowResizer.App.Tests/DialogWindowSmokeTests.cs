@@ -131,14 +131,16 @@ public sealed class DialogWindowSmokeTests
             try
             {
                 var items = menu.Items.Cast<object>().ToList();
-                Assert.AreEqual("Blender", ((System.Windows.Controls.TextBlock)items[0]).Text);
-                Assert.AreEqual(FontWeights.Bold, ((System.Windows.Controls.TextBlock)items[0]).FontWeight);
-                var clickable = items.OfType<System.Windows.Controls.MenuItem>().ToList();
+                var head = (System.Windows.Controls.TextBlock)((System.Windows.Controls.MenuItem)items[0]).Header;
+                Assert.AreEqual("Blender", head.Text);
+                Assert.AreEqual(FontWeights.Bold, head.FontWeight);
+                var clickable = items.OfType<System.Windows.Controls.MenuItem>().Where(m => m.Header is string).ToList();
                 // 창의 문구 함수는 위에서 만든 것(k + " {0} {1}")이다.
                 CollectionAssert.AreEqual(
                     new[] { "Overlay.Menu.Properties {0} {1}", "Overlay.Menu.Duplicate {0} {1}", "Overlay.Menu.Overwrite {0} {1}", "Overlay.Menu.Delete {0} {1}" },
                     clickable.Select(m => (string)m.Header).ToArray());
-                Assert.IsTrue(items.TakeWhile(i => i is not System.Windows.Controls.MenuItem).All(i => i is System.Windows.Controls.TextBlock or System.Windows.Controls.Separator),
+                Assert.IsTrue(items.TakeWhile(i => i is not System.Windows.Controls.MenuItem { Header: string }).All(i =>
+                        i is System.Windows.Controls.Separator or System.Windows.Controls.MenuItem { IsHitTestVisible: false }),
                     "머리글과 정보 줄은 누를 수 있는 항목이 아니어야 한다");
 
                 var raised = new List<string>();

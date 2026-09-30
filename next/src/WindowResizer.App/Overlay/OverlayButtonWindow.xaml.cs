@@ -191,15 +191,23 @@ public partial class OverlayButtonWindow : Window
         return item;
     }
 
-    private static TextBlock InfoText(string value, bool bold = false) => new()
+    /// <summary>
+    /// 메뉴는 항목이 아닌 것을 스스로 <see cref="MenuItem"/> 으로 감싸 마우스를 올리면 강조되고 누르면 메뉴가 닫힌다.
+    /// 직접 만든 항목으로 넣어 눌리지도 강조되지도 않게 하고, 글자 들여쓰기는 항목 템플릿의 안쪽 여백이 맡는다.
+    /// </summary>
+    private static MenuItem InfoText(string value, bool bold = false) => new()
     {
-        Text = value,
-        Margin = new Thickness(12, 3, 12, 3),
-        MaxWidth = 360,
-        TextWrapping = TextWrapping.Wrap,
-        FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
-        Opacity = bold ? 1.0 : 0.75,
+        Header = new TextBlock
+        {
+            Text = value,
+            MaxWidth = 360,
+            TextWrapping = TextWrapping.Wrap,
+            FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
+            Opacity = bold ? 1.0 : 0.75,
+        },
         IsHitTestVisible = false,
+        Focusable = false,
+        Padding = new Thickness(12, 3, 12, 3),
     };
 
     private void SyncDwellTimer()
