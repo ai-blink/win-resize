@@ -111,7 +111,7 @@ public sealed class SettingsViewModelTests
         var h = new Harness();
 
         h.Vm.ScalePercent = 999;
-        Assert.AreEqual(125, h.Settings.ScalePercent);
+        Assert.AreEqual(250, h.Settings.ScalePercent);
 
         h.Vm.ScalePercent = 3;
         Assert.AreEqual(75, h.Settings.ScalePercent);

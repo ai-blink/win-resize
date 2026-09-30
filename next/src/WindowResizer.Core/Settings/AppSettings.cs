@@ -20,7 +20,7 @@ public enum ThemeChoice
 public sealed class AppSettings
 {
     public const int MinScalePercent = 75;
-    public const int MaxScalePercent = 125;
+    public const int MaxScalePercent = 250;
     public const int ScaleStepPercent = 5;
     public const int DefaultScalePercent = 100;
 
@@ -33,7 +33,7 @@ public sealed class AppSettings
 
     private int _scalePercent = DefaultScalePercent;
 
-    /// <summary>75-125 를 5 단위로 맞춘다(PyQt5 <c>normalize_scale</c> 과 같은 규칙).</summary>
+    /// <summary>75-250 을 5 단위로 맞춘다(PyQt5 <c>normalize_scale</c> 과 같은 규칙).</summary>
     public int ScalePercent
     {
         get => _scalePercent;

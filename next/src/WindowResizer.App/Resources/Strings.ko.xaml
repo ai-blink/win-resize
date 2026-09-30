@@ -290,7 +290,7 @@
     <sys:String x:Key="Settings.Theme.Light">밝게</sys:String>
     <sys:String x:Key="Settings.Theme.Dark">어둡게</sys:String>
     <sys:String x:Key="Settings.Scale">화면 크기</sys:String>
-    <sys:String x:Key="Settings.Scale.Hint">75%에서 125%까지 5% 단위입니다. 슬라이더를 놓으면 적용됩니다.</sys:String>
+    <sys:String x:Key="Settings.Scale.Hint">75%에서 250%까지 5% 단위입니다. 슬라이더를 놓으면 적용됩니다.</sys:String>
     <sys:String x:Key="Settings.Scale.Reset">기본값 100%</sys:String>
     <sys:String x:Key="Settings.Language">언어</sys:String>
     <sys:String x:Key="Settings.Language.Hint">바꾸면 창을 다시 열지 않아도 바로 바뀝니다.</sys:String>

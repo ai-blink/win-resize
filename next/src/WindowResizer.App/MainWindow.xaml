@@ -560,7 +560,7 @@
                                         Command="{Binding ResetScaleCommand}" AutomationProperties.Name="{DynamicResource Settings.Scale.Reset}" />
                                 <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" MinWidth="52" TextAlignment="Right"
                                            FontWeight="SemiBold" Text="{Binding ScaleText}" />
-                                <Slider x:Name="ScaleSlider" Minimum="75" Maximum="125" TickFrequency="5" IsSnapToTickEnabled="True"
+                                <Slider x:Name="ScaleSlider" Minimum="75" Maximum="250" TickFrequency="5" IsSnapToTickEnabled="True"
                                         SmallChange="5" LargeChange="5" VerticalAlignment="Center"
                                         Value="{Binding ScalePercent}" AutomationProperties.Name="{DynamicResource Settings.Scale}"
                                         Thumb.DragStarted="OnScaleDragStarted" Thumb.DragCompleted="OnScaleDragCompleted" />

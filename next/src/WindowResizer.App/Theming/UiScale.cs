@@ -4,7 +4,7 @@ using System.Windows.Media;
 namespace WindowResizer.App.Theming;
 
 /// <summary>
-/// 화면 크기(설정 페이지, 75-125%). PyQt5 <c>ui_scale_manager.py</c> 395줄은 위젯 트리를 돌며 최소 크기, 여백, 스타일
+/// 화면 크기(설정 페이지, 75-250%). PyQt5 <c>ui_scale_manager.py</c> 395줄은 위젯 트리를 돌며 최소 크기, 여백, 스타일
 /// 시트의 숫자를 다시 계산했다. WPF 는 창의 루트에 <see cref="ScaleTransform"/> 을 <c>LayoutTransform</c> 으로 걸면
 /// 글자와 여백과 컨트롤이 함께 커지고 레이아웃도 그 크기로 다시 잡힌다 - 걸어 두기만 하면 된다.
 ///

@@ -15,7 +15,8 @@ public sealed class AppSettingsTests
     [DataRow(100, 100)]
     [DataRow(122, 120)]
     [DataRow(123, 125)]
-    [DataRow(999, 125)]
+    [DataRow(999, 250)]
+    [DataRow(230, 230)]
     public void Scale_is_clamped_and_rounded_to_five_percent_steps(int input, int expected)
     {
         Assert.AreEqual(expected, AppSettings.NormalizeScale(input));

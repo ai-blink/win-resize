@@ -290,7 +290,7 @@
     <sys:String x:Key="Settings.Theme.Light">Light</sys:String>
     <sys:String x:Key="Settings.Theme.Dark">Dark</sys:String>
     <sys:String x:Key="Settings.Scale">Display size</sys:String>
-    <sys:String x:Key="Settings.Scale.Hint">75% to 125% in 5% steps. Applies when you release the slider.</sys:String>
+    <sys:String x:Key="Settings.Scale.Hint">75% to 250% in 5% steps. Applies when you release the slider.</sys:String>
     <sys:String x:Key="Settings.Scale.Reset">Default 100%</sys:String>
     <sys:String x:Key="Settings.Language">Language</sys:String>
     <sys:String x:Key="Settings.Language.Hint">Changes right away without reopening the window.</sys:String>
