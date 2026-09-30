@@ -55,6 +55,33 @@ public sealed class ButtonEditorViewModel : ObservableObject
 
         NavigateCommand = new ParameterCommand<ButtonPage>(page => Page = page);
         CaptureFromWindowCommand = new RelayCommand(CaptureFromWindow);
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(Name) or nameof(Label) or nameof(Shape) or nameof(ButtonWidth) or nameof(ButtonHeight)
+                or nameof(BackgroundColor) or nameof(TextColor) or nameof(BorderColor))
+                Previewed?.Invoke(BuildPreview());
+        };
+    }
+
+    /// <summary>
+    /// 보이는 값(이름, 글자, 모양, 크기, 색)이 바뀔 때마다 지금 입력을 그대로 담은 버튼을 알린다. 속성 창의 미리보기와
+    /// 화면에 떠 있는 실제 버튼이 이것을 그린다. 검사는 하지 않는다 - 저장 전이므로 틀린 입력도 그려 보이고,
+    /// 범위 밖 크기는 저장할 때와 같이 보정해 그린다.
+    /// </summary>
+    public event Action<OverlayButton>? Previewed;
+
+    /// <summary>지금 입력으로 그릴 버튼(복사본). 이름이 비었으면 원래 이름으로 그린다.</summary>
+    public OverlayButton BuildPreview()
+    {
+        var preview = Button.Clone();
+        preview.Name = string.IsNullOrWhiteSpace(Name) ? Button.Name : Name.Trim();
+        var s = preview.Style;
+        s.Label = Label.Trim();
+        s.Shape = Shape;
+        (s.Width, s.Height) = (ButtonWidth, ButtonHeight);
+        (s.BackgroundColor, s.TextColor, s.BorderColor) = (BackgroundColor, TextColor, BorderColor);
+        s.Normalize();
+        return preview;
     }
 
     /// <summary>편집 중인 복사본. <see cref="TrySave"/> 성공 뒤에 새 값이 들어 있다.</summary>

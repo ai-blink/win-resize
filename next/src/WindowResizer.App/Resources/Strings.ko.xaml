@@ -410,4 +410,6 @@
     <sys:String x:Key="ButtonShape.rounded">둥근 사각형</sys:String>
     <sys:String x:Key="ButtonShape.rectangle">사각형</sys:String>
     <sys:String x:Key="ButtonShape.circle">원</sys:String>
+    <sys:String x:Key="ButtonEditor.Preview">미리보기 (실제 크기)</sys:String>
+    <sys:String x:Key="ButtonEditor.Preview.Hint">화면에 뜨는 버튼과 같은 크기로 그립니다. 앱 배율(설정 페이지)에 상관없이 Windows 배율만 따릅니다. 값을 바꾸면 화면에 떠 있는 실제 버튼도 저장 전에 같이 바뀌고, 취소하면 원래대로 돌아갑니다.</sys:String>
 </ResourceDictionary>

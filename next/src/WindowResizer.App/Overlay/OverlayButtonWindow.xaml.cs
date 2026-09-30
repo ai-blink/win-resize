@@ -23,11 +23,6 @@ public partial class OverlayButtonWindow : Window
     /// <summary>적용 결과 색을 보여 주는 시간(PyQt5 FEEDBACK_DURATION_MS).</summary>
     private static readonly TimeSpan FeedbackDuration = TimeSpan.FromMilliseconds(900);
 
-    private static readonly Color SuccessBackground = Color.FromArgb(235, 38, 128, 74);
-    private static readonly Color SuccessBorder = Color.FromRgb(120, 220, 160);
-    private static readonly Color FailureBackground = Color.FromArgb(235, 150, 48, 48);
-    private static readonly Color FailureBorder = Color.FromRgb(230, 130, 130);
-
     private readonly OverlayGesture _gesture = new();
     private readonly DispatcherTimer _dwellTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer _feedbackTimer = new() { Interval = FeedbackDuration };
@@ -234,95 +229,6 @@ public partial class OverlayButtonWindow : Window
         Render();
     }
 
-    // --- 그리기 (PyQt5 paint_overlay_face / paint_dwell_gauge) --------------------------------
-
-    private void Render()
-    {
-        var w = Math.Max(1, _style.Width);
-        var h = Math.Max(1, _style.Height);
-        var inset = Math.Max(1.0, _style.BorderWidth);
-        var rect = new Rect(inset, inset, Math.Max(1, w - 2 * inset), Math.Max(1, h - 2 * inset));
-        var shape = ShapeGeometry(rect, _style.Shape);
-
-        var (background, border, text) = Colors();
-        Face.Data = shape;
-        Face.Fill = new SolidColorBrush(background);
-        Face.Stroke = _style.BorderWidth > 0 ? new SolidColorBrush(border) : null;
-        Face.StrokeThickness = _style.BorderWidth;
-
-        GaugeLayer.Clip = shape;
-        var progress = DwellProgress;
-        var gaugeColor = ParseColor(_style.GaugeColor, OverlayStyle.DefaultGauge);
-        var gauge = progress <= 0 ? "none" : _style.Gauge;
-
-        FillGauge.Width = gauge == "fill" ? rect.Width * progress + inset : 0;
-        FillGauge.Fill = new SolidColorBrush(Color.FromArgb(110, gaugeColor.R, gaugeColor.G, gaugeColor.B));
-
-        BarGauge.Width = gauge == "bar" ? rect.Width * progress + inset : 0;
-        BarGauge.Height = Math.Clamp(rect.Height * 0.12, 3.0, 8.0);
-        BarGauge.Margin = new Thickness(0, 0, 0, inset);
-        BarGauge.Fill = new SolidColorBrush(gaugeColor);
-
-        // 테두리를 따라 도는 선: 외곽선을 진행률만큼만 긋는다(대시 하나 + 긴 공백).
-        OutlineGauge.Data = shape;
-        OutlineGauge.Stroke = gauge == "outline" ? new SolidColorBrush(gaugeColor) : null;
-        OutlineGauge.StrokeThickness = 3.0;
-        var perimeter = Perimeter(rect, _style.Shape) / OutlineGauge.StrokeThickness;
-        OutlineGauge.StrokeDashArray = new DoubleCollection { perimeter * progress, perimeter * 2 };
-
-        Label.Text = _style.ResolvedLabel(_profileName);
-        Label.Foreground = new SolidColorBrush(text);
-        var textInset = _style.Shape == "circle" ? rect.Width * 0.18 : 12.0;
-        Label.MaxWidth = Math.Max(10, rect.Width - 2 * textInset);
-    }
-
-    private (Color Background, Color Border, Color Text) Colors()
-    {
-        if (_feedback == true) return (SuccessBackground, SuccessBorder, System.Windows.Media.Colors.White);
-        if (_feedback == false) return (FailureBackground, FailureBorder, System.Windows.Media.Colors.White);
-
-        var background = ParseColor(_style.BackgroundColor, OverlayStyle.DefaultBackground);
-        if (_gesture.Hovered) background = Lighter(background, 1.35);
-        background.A = 235;
-        return (background, ParseColor(_style.BorderColor, OverlayStyle.DefaultBorder), ParseColor(_style.TextColor, OverlayStyle.DefaultText));
-    }
-
-    private static Geometry ShapeGeometry(Rect rect, string shape) => shape switch
-    {
-        "circle" => new EllipseGeometry(new Point(rect.X + rect.Width / 2, rect.Y + rect.Height / 2),
-            Math.Min(rect.Width, rect.Height) / 2, Math.Min(rect.Width, rect.Height) / 2),
-        "rectangle" => new RectangleGeometry(rect),
-        "rounded" => new RectangleGeometry(rect, 10, 10),
-        _ => new RectangleGeometry(rect, rect.Height / 2, rect.Height / 2),
-    };
-
-    private static double Perimeter(Rect rect, string shape)
-    {
-        if (shape == "circle") return Math.PI * Math.Min(rect.Width, rect.Height);
-        var r = shape switch { "rectangle" => 0.0, "rounded" => 10.0, _ => rect.Height / 2 };
-        r = Math.Min(r, Math.Min(rect.Width, rect.Height) / 2);
-        return 2 * (rect.Width + rect.Height) - (8 - 2 * Math.PI) * r;
-    }
-
-    /// <summary>잘못된 색 문자열이어도 버튼은 보여야 한다(PyQt5 OVERLAY_FALLBACK_*).</summary>
-    private static Color ParseColor(string value, string fallback)
-    {
-        try
-        {
-            return (Color)ColorConverter.ConvertFromString(value);
-        }
-        catch (Exception ex) when (ex is FormatException or NotSupportedException or NullReferenceException)
-        {
-            return (Color)ColorConverter.ConvertFromString(fallback);
-        }
-    }
-
-    /// <summary>Qt QColor.lighter(135) 근사: HSV 명도를 곱한다.</summary>
-    private static Color Lighter(Color c, double factor)
-    {
-        var max = Math.Max(c.R, Math.Max(c.G, c.B));
-        if (max == 0) return Color.FromArgb(c.A, (byte)Math.Min(255, 255 * (factor - 1)), (byte)Math.Min(255, 255 * (factor - 1)), (byte)Math.Min(255, 255 * (factor - 1)));
-        var scale = Math.Min(factor, 255.0 / max);
-        return Color.FromArgb(c.A, (byte)(c.R * scale), (byte)(c.G * scale), (byte)(c.B * scale));
-    }
+    private void Render() =>
+        FaceView.Draw(_style, _profileName, _gesture.Hovered, DwellProgress, _feedback);
 }

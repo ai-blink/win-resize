@@ -630,6 +630,25 @@ public sealed class MainViewModelTests
     }
 
     [TestMethod]
+    public void The_properties_window_previews_on_the_real_button_and_takes_it_back_when_closed()
+    {
+        var desktop = new FakeDesktop();
+        var settings = new Core.Overlay.OverlaySettings { ButtonsMigrated = true };
+        settings.Buttons.Add(Button("b", "Blender"));
+        var vm = desktop.CreateViewModelWithOverlay(settings);
+        var seen = new List<(string Id, string? Shape)>();
+        vm.Overlay.ButtonPreview += (id, preview) => seen.Add((id, preview?.Style.Shape));
+
+        desktop.Dialogs.EditorAnswer = false;
+        desktop.Dialogs.OnButtonEditor = e => e.Shape = "circle";
+        vm.EditOverlayButton("b");
+
+        CollectionAssert.AreEqual(new (string, string?)[] { ("b", "circle"), ("b", null) }, seen, "닫으면 미리보기를 걷는다");
+        Assert.AreEqual("pill", vm.Overlay.Find("b")!.Style.Shape, "취소했으니 저장된 값은 그대로다");
+        Assert.AreEqual(0, desktop.OverlaySaves, "미리보기는 설정을 쓰지 않는다");
+    }
+
+    [TestMethod]
     public void Button_names_stay_unique_and_a_duplicate_is_a_separate_button()
     {
         var settings = new Core.Overlay.OverlaySettings();

@@ -410,4 +410,6 @@
     <sys:String x:Key="ButtonShape.rounded">Rounded rectangle</sys:String>
     <sys:String x:Key="ButtonShape.rectangle">Rectangle</sys:String>
     <sys:String x:Key="ButtonShape.circle">Circle</sys:String>
+    <sys:String x:Key="ButtonEditor.Preview">Preview (actual size)</sys:String>
+    <sys:String x:Key="ButtonEditor.Preview.Hint">Drawn at the size of the button on screen, whatever the app scale on the Settings page is (only the Windows scale applies). While you change values the real button on screen changes too, before saving; Cancel puts it back.</sys:String>
 </ResourceDictionary>

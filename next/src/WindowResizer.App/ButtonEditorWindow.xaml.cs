@@ -12,7 +12,32 @@ public partial class ButtonEditorWindow : Window
     {
         InitializeComponent();
         Theming.UiScale.Attach(this);
+        DataContextChanged += (_, _) => Hook();
     }
+
+    /// <summary>미리보기 그림(렌더 스모크 테스트가 크기를 잰다).</summary>
+    public FrameworkElement PreviewElement => PreviewFace;
+
+    private ButtonEditorViewModel? _hooked;
+
+    /// <summary>
+    /// 미리보기를 편집 값에 잇는다. 창 전체에 앱 배율이 걸려 있어서(<see cref="Theming.UiScale"/>) 그대로 두면 미리보기가
+    /// 배율만큼 커지거나 작아진다. 미리보기 칸에만 역배율을 걸어 화면에 뜨는 버튼과 같은 크기로 보인다.
+    /// </summary>
+    private void Hook()
+    {
+        if (_hooked is not null) _hooked.Previewed -= Draw;
+        _hooked = DataContext as ButtonEditorViewModel;
+        if (_hooked is null) return;
+
+        var inverse = 1.0 / Math.Max(0.01, Theming.UiScale.Factor);
+        PreviewHost.LayoutTransform = new System.Windows.Media.ScaleTransform(inverse, inverse);
+        _hooked.Previewed += Draw;
+        Draw(_hooked.BuildPreview());
+    }
+
+    private void Draw(WindowResizer.Core.Overlay.OverlayButton preview) =>
+        PreviewFace.Draw(preview.Style, preview.Name, hovered: false, progress: 0, feedback: null);
 
     private void OnSave(object sender, RoutedEventArgs e)
     {

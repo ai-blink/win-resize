@@ -36,6 +36,14 @@ public sealed class OverlayViewModel : ObservableObject
 
     public bool HasNoButtons => Buttons.Count == 0;
 
+    /// <summary>
+    /// 속성 창에서 고치는 중인 값(저장 전)을 화면의 실제 버튼에 보인다. 인자는 버튼 ID 와 미리볼 버튼 - null 이면 원래
+    /// 값으로 되돌린다. 설정에는 아무것도 쓰지 않는다.
+    /// </summary>
+    public event Action<string, OverlayButton?>? ButtonPreview;
+
+    public void PreviewButton(string id, OverlayButton? preview) => ButtonPreview?.Invoke(id, preview);
+
     public OverlayButton? Find(string id) => Settings.Buttons.FirstOrDefault(b => b.Id == id);
 
     /// <summary>버튼을 더한다. 이름이 겹치면 " (2)" 식으로 구분한다 - 여러 버튼이 떠 있을 때 이름이 식별 수단이다.</summary>

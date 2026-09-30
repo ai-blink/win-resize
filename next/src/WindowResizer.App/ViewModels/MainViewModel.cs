@@ -300,7 +300,11 @@ public sealed class MainViewModel : ObservableObject
         if (Overlay.Find(id) is not { } button) return;
 
         var editor = new ButtonEditorViewModel(button.Clone(), () => TryCaptureOverlayTarget(out var capture, out _) ? capture : null, _text);
-        if (_dialogs.ShowButtonEditor(editor)) Overlay.UpdateButton(editor.Button);
+        editor.Previewed += preview => Overlay.PreviewButton(id, preview);
+        var saved = _dialogs.ShowButtonEditor(editor);
+        // 창을 닫으면 미리보기를 걷는다. 저장했으면 아래 저장이 새 값으로 다시 그린다.
+        Overlay.PreviewButton(id, null);
+        if (saved) Overlay.UpdateButton(editor.Button);
     }
 
     /// <summary>버튼을 지운다. 되돌릴 수 없어서 묻는다.</summary>

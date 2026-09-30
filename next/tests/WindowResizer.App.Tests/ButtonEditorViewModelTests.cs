@@ -79,4 +79,25 @@ public sealed class ButtonEditorViewModelTests
         Assert.AreEqual((1, 2, 300, 200), (none.X, none.Y, none.Width, none.Height));
         Assert.AreEqual("ButtonEditor.CaptureFailed", none.Message);
     }
+
+    [TestMethod]
+    public void Visible_fields_raise_a_preview_of_the_current_input_and_other_fields_do_not()
+    {
+        var vm = Make();
+        var previews = new List<OverlayButton>();
+        vm.Previewed += previews.Add;
+
+        vm.Shape = "circle";
+        vm.ButtonWidth = 999;             // 범위 밖: 저장은 거절되지만 미리보기는 저장 때와 같이 보정해 그린다
+        vm.BackgroundColor = "not-a-colour";
+        vm.Name = " ";                    // 비면 원래 이름으로 그린다
+        vm.X = 5;                         // 위치는 그림이 아니다
+        vm.DwellSeconds = 2;
+
+        Assert.HasCount(4, previews);
+        var last = previews[^1];
+        Assert.AreEqual(("Blender", "circle", 600, "not-a-colour"), (last.Name, last.Style.Shape, last.Style.Width, last.Style.BackgroundColor));
+        Assert.AreEqual(150, vm.Button.Style.Width, "미리보기는 편집 중인 복사본을 바꾸지 않는다");
+        Assert.AreEqual("Blender", vm.Button.Name);
+    }
 }

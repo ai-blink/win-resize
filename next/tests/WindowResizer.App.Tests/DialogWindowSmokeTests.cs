@@ -179,6 +179,32 @@ public sealed class DialogWindowSmokeTests
             buttonWindow.Close();
         }
 
+        // 실제 크기 미리보기: 앱 배율이 2배여도 미리보기는 버튼의 폭과 높이(150 x 46 기본) 그대로 보여야 한다.
+        Theming.UiScale.Set(2.0);
+        var scaledEditor = new ButtonEditorViewModel(
+            new Core.Overlay.OverlayButton { Id = "b", Name = "Blender", X = 1, Y = 2, Width = 300, Height = 200 }, () => null, k => k);
+        var scaledWindow = new ButtonEditorWindow { DataContext = scaledEditor, ShowActivated = false, Left = -4000 };
+        scaledWindow.Show();
+        try
+        {
+            scaledEditor.Page = ButtonPage.Look;
+            scaledWindow.UpdateLayout();
+            var face = scaledWindow.PreviewElement;
+            var size = face.TransformToVisual(scaledWindow).TransformBounds(new Rect(0, 0, face.ActualWidth, face.ActualHeight));
+            Assert.AreEqual(150, size.Width, 1.0, "앱 배율 200% 에서도 미리보기는 실제 버튼 크기여야 한다");
+            Assert.AreEqual(46, size.Height, 1.0);
+
+            scaledEditor.ButtonWidth = 220;
+            scaledWindow.UpdateLayout();
+            Assert.AreEqual(220, face.TransformToVisual(scaledWindow).TransformBounds(new Rect(0, 0, face.ActualWidth, face.ActualHeight)).Width, 1.0,
+                "입력을 바꾸면 미리보기도 바로 바뀐다");
+        }
+        finally
+        {
+            scaledWindow.Close();
+            Theming.UiScale.Set(1.0);
+        }
+
         // 감추기 스위치: 두 상태(보임/감춤)와 잠금 여부로 그리고, 활성화 방지가 걸렸는지 본다.
         var hideSwitch = new Overlay.OverlayToggleWindow(k => k);
         hideSwitch.Show();

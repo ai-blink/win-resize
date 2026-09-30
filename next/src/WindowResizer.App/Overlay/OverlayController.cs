@@ -30,6 +30,7 @@ public sealed class OverlayController : IDisposable
         _tracker = tracker;
         _text = text;
         _main.Overlay.Changed += OnSettingsChanged;
+        _main.Overlay.ButtonPreview += OnPreview;
         Reconcile();
         SyncToggle();
     }
@@ -104,6 +105,14 @@ public sealed class OverlayController : IDisposable
         button.ShowFeedback(_main.ApplyButtonToWindow(button.ProfileId, target, title));
     }
 
+    /// <summary>속성 창에서 고치는 값을 실제 버튼에 그대로 보인다. null 이면 저장된 값으로 되돌린다.</summary>
+    private void OnPreview(string id, OverlayButton? preview)
+    {
+        if (_disposed || !_buttons.TryGetValue(id, out var window)) return;
+        if (preview is null) Reconcile();
+        else window.Configure(preview.Name, preview.Style, _main.Overlay.Settings);
+    }
+
     private void OnSettingsChanged(string property)
     {
         if (property == nameof(OverlayViewModel.Hidden))
@@ -171,6 +180,7 @@ public sealed class OverlayController : IDisposable
     {
         _disposed = true;
         _main.Overlay.Changed -= OnSettingsChanged;
+        _main.Overlay.ButtonPreview -= OnPreview;
         foreach (var button in _buttons.Values) button.Close();
         _buttons.Clear();
         _toggle?.Close();

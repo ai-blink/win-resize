@@ -6,6 +6,17 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.9 - 2026-09-30
+
+Ninth preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.9.md](../doc/releases/v0.02.0-preview.9.md).
+
+### Highlights
+
+- The overlay button properties window shows an actual-size preview (independent of the app scale)
+  and the real button on screen follows the edits before saving.
+
 ## 0.02.0-preview.8 - 2026-09-30
 
 Eighth preview of the WPF (.NET 10) app, built from source; the distributed
