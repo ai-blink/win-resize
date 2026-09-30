@@ -124,7 +124,7 @@ public sealed class DialogWindowSmokeTests
                 button.UpdateLayout();
             }
 
-            // 우클릭 메뉴: 이름(굵게) / 위치 / 속성, 덮어쓰기, 복제 / 삭제. 각 항목을 눌러 이벤트가 나가는지 본다.
+            // 우클릭 메뉴: 이름(굵게) / 위치 / 속성, 복제 / 덮어쓰기, 삭제. 각 항목을 눌러 이벤트가 나가는지 본다.
             button.SetInfo("Overlay.Menu.Position 1 2 300 200");
             var menu = button.ButtonMenu;
             menu.IsOpen = true;
@@ -136,7 +136,7 @@ public sealed class DialogWindowSmokeTests
                 var clickable = items.OfType<System.Windows.Controls.MenuItem>().ToList();
                 // 창의 문구 함수는 위에서 만든 것(k + " {0} {1}")이다.
                 CollectionAssert.AreEqual(
-                    new[] { "Overlay.Menu.Properties {0} {1}", "Overlay.Menu.Overwrite {0} {1}", "Overlay.Menu.Duplicate {0} {1}", "Overlay.Menu.Delete {0} {1}" },
+                    new[] { "Overlay.Menu.Properties {0} {1}", "Overlay.Menu.Duplicate {0} {1}", "Overlay.Menu.Overwrite {0} {1}", "Overlay.Menu.Delete {0} {1}" },
                     clickable.Select(m => (string)m.Header).ToArray());
                 Assert.IsTrue(items.TakeWhile(i => i is not System.Windows.Controls.MenuItem).All(i => i is System.Windows.Controls.TextBlock or System.Windows.Controls.Separator),
                     "머리글과 정보 줄은 누를 수 있는 항목이 아니어야 한다");
@@ -148,7 +148,7 @@ public sealed class DialogWindowSmokeTests
                 button.DeleteRequested += _ => raised.Add("delete");
                 foreach (var item in clickable)
                     item.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
-                CollectionAssert.AreEqual(new[] { "edit", "overwrite", "duplicate", "delete" }, raised);
+                CollectionAssert.AreEqual(new[] { "edit", "duplicate", "overwrite", "delete" }, raised);
             }
             finally
             {

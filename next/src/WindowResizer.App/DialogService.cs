@@ -28,10 +28,26 @@ public sealed class DialogService(Func<string, string> text) : IDialogService
     }
 
     public bool ShowEditor(ProfileEditorViewModel editor) =>
-        new ProfileEditorWindow { DataContext = editor, Owner = Owner() }.ShowDialog() == true;
+        ShowInFront(new ProfileEditorWindow { DataContext = editor, Owner = Owner() });
 
     public bool ShowButtonEditor(ButtonEditorViewModel editor) =>
-        new ButtonEditorWindow { DataContext = editor, Owner = Owner() }.ShowDialog() == true;
+        ShowInFront(new ButtonEditorWindow { DataContext = editor, Owner = Owner() });
+
+    /// <summary>
+    /// 오버레이 버튼(활성화되지 않는 창)이나 트레이에서 열면 이 앱이 포그라운드가 아니라서 모달 창이 다른 창 뒤에 뜬다
+    /// (작업표시줄에도 안 보여 찾을 수 없다). 뜰 때 잠깐 최상단으로 올렸다 내려 앞으로 끌어온다.
+    /// </summary>
+    private static bool ShowInFront(Window dialog)
+    {
+        dialog.Loaded += (_, _) =>
+        {
+            dialog.Topmost = true;
+            dialog.Activate();
+            dialog.Topmost = false;
+            dialog.Focus();
+        };
+        return dialog.ShowDialog() == true;
+    }
 
     /// <summary>
     /// 화면을 가리는 이 앱의 창(메인 창, 속성 창)은 고르는 동안 화면 밖으로 치우고 끝나면 제자리로 되돌린다. 버튼 창은

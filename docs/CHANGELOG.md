@@ -6,6 +6,11 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## Unreleased
+
+- Overlay button properties window now comes to the front when opened from a button or the tray (it could open behind other windows with no taskbar entry).
+- Overlay button right-click menu: properties, duplicate, then (below a separator) "Update to the previous window's place and size" (was "Overwrite with the current window's place") and delete.
+
 ## 0.02.0 - 2026-09-30
 
 First stable release of the WPF (.NET 10) app; it replaces the PyQt5 app (v0.01.5) as the distributed

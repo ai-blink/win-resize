@@ -358,7 +358,7 @@
     <sys:String x:Key="Status.UnhandledError">Unhandled error ({0}): {1}</sys:String>
     <!-- 오버레이 버튼 자체 위치(D-032) -->
     <sys:String x:Key="Overlay.Menu.Properties">Properties...</sys:String>
-    <sys:String x:Key="Overlay.Menu.Overwrite">Overwrite with the current window's place</sys:String>
+    <sys:String x:Key="Overlay.Menu.Overwrite">Update to the previous window's place and size</sys:String>
     <sys:String x:Key="Overlay.Menu.Duplicate">Duplicate</sys:String>
     <sys:String x:Key="Overlay.Menu.Delete">Delete this button</sys:String>
     <sys:String x:Key="Overlay.Row.Properties">Properties...</sys:String>

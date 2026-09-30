@@ -177,9 +177,10 @@ public partial class OverlayButtonWindow : Window
             Menu.Items.Add(new Separator());
         }
         Menu.Items.Add(Item("Overlay.Menu.Properties", () => EditRequested?.Invoke(this), position is not null));
-        Menu.Items.Add(Item("Overlay.Menu.Overwrite", () => OverwriteRequested?.Invoke(this), position is not null));
         Menu.Items.Add(Item("Overlay.Menu.Duplicate", () => DuplicateRequested?.Invoke(this), position is not null));
+        // 안전한 항목(속성, 복제) 아래로 기존 값을 바꾸거나 지우는 항목을 나눠 실수로 누르지 않게 한다.
         Menu.Items.Add(new Separator());
+        Menu.Items.Add(Item("Overlay.Menu.Overwrite", () => OverwriteRequested?.Invoke(this), position is not null));
         Menu.Items.Add(Item("Overlay.Menu.Delete", () => DeleteRequested?.Invoke(this), true));
     }
 

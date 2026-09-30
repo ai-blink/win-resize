@@ -358,7 +358,7 @@
     <sys:String x:Key="Status.UnhandledError">처리되지 않은 오류({0}): {1}</sys:String>
     <!-- 오버레이 버튼 자체 위치(D-032) -->
     <sys:String x:Key="Overlay.Menu.Properties">속성...</sys:String>
-    <sys:String x:Key="Overlay.Menu.Overwrite">지금 창의 위치로 덮어쓰기</sys:String>
+    <sys:String x:Key="Overlay.Menu.Overwrite">직전 창의 위치·크기로 갱신</sys:String>
     <sys:String x:Key="Overlay.Menu.Duplicate">복제</sys:String>
     <sys:String x:Key="Overlay.Menu.Delete">이 버튼 삭제</sys:String>
     <sys:String x:Key="Overlay.Row.Properties">속성...</sys:String>
