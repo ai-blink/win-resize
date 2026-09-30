@@ -36,6 +36,7 @@ public enum AppPage
 public sealed class MainViewModel : ObservableObject
 {
     private readonly Func<IReadOnlyList<WindowRow>> _enumerateWindows;
+    private readonly IWindowGuard _guard;
     private readonly IWindowOperations _windows;
     private readonly ProfileApplier _applier;
     private readonly ProfileDocument _document;
@@ -72,8 +73,10 @@ public sealed class MainViewModel : ObservableObject
         Func<OverlaySettings, string?>? saveOverlay = null,
         HotkeyServices? hotkeys = null,
         SettingsServices? settings = null,
-        AboutInfo? about = null)
+        AboutInfo? about = null,
+        IWindowGuard? guard = null)
     {
+        _guard = guard ?? new NullWindowGuard();
         _enumerateWindows = enumerateWindows;
         _windows = windows;
         _applier = new ProfileApplier(windows);
@@ -219,8 +222,10 @@ public sealed class MainViewModel : ObservableObject
                     Status = string.Format(_text(row.Profile.AutoApply ? "Status.HotkeyAutoApplyOn" : "Status.HotkeyAutoApplyOff"), row.Name);
                 break;
             default:
-                // 이 앱은 아직 창 잠금과 마우스 제한을 걸지 않는다 - 풀 것이 없다는 사실을 그대로 알린다.
-                Status = string.Format(_text("Status.HotkeyNothingToRelease"), row.Name);
+                var released = _guard.Release(row.Id);
+                Status = released == 0
+                    ? string.Format(_text("Status.HotkeyNothingToRelease"), row.Name)
+                    : string.Format(_text("Status.HotkeyReleased"), row.Name, released);
                 break;
         }
     }
@@ -249,14 +254,18 @@ public sealed class MainViewModel : ObservableObject
 
         var counts = new List<(Profile Profile, int Applied)>();
         var failed = 0;
-        foreach (var (_, profile) in _document.Profiles)
+        foreach (var (id, profile) in _document.Profiles)
         {
             if (profile.WindowConfig is not { } config) continue;
 
             var applied = 0;
             foreach (var window in Windows.Where(w => profile.Matches(w.Info)).ToList())
             {
-                if (_applier.Apply(window.Handle, config) == ApplyOutcome.Applied) applied++;
+                if (_applier.Apply(window.Handle, config) == ApplyOutcome.Applied)
+                {
+                    applied++;
+                    EngageGuard(window.Handle, id, profile, config);
+                }
                 else failed++;
             }
             if (applied > 0) counts.Add((profile, applied));
@@ -284,6 +293,30 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>오버레이 전역 설정. 오버레이 페이지, 메뉴 막대, 트레이가 같은 객체를 본다.</summary>
     public OverlayViewModel Overlay { get; }
+
+    /// <summary>
+    /// 적용을 마친 창에 프로필의 잠금과 마우스 제한을 건다(D-035). 목표는 프로필 값이 아니라 <b>옮긴 뒤 창의 실제 자리</b>다 -
+    /// 최소 크기를 강제하는 창은 요청한 크기가 되지 않는데, 프로필 값을 목표로 하면 되돌리기가 영원히 실패한다(PyQt5 와 같은 규칙).
+    /// </summary>
+    private void EngageGuard(nint window, string profileId, Profile profile, WindowConfiguration config)
+    {
+        var target = _windows.GetRect(window) ?? new PixelRect(config.X, config.Y, config.Width, config.Height);
+        _guard.Engage(window, profileId, profile, target);
+    }
+
+    /// <summary>잠금 감시가 알릴 일을 상태 줄과 로그에 보인다(감시 스레드가 아니라 화면 스레드에서 불러야 한다).</summary>
+    public void ShowGuardNotice(GuardNotice notice)
+    {
+        switch (notice.Kind)
+        {
+            case GuardNoticeKind.LockGaveUp:
+                Alert(string.Format(_text("Status.LockGaveUp"), notice.ProfileName));
+                break;
+            case GuardNoticeKind.ConstraintEscaped:
+                Status = string.Format(_text("Status.ConstraintEscaped"), notice.ProfileName);
+                break;
+        }
+    }
 
     /// <summary>모든 버튼을 감춘다(감추기 스위치와 같은 상태). 버튼은 지워지지 않고 자리도 그대로다.</summary>
     public ICommand CloseAllOverlaysCommand { get; }
@@ -570,7 +603,13 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        var applied = targets.Count(w => _applier.Apply(w.Handle, config) == ApplyOutcome.Applied);
+        var applied = 0;
+        foreach (var w in targets)
+        {
+            if (_applier.Apply(w.Handle, config) != ApplyOutcome.Applied) continue;
+            applied++;
+            EngageGuard(w.Handle, row.Id, row.Profile, config);
+        }
         var failed = targets.Count - applied;
 
         // 옮긴 좌표가 목록에 보이게 다시 연다.
@@ -624,7 +663,11 @@ public sealed class MainViewModel : ObservableObject
         if (!ShowEditor(editor)) return;
 
         if (Commit(() => _document.Replace(row.Id, editor.Profile, _now()), row.Id))
+        {
+            // 편집한 잠금 설정은 다음 적용부터 걸린다. 앞 설정으로 걸려 있던 것은 여기서 푼다.
+            _guard.Release(row.Id);
             Status = string.Format(_text("Status.ProfileSaved"), editor.Profile.Name);
+        }
     }
 
     public void DeleteSelectedProfile()
@@ -633,7 +676,10 @@ public sealed class MainViewModel : ObservableObject
         if (row is null || !_dialogs.ConfirmDelete(row.Name)) return;
 
         if (Commit(() => _document.Remove(row.Id), (string?)null))
+        {
+            _guard.Release(row.Id);
             Status = string.Format(_text("Status.ProfileDeleted"), row.Name);
+        }
     }
 
     /// <summary>

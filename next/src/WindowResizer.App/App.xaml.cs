@@ -2,7 +2,9 @@ using System.Windows;
 using WindowResizer.App.Theming;
 using WindowResizer.App.ViewModels;
 using WindowResizer.Core.Settings;
+using WindowResizer.Core.Windowing;
 using WindowResizer.Infrastructure.Persistence;
+using WindowResizer.Infrastructure.Hosting;
 using WindowResizer.Infrastructure.Settings;
 using WindowResizer.Infrastructure.Windowing;
 
@@ -20,6 +22,7 @@ namespace WindowResizer.App;
 ///   <c>--hotkey-key &lt;HKCU 아래 경로&gt;</c>  전체 적용 단축키 키를 바꾼다(PyQt5 파일에서 가져오지도 않는다). 같은 이유다.
 ///   <c>--settings-key &lt;HKCU 아래 경로&gt;</c>  앱 설정(테마, 화면 크기, 언어, 창 기억) 키를 바꾼다(PyQt5 키에서 가져오지도 않는다).
 ///   <c>--run-key &lt;HKCU 아래 경로&gt;</c>  "Windows 시작 때 자동 실행"이 쓰는 Run 키를 바꾼다. 실제 시작 목록을 건드리지 않게.
+///   <c>--instance-key &lt;이름&gt;</c>  중복 실행 방지 뮤텍스 이름을 바꾼다. 검증용 앱이 실사용 앱과 서로 막지 않게.
 ///   <c>--minimized</c>  창을 열지 않고 트레이로만 뜬다(시작 프로그램으로 등록되면 이 인자가 붙는다).
 /// </summary>
 public partial class App : Application
@@ -27,6 +30,18 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // 둘째 실행은 첫 앱에 창을 보여 달라고 알리고 끝난다. 이 검사가 제일 먼저다 - 아래 정리(가둔 커서 풀기)가 첫 앱이
+        // 지금 걸어 둔 것을 풀어 버리면 안 된다.
+        _instance = SingleInstanceGuard.Acquire(ArgValue(e.Args, "--instance-key") ?? SingleInstanceGuard.DefaultName);
+        if (!_instance.IsFirst)
+        {
+            _instance.SignalFirst();
+            _instance.Dispose();
+            _instance = null;
+            Shutdown();
+            return;
+        }
 
         // 이전 실행이 커서를 가둔 채 죽었으면 푼다(S3c 실측: Windows 는 풀어 주지 않는다).
         CursorClip.ReleaseStale();
@@ -52,6 +67,7 @@ public partial class App : Application
         var hotkeyKey = ArgValue(e.Args, "--hotkey-key");
         var hotkeyStore = hotkeyKey is null ? new HotkeySettingsStore() : new HotkeySettingsStore(hotkeyKey, legacyFilePath: null);
         _hotkeys = new HotkeyRegistrar();
+        _guard = new WindowGuard(windows, new CursorClipConfiner(), CursorClipConfiner.Foreground, CursorClipConfiner.IsKeyDown);
 
         var viewModel = new MainViewModel(
             () => windows.EnumerateUserWindows()
@@ -83,12 +99,15 @@ public partial class App : Application
                 IsAdministrator(),
                 Environment.ProcessPath ?? "",
                 System.IO.Path.GetFullPath(ProfilesDirectory(e.Args)),
-                settingsStore.KeyPath, overlayStore.KeyPath, hotkeyStore.KeyPath));
+                settingsStore.KeyPath, overlayStore.KeyPath, hotkeyStore.KeyPath),
+            guard: _guard);
         _viewModel = viewModel;
         viewModel.ShowStatus(string.Format(Text("Log.Started"), AppInfo.DisplayVersion));
         HookUnhandledExceptions();
         viewModel.Settings.Changed += OnSettingChanged;
 
+        _guard.Notice += notice => Dispatcher.BeginInvoke(() => viewModel.ShowGuardNotice(notice));
+        _guard.Start();
         viewModel.Hotkeys.Sync();
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
@@ -99,6 +118,7 @@ public partial class App : Application
         RestoreBounds(window);
         MainWindow.Closing += OnMainWindowClosing;
         _tray = new TrayIcon(Text, ShowMainWindow, Quit, viewModel.Overlay, viewModel.CloseAllOverlays);
+        _instance.Listen(() => Dispatcher.BeginInvoke(ShowMainWindow));
         // 시작 프로그램으로 뜬 것이면 창 없이 트레이로만 뜬다.
         if (!e.Args.Contains(StartupRegistration.MinimizedArgument)) MainWindow.Show();
 
@@ -114,6 +134,8 @@ public partial class App : Application
     private AppSettings _settings = new();
     private MainViewModel? _viewModel;
     private HotkeyRegistrar? _hotkeys;
+    private SingleInstanceGuard? _instance;
+    private WindowGuard? _guard;
     private TrayIcon? _tray;
     private WindowEventWatcher? _windowEvents;
     private ForegroundTracker? _foreground;
@@ -268,6 +290,9 @@ public partial class App : Application
     {
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _hotkeys?.Dispose();
+        _guard?.Dispose();
+        _guard = null;
+        _instance?.Dispose();
         _hotkeys = null;
         _tray?.Dispose();
         _tray = null;

@@ -90,6 +90,9 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern nint GetForegroundWindow();
 
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int vKey);
+
     public const long WS_EX_NOACTIVATE = 0x08000000;
     public const uint SWP_NOZORDER = 0x0004;
 

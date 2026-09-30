@@ -268,7 +268,7 @@
     <sys:String x:Key="Status.HotkeyProfileGone">단축키가 가리키는 프로필을 찾지 못했습니다</sys:String>
     <sys:String x:Key="Status.HotkeyAutoApplyOn">프로필 '{0}' 자동 적용을 켰습니다</sys:String>
     <sys:String x:Key="Status.HotkeyAutoApplyOff">프로필 '{0}' 자동 적용을 껐습니다</sys:String>
-    <sys:String x:Key="Status.HotkeyNothingToRelease">프로필 '{0}': 이 앱은 아직 창 잠금과 마우스 제한을 걸지 않아 풀 것이 없습니다</sys:String>
+    <sys:String x:Key="Status.HotkeyNothingToRelease">프로필 '{0}': 풀 것이 없습니다(이 프로필이 건 잠금이나 마우스 제한이 없습니다)</sys:String>
     <sys:String x:Key="Status.HotkeyNoForeground">항상 위를 바꿀 창이 없습니다</sys:String>
     <sys:String x:Key="Status.HotkeyTopmostOn">'{0}' 창을 항상 위에 두었습니다</sys:String>
     <sys:String x:Key="Status.HotkeyTopmostOff">'{0}' 창의 항상 위를 풀었습니다</sys:String>
@@ -416,4 +416,7 @@
     <sys:String x:Key="ButtonEditor.Picked">'{0}' 창에서 위치와 크기를 가져왔습니다</sys:String>
     <sys:String x:Key="ScreenPicker.Help">가져올 창 위에 마우스를 올려 테두리를 확인하고 클릭하세요. Esc 나 오른쪽 클릭은 취소입니다.</sys:String>
     <sys:String x:Key="ButtonEditor.PickWindow.Hint">어느 창인지 직접 보고 고르려면 이 버튼을 쓰세요. 창 위에 마우스를 올리면 테두리가 나타나고, 클릭하면 그 창의 위치와 크기를 가져옵니다. Esc 나 오른쪽 클릭은 취소입니다.</sys:String>
+    <sys:String x:Key="Status.HotkeyReleased">프로필 '{0}'의 창 {1}개의 잠금과 마우스 제한을 풀었습니다</sys:String>
+    <sys:String x:Key="Status.LockGaveUp">프로필 '{0}': 창을 제자리로 되돌리지 못해 잠금을 그만뒀습니다(관리자 권한 창일 수 있습니다)</sys:String>
+    <sys:String x:Key="Status.ConstraintEscaped">프로필 '{0}'의 마우스 제한을 탈출 키로 풀었습니다. 프로필을 다시 적용하면 다시 걸립니다</sys:String>
 </ResourceDictionary>

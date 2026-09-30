@@ -268,7 +268,7 @@
     <sys:String x:Key="Status.HotkeyProfileGone">The profile of that shortcut was not found</sys:String>
     <sys:String x:Key="Status.HotkeyAutoApplyOn">Turned on auto apply for profile '{0}'</sys:String>
     <sys:String x:Key="Status.HotkeyAutoApplyOff">Turned off auto apply for profile '{0}'</sys:String>
-    <sys:String x:Key="Status.HotkeyNothingToRelease">Profile '{0}': this app does not lock windows or confine the mouse yet, so there is nothing to release</sys:String>
+    <sys:String x:Key="Status.HotkeyNothingToRelease">Profile '{0}': nothing to release (this profile holds no lock or mouse confinement)</sys:String>
     <sys:String x:Key="Status.HotkeyNoForeground">There is no window to change</sys:String>
     <sys:String x:Key="Status.HotkeyTopmostOn">Put '{0}' always on top</sys:String>
     <sys:String x:Key="Status.HotkeyTopmostOff">Removed always on top from '{0}'</sys:String>
@@ -416,4 +416,7 @@
     <sys:String x:Key="ButtonEditor.Picked">Took the place and size from '{0}'</sys:String>
     <sys:String x:Key="ScreenPicker.Help">Point at the window to take from, check its outline and click. Esc or a right click cancels.</sys:String>
     <sys:String x:Key="ButtonEditor.PickWindow.Hint">Use this button to see and choose the window yourself. Point at a window to see its outline, click to take its place and size. Esc or a right click cancels.</sys:String>
+    <sys:String x:Key="Status.HotkeyReleased">Profile '{0}': released the lock and mouse confinement on {1} window(s)</sys:String>
+    <sys:String x:Key="Status.LockGaveUp">Profile '{0}': could not put the window back, so the lock was given up (it may be an administrator window)</sys:String>
+    <sys:String x:Key="Status.ConstraintEscaped">Profile '{0}': mouse confinement released with the escape key. Applying the profile again confines it again</sys:String>
 </ResourceDictionary>

@@ -821,6 +821,69 @@ public sealed class MainViewModelTests
     }
 
     [TestMethod]
+    public void Applying_a_profile_hands_each_applied_window_to_the_guard_with_its_real_place_after_the_move()
+    {
+        var desktop = new FakeDesktop(
+            Row(1, "Blender A") with { Rect = new PixelRect(11, 22, 640, 480) },
+            Row(2, "Notepad"),
+            Row(3, "Blender B") with { Rect = new PixelRect(33, 44, 700, 500) });
+        var vm = desktop.CreateViewModel(Profile("blender", "Blender", 0, 0, 800, 600));
+        vm.SelectedProfile = vm.Profiles.Single();
+
+        vm.ApplyProfileCommand.Execute(null);
+
+        CollectionAssert.AreEquivalent(new nint[] { 1, 3 }, desktop.Guard.Engaged.Select(e => e.Window).ToArray());
+        Assert.AreEqual("id-blender", desktop.Guard.Engaged[0].ProfileId);
+        Assert.AreEqual(new PixelRect(11, 22, 640, 480), desktop.Guard.Engaged.Single(e => e.Window == 1).Target,
+            "목표는 프로필 값이 아니라 옮긴 뒤 창의 실제 자리다(최소 크기를 강제하는 창이 있다)");
+    }
+
+    [TestMethod]
+    public void Apply_all_also_engages_and_a_failed_apply_engages_nothing()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender"));
+        var vm = desktop.CreateViewModel(Profile("blender", "Blender", 0, 0, 800, 600), Profile("none", "no-such-window", 0, 0, 10, 10));
+
+        vm.ApplyAllProfiles();
+
+        Assert.HasCount(1, desktop.Guard.Engaged);
+        Assert.AreEqual("id-blender", desktop.Guard.Engaged[0].ProfileId);
+    }
+
+    [TestMethod]
+    public void The_release_hotkey_releases_through_the_guard_and_reports_how_many_windows()
+    {
+        var desktop = new FakeDesktop();
+        var registrar = desktop.UseHotkeys();
+        var profile = HotkeyProfile("p", "");
+        profile.Profile.HotkeySets.Add(new HotkeySet { Enabled = true, Combination = "Ctrl+Alt+F2", Action = "release_profile" });
+        var vm = desktop.CreateViewModel(profile);
+        vm.Hotkeys.Sync();
+        desktop.Guard.ReleaseResult = 2;
+
+        registrar.Press(b => b.Action == HotkeyAction.ReleaseProfile);
+        desktop.Drain();
+
+        CollectionAssert.AreEqual(new[] { "id-p" }, desktop.Guard.Released);
+        Assert.AreEqual("Status.HotkeyReleased:p", vm.Status);
+    }
+
+    [TestMethod]
+    public void Editing_or_deleting_a_profile_releases_what_it_held()
+    {
+        var desktop = new FakeDesktop();
+        var vm = desktop.CreateViewModel(Profile("a", "x", 0, 0, 10, 10), Profile("b", "y", 0, 0, 10, 10));
+        vm.SelectedProfile = vm.Profiles.Single(p => p.Id == "id-a");
+        desktop.Dialogs.OnEditor = e => e.Description = "edited";
+        vm.EditProfileCommand.Execute(null);
+
+        vm.SelectedProfile = vm.Profiles.Single(p => p.Id == "id-b");
+        vm.DeleteProfileCommand.Execute(null);
+
+        CollectionAssert.AreEqual(new[] { "id-a", "id-b" }, desktop.Guard.Released);
+    }
+
+    [TestMethod]
     public void Always_on_top_hotkey_toggles_the_foreground_window_not_a_profile()
     {
         var desktop = new FakeDesktop();
@@ -1169,6 +1232,7 @@ public sealed class MainViewModelTests
         public WindowRow[] Rows { get; set; }
         public RecordingWindows Operations { get; }
         public FakeDialogs Dialogs { get; } = new();
+        public FakeGuard Guard { get; } = new();
         public ProfileDocument Document { get; } = new();
         public string? SaveError { get; set; }
         public int Saves { get; private set; }
@@ -1203,7 +1267,7 @@ public sealed class MainViewModelTests
             return new(() => Rows, Operations, Document,
                 _ => { if (SaveError is null) Saves++; return SaveError; },
                 Dialogs, key => key + ":{0}", null, () => Now, overlaySettings: overlay,
-                saveOverlay: _ => { OverlaySaves++; return null; }, hotkeys: Hotkeys);
+                saveOverlay: _ => { OverlaySaves++; return null; }, hotkeys: Hotkeys, guard: Guard);
         }
 
         public MainViewModel CreateViewModel(params ProfileRow[] profiles)
@@ -1211,7 +1275,7 @@ public sealed class MainViewModelTests
             foreach (var p in profiles) Document.Profiles.Add(new(p.Id, p.Profile));
             return new(() => Rows, Operations, Document,
                 _ => { if (SaveError is null) Saves++; return SaveError; },
-                Dialogs, key => key + ":{0}", null, () => Now, hotkeys: Hotkeys);
+                Dialogs, key => key + ":{0}", null, () => Now, hotkeys: Hotkeys, guard: Guard);
         }
     }
 
@@ -1289,6 +1353,20 @@ public sealed class MainViewModelTests
         public string? ChooseSaveFile(string title, string suggestedFileName, string filter) => null;
 
         public string? OpenFolder(string path) => null;
+    }
+
+    private sealed class FakeGuard : IWindowGuard
+    {
+        public List<(nint Window, string ProfileId, string Name, PixelRect Target)> Engaged { get; } = new();
+        public List<string> Released { get; } = new();
+        public int ReleaseResult { get; set; }
+        public int Count => Engaged.Count;
+        public event Action<GuardNotice>? Notice { add { } remove { } }
+
+        public void Engage(nint window, string profileId, Profile profile, PixelRect target) => Engaged.Add((window, profileId, profile.Name, target));
+        public int Release(string profileId) { Released.Add(profileId); return ReleaseResult; }
+        public void ReleaseAll() { }
+        public void Dispose() { }
     }
 
     private sealed class RecordingWindows(FakeDesktop desktop) : IWindowOperations
