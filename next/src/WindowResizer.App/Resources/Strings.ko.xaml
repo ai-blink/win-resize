@@ -385,7 +385,7 @@
     <sys:String x:Key="ButtonEditor.Label.Hint">비우면 이름을 보입니다.</sys:String>
     <sys:String x:Key="ButtonEditor.Position.Subtitle">이 버튼을 누르면 직전에 쓰던 창이 이 위치와 크기로 옮겨집니다. 단위는 화면 픽셀입니다.</sys:String>
     <sys:String x:Key="ButtonEditor.CaptureFromWindow">직전 창에서 가져오기</sys:String>
-    <sys:String x:Key="ButtonEditor.CaptureFromWindow.Hint">직전에 쓰던 다른 프로그램 창의 지금 위치와 크기를 채웁니다. 최대화나 최소화된 창은 원래 위치를 가져옵니다.</sys:String>
+    <sys:String x:Key="ButtonEditor.CaptureFromWindow.Hint">직전 창 = 이 앱을 누르기 전에 마지막으로 쓰던 다른 프로그램의 창입니다(이 앱의 창과 버튼은 제외). 그 창의 지금 위치와 크기를 바로 채웁니다. 앱을 켠 뒤 다른 창을 한 번도 쓰지 않았다면 가져올 창이 없습니다. 최대화나 최소화된 창은 원래 위치를 가져옵니다.</sys:String>
     <sys:String x:Key="ButtonEditor.CaptureFailed">가져올 창이 없습니다. 다른 프로그램 창을 쓴 뒤 다시 누르세요</sys:String>
     <sys:String x:Key="ButtonEditor.Captured">직전 창의 위치와 크기를 가져왔습니다</sys:String>
     <sys:String x:Key="ButtonEditor.Behavior.Subtitle">버튼을 어떻게 누를지 정합니다.</sys:String>
@@ -415,4 +415,5 @@
     <sys:String x:Key="ButtonEditor.PickWindow">화면에서 창 고르기</sys:String>
     <sys:String x:Key="ButtonEditor.Picked">'{0}' 창에서 위치와 크기를 가져왔습니다</sys:String>
     <sys:String x:Key="ScreenPicker.Help">가져올 창 위에 마우스를 올려 테두리를 확인하고 클릭하세요. Esc 나 오른쪽 클릭은 취소입니다.</sys:String>
+    <sys:String x:Key="ButtonEditor.PickWindow.Hint">어느 창인지 직접 보고 고르려면 이 버튼을 쓰세요. 창 위에 마우스를 올리면 테두리가 나타나고, 클릭하면 그 창의 위치와 크기를 가져옵니다. Esc 나 오른쪽 클릭은 취소입니다.</sys:String>
 </ResourceDictionary>

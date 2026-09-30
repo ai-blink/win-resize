@@ -385,7 +385,7 @@
     <sys:String x:Key="ButtonEditor.Label.Hint">Leave empty to show the name.</sys:String>
     <sys:String x:Key="ButtonEditor.Position.Subtitle">Pressing this button moves the window you were just using to this place and size. Units are screen pixels.</sys:String>
     <sys:String x:Key="ButtonEditor.CaptureFromWindow">Take from the last window</sys:String>
-    <sys:String x:Key="ButtonEditor.CaptureFromWindow.Hint">Fills in the current place and size of the last window you used in another program. A maximized or minimized window gives its normal place.</sys:String>
+    <sys:String x:Key="ButtonEditor.CaptureFromWindow.Hint">Last window = the window of another program you were using just before you came to this app (this app's windows and buttons are excluded). Its current place and size are filled in at once. If you have not used another window since the app started, there is nothing to take. A maximized or minimized window gives its normal place.</sys:String>
     <sys:String x:Key="ButtonEditor.CaptureFailed">No window to take from. Use a window of another program, then press again</sys:String>
     <sys:String x:Key="ButtonEditor.Captured">Took the place and size of the last window</sys:String>
     <sys:String x:Key="ButtonEditor.Behavior.Subtitle">How the button is pressed.</sys:String>
@@ -415,4 +415,5 @@
     <sys:String x:Key="ButtonEditor.PickWindow">Pick a window on screen</sys:String>
     <sys:String x:Key="ButtonEditor.Picked">Took the place and size from '{0}'</sys:String>
     <sys:String x:Key="ScreenPicker.Help">Point at the window to take from, check its outline and click. Esc or a right click cancels.</sys:String>
+    <sys:String x:Key="ButtonEditor.PickWindow.Hint">Use this button to see and choose the window yourself. Point at a window to see its outline, click to take its place and size. Esc or a right click cancels.</sys:String>
 </ResourceDictionary>

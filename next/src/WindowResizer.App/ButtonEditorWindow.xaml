@@ -93,7 +93,8 @@
                                             Command="{Binding CaptureFromWindowCommand}"
                                             AutomationProperties.Name="{DynamicResource ButtonEditor.CaptureFromWindow}" />
                                 </StackPanel>
-                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource ButtonEditor.CaptureFromWindow.Hint}" />
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,8,0,0" TextWrapping="Wrap" Text="{DynamicResource ButtonEditor.PickWindow.Hint}" />
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,4,0,8" TextWrapping="Wrap" Text="{DynamicResource ButtonEditor.CaptureFromWindow.Hint}" />
                                 <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource AppAccentBrush}" />
                             </StackPanel>
 
