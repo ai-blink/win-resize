@@ -2,81 +2,63 @@
 
 [English](README.md) | [한국어](README.ko.md) | [中文](README.zh-CN.md) | [日本語](README.ja.md)
 
-WindowResizer 是一款 Windows 桌面应用程序，可查找应用程序窗口、移动或调整窗口
-大小，并重复应用已保存的窗口配置文件。
+WindowResizer 是一款 Windows 桌面应用，用于查找应用窗口、移动或调整其大小，并反复应用已保存的窗口配置文件。
 
-当前已记录的版本：0.01.5
+当前版本：0.02.0（用 .NET 10 WPF 重写；此前的 PyQt5 应用为 v0.01.5）
 
-## 应用预览
+## 主要功能
 
-![WindowResizer 主窗口](docs/images/windowresizer-main-window.png)
+- 搜索正在运行的窗口，并把配置文件一次应用到所有匹配的窗口（按钮、菜单、Enter 或全局快捷键）。
+- 将窗口的位置和大小保存为配置文件（Ctrl+S），可用某个窗口覆盖配置文件的位置（可撤销），并在侧边栏编辑窗口中修改配置文件。
+- 按完整可执行文件路径、进程名、窗口标题（包含、完全一致、正则）或它们的组合匹配配置文件，可区分文件名相同的应用。
+- 锁定配置文件的位置：被拖走的窗口会回到应用时的位置。
+- 配置文件的窗口在最前面时，把鼠标限制在该窗口内（支持退出键）。
+- 对应用启动后新出现的窗口自动应用匹配的配置文件。
+- 悬浮按钮：每个按钮各自保存窗口的位置和大小，按下后把刚才使用的窗口移到那里。属性窗口带实际大小预览，可从上一个窗口或在屏幕上直接指定的窗口获取位置。
+- 每个配置文件的全局快捷键（多个组合、多种动作）、全部应用快捷键和置顶切换。
+- 浅色、深色和跟随系统主题（支持 Windows 高对比度），75%–250% 的应用缩放，韩语或英语界面，随 Windows 启动，以及日志页面。
+- 关闭主窗口后驻留在系统托盘，同一 Windows 会话只运行一份（第二次启动会把第一个窗口带到前面）。
 
-## 功能
+## 0.02.0 尚未包含
 
-- 选择正在运行的窗口，然后移动或调整其大小。
-- 将窗口的位置和大小保存为可重复使用的配置文件。
-- 通过完整的可执行文件路径匹配配置文件，以区分文件名相同的应用程序。
-- 在应用到实际窗口之前预览已保存的布局。
-- 检测到匹配的新窗口时，可选择自动应用配置文件。
-- 分别启用配置文件的位置锁定和鼠标光标限制。
-- 为配置文件操作注册全局快捷键，以便快速执行。
-- 可选择浅色、深色或高对比度主题，并可调整应用程序 UI 缩放，而不会改变已保存的
-  窗口几何信息。
-- 关闭主窗口后，应用程序仍可在系统托盘中使用；完成工作后可通过明确的退出操作
-  完全关闭应用程序。
-- 防止同一 Windows 会话中出现重复的应用程序实例。
+- PyQt5 曾显示三秒的配置文件预览轮廓。
+- 应用界面的中文和日文（只有韩语和英语；文档有四种语言）。
+- 安装程序和更新机制。发行版是一个自包含的可执行文件。
 
 ## 系统要求
 
-- Windows 10 或 Windows 11
-- 用于开发的 Python 3.12，或已构建的 Windows 可执行文件
+- Windows 10 或 Windows 11，64 位。发行版可执行文件自带 .NET 运行时，无需另外安装。
 
-以管理员权限运行的目标窗口可能无法由标准权限的 WindowResizer 进程控制。如有
-必要，请以相同的权限级别运行 WindowResizer。
+以管理员权限运行的窗口无法被普通权限的 WindowResizer 控制。必要时请以相同权限级别运行 WindowResizer。
 
-## 从源代码运行
+## 运行发行版
 
-在仓库根目录安装依赖项并启动应用程序：
+从 GitHub 发布页下载 `WindowResizer.exe` 并运行。配置文件读写于可执行文件旁的 `profiles` 文件夹，设置保存在
+`HKCU\Software\WindowResizer\Next` 下。详情见[安装与运行指南](docs/INSTALLATION.md)。
 
-~~~powershell
-C:\Python312\python.exe -m pip install -r requirements.txt
-C:\Python312\python.exe run_gui.py
-~~~
-
-文档中的命令使用已验证的 Python 3.12 路径，以避免意外使用指向其他版本的默认
-python 命令。
-
-## 构建可执行文件
+## 从源码构建
 
 ~~~powershell
-C:\Python312\python.exe final_build.py
+dotnet build next\WindowResizer.slnx
+dotnet test next\WindowResizer.slnx
+powershell -NoProfile -File next\tools\publish.ps1
 ~~~
 
-构建成功后会生成 dist/WindowResizer.exe。dist/ 和 build/ 是生成的产物，
-不受源代码管理。
-
-## 验证更改
-
-请运行与所改区域对应的回归测试。要运行已跟踪的完整测试套件，请使用：
-
-~~~powershell
-C:\Python312\python.exe -m unittest discover -s tests -p 'test_*.py'
-~~~
+最后一条命令会把单文件可执行文件生成到 `next\publish\win-x64\`。构建需要 .NET 10 SDK。
 
 ## 文档
 
-安装和用户指南目前为韩语。补丁说明提供英语、韩语、简体中文和日语版本：
+安装和使用指南为韩语；发布说明和更新日志提供英语、韩语、简体中文和日语版本。
 
-- [安装和运行指南（韩语）](docs/INSTALLATION.md)
-- [用户指南（韩语）](docs/USER_GUIDE.md)
+- [安装与运行指南（韩语）](docs/INSTALLATION.md)
+- [使用指南（韩语）](docs/USER_GUIDE.md)
 - [更新日志：English](docs/CHANGELOG.md) | [한국어](docs/CHANGELOG.ko.md) |
   [中文](docs/CHANGELOG.zh-CN.md) | [日本語](docs/CHANGELOG.ja.md)
+- 发布说明：`doc/releases/`
 
 ## 仓库结构
 
-- src/：应用程序源代码
-- run_gui.py：开发启动入口
-- final_build.py：PyInstaller 构建脚本
-- requirements.txt：Python 依赖项
-- tests/：已跟踪的回归测试
-- docs/：用户文档和图片
+- next/：WPF 应用（src/ 为应用，tests/，tools/ 为发布脚本）
+- doc/、docs/：发布说明、更新日志和用户文档
+- rules/：开发笔记与决策记录
+- src/、run_gui.py、final_build.py、tests/：此前的 PyQt5 应用（v0.01.5，标签 `last-pyqt5-stable`），仅供参考

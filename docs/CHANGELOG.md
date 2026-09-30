@@ -6,6 +6,17 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0 - 2026-09-30
+
+First stable release of the WPF (.NET 10) app; it replaces the PyQt5 app (v0.01.5) as the distributed
+executable. Details: [doc/releases/v0.02.0.md](../doc/releases/v0.02.0.md).
+
+### Highlights
+
+- Position lock, mouse confinement (only while the window is in front, with an escape key), new-window
+  auto-apply, a single-instance guard, overlay buttons that own their place, global shortcuts, settings, a log
+  page and the tray, in one self-contained `WindowResizer.exe`.
+
 ## 0.02.0-preview.9 - 2026-09-30
 
 Ninth preview of the WPF (.NET 10) app, built from source; the distributed
