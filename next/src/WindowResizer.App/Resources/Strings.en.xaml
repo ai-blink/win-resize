@@ -419,4 +419,8 @@
     <sys:String x:Key="Status.HotkeyReleased">Profile '{0}': released the lock and mouse confinement on {1} window(s)</sys:String>
     <sys:String x:Key="Status.LockGaveUp">Profile '{0}': could not put the window back, so the lock was given up (it may be an administrator window)</sys:String>
     <sys:String x:Key="Status.ConstraintEscaped">Profile '{0}': mouse confinement released with the escape key. Applying the profile again confines it again</sys:String>
+    <sys:String x:Key="Status.AutoApplyWatching">Watching for new windows: {0} profile(s)</sys:String>
+    <sys:String x:Key="Status.AutoApplyOff">Stopped watching for new windows (no auto-apply profile)</sys:String>
+    <sys:String x:Key="Status.AutoApplied">Applied profile '{0}' to the new window '{1}'</sys:String>
+    <sys:String x:Key="Status.AutoApplyFailed">Profile '{0}': could not apply it to the new window '{1}'</sys:String>
 </ResourceDictionary>

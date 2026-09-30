@@ -712,6 +712,8 @@
                         Visibility="{Binding CanUndo, Converter={StaticResource BoolToVisibility}}"
                         ToolTip="{DynamicResource Action.UndoHint}"
                         AutomationProperties.Name="{DynamicResource Action.Undo}" />
+                <TextBlock DockPanel.Dock="Right" Text="{Binding AutoApplyText}" Foreground="{DynamicResource AppAccentBrush}" FontSize="13"
+                           VerticalAlignment="Center" Margin="16,0,16,0" />
                 <TextBlock Text="{Binding Status}" Foreground="{DynamicResource AppMutedTextBrush}" FontSize="13"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
             </DockPanel>

@@ -67,6 +67,14 @@ public partial class App : Application
         var hotkeyKey = ArgValue(e.Args, "--hotkey-key");
         var hotkeyStore = hotkeyKey is null ? new HotkeySettingsStore() : new HotkeySettingsStore(hotkeyKey, legacyFilePath: null);
         _hotkeys = new HotkeyRegistrar();
+        var ownProcess = (uint)Environment.ProcessId;
+        _autoApply = new AutoApplyMonitor(
+            () => windows.EnumerateUserWindows()
+                .Where(w => w.ProcessId != ownProcess)
+                .Select(w => new WindowSnapshot(w.Handle, w.Info, w.Rect, w.IsMinimized))
+                .ToList(),
+            // 감시 스레드에서 불린다. 문서와 목록은 화면 스레드에서만 만진다 - 적용은 화면 스레드로 넘겨 결과를 받는다.
+            (window, id, _) => Dispatcher.Invoke(() => _viewModel?.ApplyAutomatically(window, id) ?? false));
         _guard = new WindowGuard(windows, new CursorClipConfiner(), CursorClipConfiner.Foreground, CursorClipConfiner.IsKeyDown);
 
         var viewModel = new MainViewModel(
@@ -100,7 +108,8 @@ public partial class App : Application
                 Environment.ProcessPath ?? "",
                 System.IO.Path.GetFullPath(ProfilesDirectory(e.Args)),
                 settingsStore.KeyPath, overlayStore.KeyPath, hotkeyStore.KeyPath),
-            guard: _guard);
+            guard: _guard,
+            autoApply: _autoApply);
         _viewModel = viewModel;
         viewModel.ShowStatus(string.Format(Text("Log.Started"), AppInfo.DisplayVersion));
         HookUnhandledExceptions();
@@ -108,6 +117,8 @@ public partial class App : Application
 
         _guard.Notice += notice => Dispatcher.BeginInvoke(() => viewModel.ShowGuardNotice(notice));
         _guard.Start();
+        _autoApply.Applied += result => Dispatcher.BeginInvoke(() => viewModel.ShowAutoApplyResult(result));
+        _autoApply.Start();
         viewModel.Hotkeys.Sync();
         viewModel.RefreshWindows();
         var notice = LoadNotice(loaded);
@@ -136,6 +147,7 @@ public partial class App : Application
     private HotkeyRegistrar? _hotkeys;
     private SingleInstanceGuard? _instance;
     private WindowGuard? _guard;
+    private AutoApplyMonitor? _autoApply;
     private TrayIcon? _tray;
     private WindowEventWatcher? _windowEvents;
     private ForegroundTracker? _foreground;
@@ -290,6 +302,8 @@ public partial class App : Application
     {
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _hotkeys?.Dispose();
+        _autoApply?.Dispose();
+        _autoApply = null;
         _guard?.Dispose();
         _guard = null;
         _instance?.Dispose();

@@ -37,6 +37,8 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly Func<IReadOnlyList<WindowRow>> _enumerateWindows;
     private readonly IWindowGuard _guard;
+    private readonly IAutoApplyMonitor? _autoApply;
+    private string _autoApplyText = "";
     private readonly IWindowOperations _windows;
     private readonly ProfileApplier _applier;
     private readonly ProfileDocument _document;
@@ -74,9 +76,11 @@ public sealed class MainViewModel : ObservableObject
         HotkeyServices? hotkeys = null,
         SettingsServices? settings = null,
         AboutInfo? about = null,
-        IWindowGuard? guard = null)
+        IWindowGuard? guard = null,
+        IAutoApplyMonitor? autoApply = null)
     {
         _guard = guard ?? new NullWindowGuard();
+        _autoApply = autoApply;
         _enumerateWindows = enumerateWindows;
         _windows = windows;
         _applier = new ProfileApplier(windows);
@@ -123,6 +127,7 @@ public sealed class MainViewModel : ObservableObject
             settings?.IsStartupEnabled ?? (() => false),
             settings?.SetStartup ?? (_ => null),
             text, message => ShowStatus(message), warning: message => ShowStatus(message, LogLevel.Warning));
+        SyncAutoApply();
     }
 
     private readonly HotkeyServices _hotkeyServices;
@@ -302,6 +307,50 @@ public sealed class MainViewModel : ObservableObject
     {
         var target = _windows.GetRect(window) ?? new PixelRect(config.X, config.Y, config.Width, config.Height);
         _guard.Engage(window, profileId, profile, target);
+    }
+
+    /// <summary>상태 줄 옆에 보이는 "자동 감지 중: 프로필 N개". 자동 적용 프로필이 없으면 비어 있다.</summary>
+    public string AutoApplyText
+    {
+        get => _autoApplyText;
+        private set => Set(ref _autoApplyText, value);
+    }
+
+    /// <summary>
+    /// 자동 적용이 켜진 프로필로 새 창 감시를 맞춘다(D-036). 문서가 바뀔 때마다(<see cref="RebuildProfiles"/>) 부른다 -
+    /// 편집 창의 자동 적용 체크와 단축키의 전환이 모두 문서를 바꾸므로 한 곳이면 된다.
+    /// </summary>
+    private void SyncAutoApply()
+    {
+        if (_autoApply is null) return;
+        var targets = _document.Profiles.Select(p => (p.Key, p.Value)).Where(p => AutoApplyPolicy.IsAutoApply(p.Value)).ToList();
+        var before = _autoApply.ProfileCount;
+        _autoApply.SetProfiles(targets);
+        AutoApplyText = targets.Count == 0 ? "" : string.Format(_text("Status.AutoApplyWatching"), targets.Count);
+        if (before != targets.Count && (before == 0 || targets.Count == 0))
+            ShowStatus(targets.Count == 0 ? _text("Status.AutoApplyOff") : string.Format(_text("Status.AutoApplyWatching"), targets.Count));
+    }
+
+    /// <summary>
+    /// 감시가 찾은 새 창에 프로필을 적용한다. <b>화면 스레드에서 불러야 한다</b>(문서와 목록을 만진다). 적용하는 순간의 프로필을
+    /// 문서에서 다시 읽는다 - 감시가 쥔 것은 몇 초 전 모습이다.
+    /// </summary>
+    public bool ApplyAutomatically(nint window, string profileId)
+    {
+        var profile = _document.Find(profileId);
+        if (profile?.WindowConfig is not { } config || _applier.Apply(window, config) != ApplyOutcome.Applied) return false;
+
+        EngageGuard(window, profileId, profile, config);
+        Commit(() => profile.RecordApplied(1, _now()), () => SelectedProfile?.Id, clearsUndo: false);
+        return true;
+    }
+
+    /// <summary>자동 적용 결과를 상태 줄과 로그에 보인다(화면 스레드).</summary>
+    public void ShowAutoApplyResult(AutoApplyResult result)
+    {
+        var title = string.IsNullOrWhiteSpace(result.Title) ? _text("Status.UntitledWindow") : result.Title;
+        if (result.Success) Status = string.Format(_text("Status.AutoApplied"), result.Profile.Name, title);
+        else Alert(string.Format(_text("Status.AutoApplyFailed"), result.Profile.Name, title));
     }
 
     /// <summary>잠금 감시가 알릴 일을 상태 줄과 로그에 보인다(감시 스레드가 아니라 화면 스레드에서 불러야 한다).</summary>
@@ -808,6 +857,7 @@ public sealed class MainViewModel : ObservableObject
         SelectedProfile = selectId is null ? null : Profiles.FirstOrDefault(p => p.Id == selectId);
         // 단축키는 프로필 문서가 정한다 - 저장, 삭제, 되돌림 어느 쪽이든 문서가 바뀌었으면 다시 맞춘다.
         Hotkeys.Sync();
+        SyncAutoApply();
     }
 
     /// <summary>읽은 프로필 다음에 읽지 못한 프로필(흐린 줄). 파일에 쓰는 순서와 같다.</summary>

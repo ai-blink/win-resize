@@ -419,4 +419,8 @@
     <sys:String x:Key="Status.HotkeyReleased">프로필 '{0}'의 창 {1}개의 잠금과 마우스 제한을 풀었습니다</sys:String>
     <sys:String x:Key="Status.LockGaveUp">프로필 '{0}': 창을 제자리로 되돌리지 못해 잠금을 그만뒀습니다(관리자 권한 창일 수 있습니다)</sys:String>
     <sys:String x:Key="Status.ConstraintEscaped">프로필 '{0}'의 마우스 제한을 탈출 키로 풀었습니다. 프로필을 다시 적용하면 다시 걸립니다</sys:String>
+    <sys:String x:Key="Status.AutoApplyWatching">자동 감지 중: 프로필 {0}개</sys:String>
+    <sys:String x:Key="Status.AutoApplyOff">자동 감지를 껐습니다(자동 적용 프로필이 없습니다)</sys:String>
+    <sys:String x:Key="Status.AutoApplied">프로필 '{0}'을 '{1}' 창에 자동 적용했습니다</sys:String>
+    <sys:String x:Key="Status.AutoApplyFailed">프로필 '{0}': '{1}' 창에 자동 적용하지 못했습니다</sys:String>
 </ResourceDictionary>

@@ -883,6 +883,77 @@ public sealed class MainViewModelTests
         CollectionAssert.AreEqual(new[] { "id-a", "id-b" }, desktop.Guard.Released);
     }
 
+    private static ProfileRow AutoProfile(string name, bool autoApply = true, bool enabled = true)
+    {
+        var row = Profile(name, name, 5, 6, 640, 480);
+        row.Profile.AutoApply = autoApply;
+        row.Profile.Enabled = enabled;
+        return row;
+    }
+
+    [TestMethod]
+    public void Only_enabled_auto_apply_profiles_with_a_place_are_watched_and_the_status_bar_says_how_many()
+    {
+        var desktop = new FakeDesktop();
+        var noPlace = AutoProfile("noplace");
+        noPlace.Profile.WindowConfig = null;
+        var vm = desktop.CreateViewModel(AutoProfile("a"), AutoProfile("b", autoApply: false), AutoProfile("c", enabled: false), noPlace);
+
+        CollectionAssert.AreEqual(new[] { "id-a" }, desktop.AutoApply.Calls[^1]);
+        Assert.AreEqual("Status.AutoApplyWatching:1", vm.AutoApplyText);
+    }
+
+    [TestMethod]
+    public void Turning_auto_apply_on_or_off_through_the_document_updates_the_watch_list()
+    {
+        var desktop = new FakeDesktop();
+        var registrar = desktop.UseHotkeys();
+        var profile = HotkeyProfile("p", "");
+        profile.Profile.HotkeySets.Add(new HotkeySet { Enabled = true, Combination = "Ctrl+Alt+F1", Action = "auto_apply_toggle" });
+        var vm = desktop.CreateViewModel(profile);
+        vm.Hotkeys.Sync();
+        Assert.AreEqual("", vm.AutoApplyText);
+        Assert.AreEqual(0, desktop.AutoApply.ProfileCount);
+
+        registrar.Press(b => b.Action == HotkeyAction.AutoApplyToggle);
+        desktop.Drain();
+        CollectionAssert.AreEqual(new[] { "id-p" }, desktop.AutoApply.Calls[^1]);
+
+        registrar.Press(b => b.Action == HotkeyAction.AutoApplyToggle);
+        desktop.Drain();
+        Assert.AreEqual(0, desktop.AutoApply.ProfileCount);
+        Assert.AreEqual("", vm.AutoApplyText);
+    }
+
+    [TestMethod]
+    public void An_automatic_apply_uses_the_current_profile_engages_the_guard_and_counts_it()
+    {
+        var desktop = new FakeDesktop(Row(9, "New window") with { Rect = new PixelRect(70, 80, 640, 480) });
+        var vm = desktop.CreateViewModel(AutoProfile("a"));
+
+        Assert.IsTrue(vm.ApplyAutomatically(9, "id-a"));
+
+        CollectionAssert.Contains(desktop.Operations.Moves, ((nint)9, new PixelRect(5, 6, 640, 480)));
+        Assert.AreEqual("id-a", desktop.Guard.Engaged.Single().ProfileId);
+        Assert.AreEqual(1, desktop.Document.Find("id-a")!.AppliedCount);
+
+        Assert.IsFalse(vm.ApplyAutomatically(9, "id-gone"), "그 사이에 지워진 프로필은 적용하지 않는다");
+    }
+
+    [TestMethod]
+    public void An_automatic_apply_result_is_shown_as_a_status_line_or_a_warning()
+    {
+        var desktop = new FakeDesktop();
+        var vm = desktop.CreateViewModel(AutoProfile("a"));
+        var profile = desktop.Document.Find("id-a")!;
+
+        vm.ShowAutoApplyResult(new AutoApplyResult("id-a", profile, 1, "Blender", Success: true));
+        Assert.AreEqual("Status.AutoApplied:a", vm.Status);
+
+        vm.ShowAutoApplyResult(new AutoApplyResult("id-a", profile, 1, "Blender", Success: false));
+        Assert.AreEqual("Status.AutoApplyFailed:a", vm.Status);
+    }
+
     [TestMethod]
     public void Always_on_top_hotkey_toggles_the_foreground_window_not_a_profile()
     {
@@ -1233,6 +1304,7 @@ public sealed class MainViewModelTests
         public RecordingWindows Operations { get; }
         public FakeDialogs Dialogs { get; } = new();
         public FakeGuard Guard { get; } = new();
+        public FakeAutoApply AutoApply { get; } = new();
         public ProfileDocument Document { get; } = new();
         public string? SaveError { get; set; }
         public int Saves { get; private set; }
@@ -1267,7 +1339,7 @@ public sealed class MainViewModelTests
             return new(() => Rows, Operations, Document,
                 _ => { if (SaveError is null) Saves++; return SaveError; },
                 Dialogs, key => key + ":{0}", null, () => Now, overlaySettings: overlay,
-                saveOverlay: _ => { OverlaySaves++; return null; }, hotkeys: Hotkeys, guard: Guard);
+                saveOverlay: _ => { OverlaySaves++; return null; }, hotkeys: Hotkeys, guard: Guard, autoApply: AutoApply);
         }
 
         public MainViewModel CreateViewModel(params ProfileRow[] profiles)
@@ -1275,7 +1347,7 @@ public sealed class MainViewModelTests
             foreach (var p in profiles) Document.Profiles.Add(new(p.Id, p.Profile));
             return new(() => Rows, Operations, Document,
                 _ => { if (SaveError is null) Saves++; return SaveError; },
-                Dialogs, key => key + ":{0}", null, () => Now, hotkeys: Hotkeys, guard: Guard);
+                Dialogs, key => key + ":{0}", null, () => Now, hotkeys: Hotkeys, guard: Guard, autoApply: AutoApply);
         }
     }
 
@@ -1353,6 +1425,15 @@ public sealed class MainViewModelTests
         public string? ChooseSaveFile(string title, string suggestedFileName, string filter) => null;
 
         public string? OpenFolder(string path) => null;
+    }
+
+    private sealed class FakeAutoApply : IAutoApplyMonitor
+    {
+        public List<string[]> Calls { get; } = new();
+        public int ProfileCount => Calls.Count == 0 ? 0 : Calls[^1].Length;
+        public event Action<AutoApplyResult>? Applied { add { } remove { } }
+        public void SetProfiles(IReadOnlyList<(string Id, Profile Profile)> profiles) => Calls.Add(profiles.Select(p => p.Id).ToArray());
+        public void Dispose() { }
     }
 
     private sealed class FakeGuard : IWindowGuard
