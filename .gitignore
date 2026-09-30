@@ -57,3 +57,14 @@ integration_test_summary.txt
 .codex/
 notes/transfers/
 WinReform/
+
+# Development notes and AI tooling files stay on the developer machine (not part of the public repository)
+/rules/
+/notes/
+/doc/runs/
+/doc/INTENT.md
+/CLAUDE.md
+/AGENTS.md
+/.claude/
+/.taskmaster/
+/.mcp.json

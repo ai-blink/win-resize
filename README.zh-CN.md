@@ -60,5 +60,4 @@ powershell -NoProfile -File next\tools\publish.ps1
 
 - next/：WPF 应用（src/ 为应用，tests/，tools/ 为发布脚本）
 - doc/、docs/：发布说明、更新日志和用户文档
-- rules/：开发笔记与决策记录
 - src/、run_gui.py、final_build.py、tests/：此前的 PyQt5 应用（v0.01.5，标签 `last-pyqt5-stable`），仅供参考

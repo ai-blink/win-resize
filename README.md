@@ -74,5 +74,4 @@ Simplified Chinese and Japanese:
 
 - next/: the WPF application (src/ for the app, tests/, tools/ for publishing)
 - doc/, docs/: release notes, changelog and user documentation
-- rules/: development notes and decisions
 - src/, run_gui.py, final_build.py, tests/: the earlier PyQt5 application (v0.01.5, tag `last-pyqt5-stable`), kept for reference
