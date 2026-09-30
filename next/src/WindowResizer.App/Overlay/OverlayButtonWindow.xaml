@@ -15,9 +15,9 @@
         <TextBlock x:Name="Label" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis" />
         <Grid.ContextMenu>
-            <ContextMenu>
-                <MenuItem x:Name="CloseItem" Click="OnCloseClicked" />
-            </ContextMenu>
+            <!-- 항목은 코드(BuildMenu)가 프로필에서 만든다. -->
+            <ContextMenu x:Name="Menu" />
+
         </Grid.ContextMenu>
     </Grid>
 </Window>

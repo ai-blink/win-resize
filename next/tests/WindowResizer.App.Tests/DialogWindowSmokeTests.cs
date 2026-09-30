@@ -123,6 +123,36 @@ public sealed class DialogWindowSmokeTests
                 button.ShowFeedback(success: shape == "pill");
                 button.UpdateLayout();
             }
+
+            // 우클릭 메뉴: 이름(굵게) / 연결 대상 / 위치 / 편집 / 닫기. 편집과 닫기는 눌러서 이벤트가 나가는지 본다.
+            button.SetInfo(Overlay.OverlayMenuInfo.Describe(profile, k => k + " {0} {1} {2} {3}"));
+            var menu = button.ButtonMenu;
+            menu.IsOpen = true;
+            try
+            {
+                var items = menu.Items.Cast<object>().ToList();
+                Assert.AreEqual("Blender", ((System.Windows.Controls.TextBlock)items[0]).Text);
+                Assert.AreEqual(FontWeights.Bold, ((System.Windows.Controls.TextBlock)items[0]).FontWeight);
+                var clickable = items.OfType<System.Windows.Controls.MenuItem>().ToList();
+                Assert.HasCount(2, clickable, string.Join(" | ", clickable.Select(m => m.Header)));
+                // 창의 문구 함수는 위에서 만든 것(k + " {0} {1}")이다.
+                Assert.AreEqual("Overlay.Menu.Edit {0} {1}", clickable[0].Header);
+                Assert.AreEqual("Overlay.Button.Close {0} {1}", clickable[1].Header);
+                Assert.IsTrue(items.Take(items.Count - 2).All(i => i is System.Windows.Controls.TextBlock or System.Windows.Controls.Separator),
+                    "머리글과 정보 줄은 누를 수 있는 항목이 아니어야 한다");
+
+                string? raised = null;
+                button.EditRequested += _ => raised = "edit";
+                button.CloseRequested += _ => raised = "close";
+                clickable[0].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Assert.AreEqual("edit", raised);
+                clickable[1].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Assert.AreEqual("close", raised);
+            }
+            finally
+            {
+                menu.IsOpen = false;
+            }
         }
         finally
         {

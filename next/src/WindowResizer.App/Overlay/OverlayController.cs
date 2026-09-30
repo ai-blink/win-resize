@@ -63,10 +63,12 @@ public sealed class OverlayController : IDisposable
             {
                 button = Create(id);
                 button.Configure(row.Name, row.Profile.EffectiveOverlayStyle, _main.Overlay.Settings);
+                button.SetInfo(OverlayMenuInfo.Describe(row.Profile, _text));
                 Place(button);
                 continue;
             }
             button.Configure(row.Name, row.Profile.EffectiveOverlayStyle, _main.Overlay.Settings);
+            button.SetInfo(OverlayMenuInfo.Describe(row.Profile, _text));
         }
     }
 
@@ -80,6 +82,7 @@ public sealed class OverlayController : IDisposable
             var row = _main.Profiles.FirstOrDefault(p => p.Id == b.ProfileId);
             if (row is not null) _main.SetProfileOverlay(row, false);
         };
+        button.EditRequested += b => _main.EditProfile(b.ProfileId);
         _buttons[id] = button;
         return button;
     }

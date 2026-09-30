@@ -263,6 +263,23 @@ public sealed class MainViewModelTests
     }
 
     [TestMethod]
+    public void Edit_by_id_opens_that_profile_whatever_is_selected_and_ignores_unknown_ids()
+    {
+        var desktop = new FakeDesktop();
+        var vm = desktop.CreateViewModel(Profile("a", "x", 0, 0, 10, 10), Profile("b", "y", 5, 5, 20, 20));
+        vm.SelectedProfile = vm.Profiles.Single(p => p.Id == "id-a");
+
+        desktop.Dialogs.OnEditor = e => { e.Description = "from overlay"; Assert.IsTrue(e.TrySave()); };
+        vm.EditProfile("id-b");
+
+        Assert.AreEqual("from overlay", desktop.Document.Find("id-b")!.Description);
+        Assert.AreNotEqual("from overlay", desktop.Document.Find("id-a")!.Description, "선택돼 있던 다른 프로필은 그대로여야 한다");
+
+        desktop.Dialogs.OnEditor = _ => Assert.Fail("없는 id 는 편집 창을 열면 안 된다");
+        vm.EditProfile("id-none");
+    }
+
+    [TestMethod]
     public void Editor_validation_blocks_save_and_jumps_to_the_page_with_the_problem()
     {
         var desktop = new FakeDesktop();

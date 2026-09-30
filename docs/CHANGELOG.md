@@ -6,6 +6,17 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.7 - 2026-09-30
+
+Seventh preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.7.md](../doc/releases/v0.02.0-preview.7.md).
+
+### Highlights
+
+- The overlay button right-click menu shows the profile name, what it matches, the saved position
+  and size, "Edit this profile..." (opens that profile's editor) and "Close this button".
+
 ## 0.02.0-preview.6 - 2026-09-30
 
 Sixth preview of the WPF (.NET 10) app, built from source; the distributed

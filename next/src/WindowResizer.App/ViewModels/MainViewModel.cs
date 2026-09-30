@@ -519,9 +519,13 @@ public sealed class MainViewModel : ObservableObject
             Status = string.Format(_text("Status.ProfileCreated"), editor.Profile.Name);
     }
 
-    public void EditSelectedProfile()
+    public void EditSelectedProfile() => EditRow(SelectedProfile);
+
+    /// <summary>오버레이 버튼 우클릭 "이 프로필 편집..." - 목록 선택과 상관없이 그 프로필의 편집 창을 연다.</summary>
+    public void EditProfile(string id) => EditRow(Profiles.FirstOrDefault(p => p.Id == id));
+
+    private void EditRow(ProfileRow? row)
     {
-        var row = SelectedProfile;
         if (row is null || row.IsUnreadable) return;
 
         var editor = CreateEditor(ProfileJson.Clone(row.Profile), row.Id, EditorPage.General);

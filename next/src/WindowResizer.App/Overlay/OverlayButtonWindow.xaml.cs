@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -53,7 +54,7 @@ public partial class OverlayButtonWindow : Window
             IsNoActivate = Win32Windows.MakeOverlayWindow(Handle);
             HwndSource.FromHwnd(Handle)?.AddHook(Win32Windows.NoActivateHook);
         };
-        CloseItem.Header = text("Overlay.Button.Close");
+        BuildMenu(null);
 
         MouseEnter += (_, _) => { _gesture.Enter(_dwellMode); SyncDwellTimer(); Render(); };
         MouseLeave += (_, _) => { _gesture.Leave(); SyncDwellTimer(); Render(); };
@@ -152,7 +153,48 @@ public partial class OverlayButtonWindow : Window
             Triggered?.Invoke(this);
     }
 
-    private void OnCloseClicked(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this);
+    /// <summary>우클릭 "이 프로필 편집...".</summary>
+    public event Action<OverlayButtonWindow>? EditRequested;
+
+    /// <summary>우클릭 메뉴(렌더 스모크 테스트가 항목과 클릭을 확인한다).</summary>
+    public ContextMenu ButtonMenu => Menu;
+
+    /// <summary>우클릭 메뉴의 연결 대상 줄을 프로필에서 다시 만든다. 프로필이 바뀔 때마다 부른다.</summary>
+    public void SetInfo(OverlayMenuInfo.Lines info) => BuildMenu(info);
+
+    /// <summary>
+    /// 머리글(프로필 이름, 굵게)과 정보 줄은 항목이 아니라 글자 조각이다 - 비활성 항목은 회색이 되고 마우스를 올리면
+    /// 강조되는데, 이 줄들은 누를 수 있는 것이 아니다.
+    /// </summary>
+    private void BuildMenu(OverlayMenuInfo.Lines? info)
+    {
+        Menu.Items.Clear();
+        if (info is not null)
+        {
+            Menu.Items.Add(InfoText(_profileName, bold: true));
+            Menu.Items.Add(new Separator());
+            foreach (var line in info.Target) Menu.Items.Add(InfoText(line));
+            Menu.Items.Add(InfoText(info.Position));
+            Menu.Items.Add(new Separator());
+        }
+        var edit = new MenuItem { Header = _text("Overlay.Menu.Edit"), IsEnabled = info is not null };
+        edit.Click += (_, _) => EditRequested?.Invoke(this);
+        var close = new MenuItem { Header = _text("Overlay.Button.Close") };
+        close.Click += (_, _) => CloseRequested?.Invoke(this);
+        Menu.Items.Add(edit);
+        Menu.Items.Add(close);
+    }
+
+    private static TextBlock InfoText(string value, bool bold = false) => new()
+    {
+        Text = value,
+        Margin = new Thickness(14, 3, 14, 3),
+        MaxWidth = 360,
+        TextWrapping = TextWrapping.Wrap,
+        FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
+        Opacity = bold ? 1.0 : 0.75,
+        IsHitTestVisible = false,
+    };
 
     private void SyncDwellTimer()
     {

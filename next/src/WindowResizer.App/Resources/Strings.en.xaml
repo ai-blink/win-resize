@@ -172,6 +172,14 @@
     <sys:String x:Key="Overlay.Profiles.Hint">Each profile that is on gets one button. This is the same setting as the editor's How to run page.</sys:String>
     <!-- Overlay O3: button windows -->
     <sys:String x:Key="Overlay.Button.Close">Close this button</sys:String>
+    <sys:String x:Key="Overlay.Menu.Edit">Edit this profile...</sys:String>
+    <sys:String x:Key="Overlay.Menu.Position">Position {0}, {1} · size {2} x {3}</sys:String>
+    <sys:String x:Key="Overlay.Menu.NoPosition">No saved position</sys:String>
+    <sys:String x:Key="Overlay.Menu.Empty">(empty)</sys:String>
+    <sys:String x:Key="Overlay.Menu.Title">Window title: {0}</sys:String>
+    <sys:String x:Key="Overlay.Menu.Process">Process: {0}</sys:String>
+    <sys:String x:Key="Overlay.Menu.Class">Window class: {0}</sys:String>
+    <sys:String x:Key="Overlay.Menu.Path">Path: {0}</sys:String>
     <sys:String x:Key="Overlay.Button.TipClick">Click to apply profile '{1}' to the window you were just using</sys:String>
     <sys:String x:Key="Overlay.Button.TipDwell">Rest the mouse here for {0:0.0} s to apply profile '{1}' to the window you were just using</sys:String>
     <sys:String x:Key="Overlay.Button.TipDrag">Drag to move</sys:String>
