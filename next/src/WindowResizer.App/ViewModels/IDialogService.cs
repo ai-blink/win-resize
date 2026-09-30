@@ -15,6 +15,9 @@ public interface IDialogService
     /// <summary>프로필 편집 창을 모달로 연다. 저장을 눌러 닫혔으면 true.</summary>
     bool ShowEditor(ProfileEditorViewModel editor);
 
+    /// <summary>화면에서 창 고르기(캡처 도구처럼 테두리가 붙는다). 취소하면 null.</summary>
+    WindowRow? PickWindowOnScreen(IReadOnlyList<WindowRow> candidates);
+
     /// <summary>오버레이 버튼 속성 창을 모달로 연다. 저장을 눌러 닫혔으면 true.</summary>
     bool ShowButtonEditor(ButtonEditorViewModel editor);
 

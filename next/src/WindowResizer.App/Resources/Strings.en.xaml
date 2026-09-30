@@ -412,4 +412,7 @@
     <sys:String x:Key="ButtonShape.circle">Circle</sys:String>
     <sys:String x:Key="ButtonEditor.Preview">Preview (actual size)</sys:String>
     <sys:String x:Key="ButtonEditor.Preview.Hint">Drawn at the size of the button on screen, whatever the app scale on the Settings page is (only the Windows scale applies). While you change values the real button on screen changes too, before saving; Cancel puts it back.</sys:String>
+    <sys:String x:Key="ButtonEditor.PickWindow">Pick a window on screen</sys:String>
+    <sys:String x:Key="ButtonEditor.Picked">Took the place and size from '{0}'</sys:String>
+    <sys:String x:Key="ScreenPicker.Help">Point at the window to take from, check its outline and click. Esc or a right click cancels.</sys:String>
 </ResourceDictionary>

@@ -1,0 +1,18 @@
+<Window x:Class="WindowResizer.App.WindowScreenPicker"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="#22000000"
+        ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False" Cursor="Cross"
+        Left="0" Top="0" Width="200" Height="200">
+    <!-- 화면 캡처 도구처럼 모니터 전체를 덮는다. 배경 알파가 0 이 아니어야 마우스를 이 창이 받는다(아래 창으로 새지 않는다).
+         테두리와 안내는 코드(Highlight)가 그린다. 캔버스는 마우스를 받지 않는다 - 이벤트는 창이 받는다. -->
+    <Canvas x:Name="Surface" IsHitTestVisible="False">
+        <Border x:Name="Frame" BorderBrush="#2B6CB0" BorderThickness="3" Background="#332B6CB0" Visibility="Collapsed" />
+        <Border x:Name="Tip" Background="#E61F2430" CornerRadius="6" Padding="10,6" Visibility="Collapsed">
+            <TextBlock x:Name="TipText" Foreground="White" FontSize="14" />
+        </Border>
+        <Border x:Name="Help" Background="#E61F2430" CornerRadius="6" Padding="14,8" Canvas.Left="24" Canvas.Top="24">
+            <TextBlock x:Name="HelpText" Foreground="White" FontSize="14" />
+        </Border>
+    </Canvas>
+</Window>

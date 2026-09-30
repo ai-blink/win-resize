@@ -649,6 +649,36 @@ public sealed class MainViewModelTests
     }
 
     [TestMethod]
+    public void Picking_a_window_on_screen_gives_its_place_and_title_and_cancel_gives_nothing()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) }, Row(2, "Notepad"));
+        var vm = desktop.CreateViewModelWithOverlay(new Core.Overlay.OverlaySettings { ButtonsMigrated = true });
+        vm.RefreshWindows();
+
+        desktop.Dialogs.PickOnScreen = _ => null;
+        Assert.IsNull(vm.PickWindowOnScreen());
+        Assert.AreNotEqual("Status.CaptureRefused:{0}", vm.Status, "취소는 알리지 않는다");
+
+        desktop.Dialogs.PickOnScreen = c => c.Single(w => w.Handle == 1);
+        var picked = vm.PickWindowOnScreen()!.Value;
+
+        Assert.AreEqual((70, 80, 1100, 900), (picked.Configuration.X, picked.Configuration.Y, picked.Configuration.Width, picked.Configuration.Height));
+        Assert.AreEqual("Blender", picked.Title);
+        Assert.HasCount(2, desktop.Dialogs.LastPickCandidates!, "후보는 열려 있는 창 목록이다");
+    }
+
+    [TestMethod]
+    public void Picking_a_window_that_cannot_be_placed_says_why_and_gives_nothing()
+    {
+        var desktop = new FakeDesktop(Row(1, "Gone") with { Rect = new PixelRect(-32000, -32000, 100, 100) });
+        var vm = desktop.CreateViewModelWithOverlay(new Core.Overlay.OverlaySettings { ButtonsMigrated = true });
+        desktop.Dialogs.PickOnScreen = c => c[0];
+
+        Assert.IsNull(vm.PickWindowOnScreen());
+        StringAssert.StartsWith(vm.Status, "Status.CaptureRefused:");
+    }
+
+    [TestMethod]
     public void Button_names_stay_unique_and_a_duplicate_is_a_separate_button()
     {
         var settings = new Core.Overlay.OverlaySettings();
@@ -1231,6 +1261,15 @@ public sealed class MainViewModelTests
             OnEditor?.Invoke(editor);
             // 실제 창과 같이 저장 버튼은 TrySave 가 통과해야 닫힌다.
             return EditorAnswer && editor.TrySave();
+        }
+
+        public Func<IReadOnlyList<WindowRow>, WindowRow?> PickOnScreen { get; set; } = _ => null;
+        public IReadOnlyList<WindowRow>? LastPickCandidates { get; private set; }
+
+        public WindowRow? PickWindowOnScreen(IReadOnlyList<WindowRow> candidates)
+        {
+            LastPickCandidates = candidates;
+            return PickOnScreen(candidates);
         }
 
         public bool ShowButtonEditor(ButtonEditorViewModel editor)

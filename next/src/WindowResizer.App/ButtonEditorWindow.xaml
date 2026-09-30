@@ -85,9 +85,14 @@
                                     </StackPanel>
                                 </UniformGrid>
                                 <CheckBox IsChecked="{Binding IsMaximized}" Content="{DynamicResource Editor.Maximized}" Margin="0,0,0,12" />
-                                <Button Content="{DynamicResource ButtonEditor.CaptureFromWindow}" HorizontalAlignment="Left"
-                                        Command="{Binding CaptureFromWindowCommand}"
-                                        AutomationProperties.Name="{DynamicResource ButtonEditor.CaptureFromWindow}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource AccentButtonStyle}" Content="{DynamicResource ButtonEditor.PickWindow}" Margin="0,0,10,0"
+                                            Command="{Binding PickWindowCommand}"
+                                            AutomationProperties.Name="{DynamicResource ButtonEditor.PickWindow}" />
+                                    <Button Content="{DynamicResource ButtonEditor.CaptureFromWindow}"
+                                            Command="{Binding CaptureFromWindowCommand}"
+                                            AutomationProperties.Name="{DynamicResource ButtonEditor.CaptureFromWindow}" />
+                                </StackPanel>
                                 <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource ButtonEditor.CaptureFromWindow.Hint}" />
                                 <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource AppAccentBrush}" />
                             </StackPanel>

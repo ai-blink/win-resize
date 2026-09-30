@@ -23,6 +23,7 @@ public sealed class LogViewModelTests
         public void Warn(string title, string message) { }
         public bool ShowEditor(ProfileEditorViewModel editor) => false;
         public bool ShowButtonEditor(ButtonEditorViewModel editor) => false;
+        public WindowRow? PickWindowOnScreen(IReadOnlyList<WindowRow> candidates) => null;
         public WindowRow? ChooseWindow(IReadOnlyList<WindowRow> candidates) => null;
 
         public bool CopyToClipboard(string text)

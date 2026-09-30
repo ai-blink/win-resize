@@ -205,6 +205,30 @@ public sealed class DialogWindowSmokeTests
             Theming.UiScale.Set(1.0);
         }
 
+        // 화면에서 창 고르기: 후보 위에서 테두리를 그리고 이 앱의 창과 최소화된 창은 고르지 않는다.
+        var candidates = new[]
+        {
+            new WindowRow(1, new WindowInfo("Other program"), 999, new PixelRect(100, 100, 800, 600), false, false),
+            new WindowRow(2, new WindowInfo("Own window"), (uint)Environment.ProcessId, new PixelRect(0, 0, 4000, 3000), false, false),
+            new WindowRow(3, new WindowInfo("Minimized"), 998, new PixelRect(-32000, -32000, 100, 100), false, true),
+        };
+        var screenPicker = new WindowScreenPicker(candidates, k => k) { ShowActivated = false };
+        screenPicker.Show();
+        try
+        {
+            Assert.AreEqual((nint)1, screenPicker.HitTest(200, 200)?.Handle, "이 앱의 창을 건너뛰고 아래의 다른 프로그램 창을 잡는다");
+            Assert.IsNull(screenPicker.HitTest(3000, 2500), "이 앱의 창만 있는 곳은 고를 수 없다");
+            screenPicker.Highlight(screenPicker.HitTest(200, 200));
+            screenPicker.UpdateLayout();
+            Assert.AreEqual((nint)1, screenPicker.Highlighted?.Handle);
+            screenPicker.Highlight(null);
+            Assert.IsNull(screenPicker.Highlighted);
+        }
+        finally
+        {
+            screenPicker.Close();
+        }
+
         // 감추기 스위치: 두 상태(보임/감춤)와 잠금 여부로 그리고, 활성화 방지가 걸렸는지 본다.
         var hideSwitch = new Overlay.OverlayToggleWindow(k => k);
         hideSwitch.Show();

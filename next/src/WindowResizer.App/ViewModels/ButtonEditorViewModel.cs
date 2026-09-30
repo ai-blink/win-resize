@@ -28,6 +28,7 @@ public sealed class ButtonEditorViewModel : ObservableObject
 
     private readonly Func<WindowConfiguration?> _captureTarget;
     private readonly Func<string, string> _text;
+    private readonly Func<(WindowConfiguration Configuration, string Title)?>? _pickOnScreen;
 
     private ButtonPage _page;
     private string _name, _label, _activation, _shape, _background, _foreground, _border;
@@ -37,8 +38,11 @@ public sealed class ButtonEditorViewModel : ObservableObject
     private string _error = "", _message = "";
 
     /// <param name="captureTarget">직전에 쓰던 창의 지금 자리. 잡지 못하면 null(이유는 호출한 쪽이 상태 줄로 알렸다).</param>
-    public ButtonEditorViewModel(OverlayButton working, Func<WindowConfiguration?> captureTarget, Func<string, string> text)
+    /// <param name="pickOnScreen">화면에서 창을 골라 그 자리와 제목을 돌려준다. 취소하거나 잡지 못하면 null(이유는 호출한 쪽이 알렸다).</param>
+    public ButtonEditorViewModel(OverlayButton working, Func<WindowConfiguration?> captureTarget, Func<string, string> text,
+        Func<(WindowConfiguration Configuration, string Title)?>? pickOnScreen = null)
     {
+        _pickOnScreen = pickOnScreen;
         Button = working;
         _captureTarget = captureTarget;
         _text = text;
@@ -55,6 +59,7 @@ public sealed class ButtonEditorViewModel : ObservableObject
 
         NavigateCommand = new ParameterCommand<ButtonPage>(page => Page = page);
         CaptureFromWindowCommand = new RelayCommand(CaptureFromWindow);
+        PickWindowCommand = new RelayCommand(PickWindow, () => _pickOnScreen is not null);
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(Name) or nameof(Label) or nameof(Shape) or nameof(ButtonWidth) or nameof(ButtonHeight)
@@ -89,6 +94,7 @@ public sealed class ButtonEditorViewModel : ObservableObject
 
     public ICommand NavigateCommand { get; }
     public ICommand CaptureFromWindowCommand { get; }
+    public ICommand PickWindowCommand { get; }
 
     public ButtonPage Page { get => _page; set => Set(ref _page, value); }
     public string Name { get => _name; set => Set(ref _name, value); }
@@ -122,6 +128,14 @@ public sealed class ButtonEditorViewModel : ObservableObject
         }
         (X, Y, Width, Height, IsMaximized) = (c.X, c.Y, c.Width, c.Height, c.IsMaximized);
         Message = _text("ButtonEditor.Captured");
+    }
+
+    private void PickWindow()
+    {
+        if (_pickOnScreen?.Invoke() is not { } picked) return;   // 취소는 조용히 - 아무것도 바꾸지 않는다
+        var c = picked.Configuration;
+        (X, Y, Width, Height, IsMaximized) = (c.X, c.Y, c.Width, c.Height, c.IsMaximized);
+        Message = string.Format(_text("ButtonEditor.Picked"), picked.Title);
     }
 
     /// <summary>검사를 통과하면 복사본에 되쓰고 true. 아니면 <see cref="Error"/> 에 이유를 두고 false.</summary>

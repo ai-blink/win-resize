@@ -100,4 +100,26 @@ public sealed class ButtonEditorViewModelTests
         Assert.AreEqual(150, vm.Button.Style.Width, "미리보기는 편집 중인 복사본을 바꾸지 않는다");
         Assert.AreEqual("Blender", vm.Button.Name);
     }
+
+    [TestMethod]
+    public void Pick_on_screen_fills_the_place_and_names_the_window_and_does_nothing_when_cancelled()
+    {
+        var pickedConfig = new WindowConfiguration { X = 10, Y = 20, Width = 800, Height = 600, IsMaximized = true };
+        var vm = new ButtonEditorViewModel(new OverlayButton { Id = "a", Name = "Blender", X = 1, Y = 2, Width = 300, Height = 200 },
+            () => null, k => k + ":{0}", () => (pickedConfig, "Blender 5.2"));
+
+        Assert.IsTrue(vm.PickWindowCommand.CanExecute(null));
+        vm.PickWindowCommand.Execute(null);
+
+        Assert.AreEqual((10, 20, 800, 600, true), (vm.X, vm.Y, vm.Width, vm.Height, vm.IsMaximized));
+        Assert.AreEqual("ButtonEditor.Picked:Blender 5.2", vm.Message);
+
+        var cancelled = new ButtonEditorViewModel(new OverlayButton { Id = "a", Name = "x", X = 1, Y = 2, Width = 300, Height = 200 }, () => null, k => k, () => null);
+        cancelled.PickWindowCommand.Execute(null);
+        Assert.AreEqual((1, 2, 300, 200), (cancelled.X, cancelled.Y, cancelled.Width, cancelled.Height));
+        Assert.AreEqual("", cancelled.Message);
+
+        var without = new ButtonEditorViewModel(new OverlayButton { Id = "a", Name = "x" }, () => null, k => k);
+        Assert.IsFalse(without.PickWindowCommand.CanExecute(null), "고르는 방법이 없으면 버튼을 막는다");
+    }
 }

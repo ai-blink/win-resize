@@ -299,12 +299,30 @@ public sealed class MainViewModel : ObservableObject
     {
         if (Overlay.Find(id) is not { } button) return;
 
-        var editor = new ButtonEditorViewModel(button.Clone(), () => TryCaptureOverlayTarget(out var capture, out _) ? capture : null, _text);
+        var editor = new ButtonEditorViewModel(button.Clone(), () => TryCaptureOverlayTarget(out var capture, out _) ? capture : null, _text, PickWindowOnScreen);
         editor.Previewed += preview => Overlay.PreviewButton(id, preview);
         var saved = _dialogs.ShowButtonEditor(editor);
         // 창을 닫으면 미리보기를 걷는다. 저장했으면 아래 저장이 새 값으로 다시 그린다.
         Overlay.PreviewButton(id, null);
         if (saved) Overlay.UpdateButton(editor.Button);
+    }
+
+    /// <summary>
+    /// 화면에서 창을 골라 그 자리를 잡는다(D-034). 이 앱의 창과 최소화된 창은 후보가 아니다(선택 창이 거른다).
+    /// 취소하면 null 이고 알리지 않는다. 고른 창이 자리를 잡을 수 없는 상태면 이유를 알리고 null.
+    /// </summary>
+    public (WindowConfiguration Configuration, string Title)? PickWindowOnScreen()
+    {
+        var picked = _dialogs.PickWindowOnScreen(_enumerateWindows());
+        if (picked is null) return null;
+
+        var result = WindowCapture.Capture(_windows, picked.Handle);
+        if (!result.Succeeded)
+        {
+            Alert(string.Format(_text("Status.CaptureRefused"), picked.Info.Title, _text("Capture." + result.Refusal)));
+            return null;
+        }
+        return (result.Configuration!, picked.Info.Title);
     }
 
     /// <summary>버튼을 지운다. 되돌릴 수 없어서 묻는다.</summary>
