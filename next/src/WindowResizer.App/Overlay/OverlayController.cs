@@ -1,5 +1,3 @@
-using System.Collections.Specialized;
-using System.Windows.Threading;
 using WindowResizer.App.ViewModels;
 using WindowResizer.Core.Overlay;
 using WindowResizer.Core.Windowing;
@@ -24,7 +22,6 @@ public sealed class OverlayController : IDisposable
     private readonly Win32Windows _windows = new();
     private readonly Dictionary<string, OverlayButtonWindow> _buttons = new();
     private OverlayToggleWindow? _toggle;
-    private bool _reconcileQueued;
     private bool _disposed;
 
     public OverlayController(MainViewModel main, ForegroundTracker tracker, Func<string, string> text)
@@ -32,7 +29,6 @@ public sealed class OverlayController : IDisposable
         _main = main;
         _tracker = tracker;
         _text = text;
-        _main.Profiles.CollectionChanged += OnProfilesChanged;
         _main.Overlay.Changed += OnSettingsChanged;
         Reconcile();
         SyncToggle();
@@ -46,10 +42,9 @@ public sealed class OverlayController : IDisposable
     /// <summary>프로필 목록에 맞춘다. 있는 창은 고치고, 새로 켠 것은 만들고, 끈 것은 닫는다. 몇 번 불러도 같다.</summary>
     public void Reconcile()
     {
-        _reconcileQueued = false;
         if (_disposed) return;
 
-        var wanted = _main.Profiles.Where(p => p.OverlayEnabled).ToDictionary(p => p.Id);
+        var wanted = _main.Overlay.Settings.Buttons.ToDictionary(b => b.Id);
 
         foreach (var id in _buttons.Keys.Where(id => !wanted.ContainsKey(id)).ToList())
         {
@@ -57,18 +52,13 @@ public sealed class OverlayController : IDisposable
             _buttons.Remove(id);
         }
 
-        foreach (var (id, row) in wanted)
+        foreach (var (id, model) in wanted)
         {
-            if (!_buttons.TryGetValue(id, out var button))
-            {
-                button = Create(id);
-                button.Configure(row.Name, row.Profile.EffectiveOverlayStyle, _main.Overlay.Settings);
-                button.SetInfo(OverlayMenuInfo.Describe(row.Profile, _text));
-                Place(button);
-                continue;
-            }
-            button.Configure(row.Name, row.Profile.EffectiveOverlayStyle, _main.Overlay.Settings);
-            button.SetInfo(OverlayMenuInfo.Describe(row.Profile, _text));
+            var isNew = !_buttons.TryGetValue(id, out var button);
+            button ??= Create(id);
+            button.Configure(model.Name, model.Style, _main.Overlay.Settings);
+            button.SetInfo(OverlayMenuInfo.Position(model, _text));
+            if (isNew) Place(button);
         }
     }
 
@@ -77,12 +67,10 @@ public sealed class OverlayController : IDisposable
         var button = new OverlayButtonWindow(id, _text);
         button.Triggered += OnTriggered;
         button.Moved += (b, point) => _main.Overlay.RememberPosition(b.ProfileId, point);
-        button.CloseRequested += b =>
-        {
-            var row = _main.Profiles.FirstOrDefault(p => p.Id == b.ProfileId);
-            if (row is not null) _main.SetProfileOverlay(row, false);
-        };
-        button.EditRequested += b => _main.EditProfile(b.ProfileId);
+        button.EditRequested += b => _main.EditOverlayButton(b.ProfileId);
+        button.OverwriteRequested += b => _main.OverwriteButtonPlace(b.ProfileId);
+        button.DuplicateRequested += b => _main.Overlay.DuplicateButton(b.ProfileId);
+        button.DeleteRequested += b => _main.DeleteOverlayButton(b.ProfileId);
         _buttons[id] = button;
         return button;
     }
@@ -113,7 +101,7 @@ public sealed class OverlayController : IDisposable
     {
         var target = _tracker.Target;
         var title = target is { } hwnd ? Win32Windows.DescribeWindow(hwnd).Title : "";
-        button.ShowFeedback(_main.ApplyProfileToWindow(button.ProfileId, target, title));
+        button.ShowFeedback(_main.ApplyButtonToWindow(button.ProfileId, target, title));
     }
 
     private void OnSettingsChanged(string property)
@@ -178,20 +166,10 @@ public sealed class OverlayController : IDisposable
         if (saved != point) _main.Overlay.RememberTogglePosition(point);
     }
 
-    /// <summary>
-    /// 프로필 목록은 저장할 때마다 통째로 다시 만들어진다(Clear + Add). 변경 알림마다 맞추지 않고 한 번으로 모은다.
-    /// </summary>
-    private void OnProfilesChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (_reconcileQueued) return;
-        _reconcileQueued = true;
-        Dispatcher.CurrentDispatcher.BeginInvoke(Reconcile, DispatcherPriority.Background);
-    }
 
     public void Dispose()
     {
         _disposed = true;
-        _main.Profiles.CollectionChanged -= OnProfilesChanged;
         _main.Overlay.Changed -= OnSettingsChanged;
         foreach (var button in _buttons.Values) button.Close();
         _buttons.Clear();

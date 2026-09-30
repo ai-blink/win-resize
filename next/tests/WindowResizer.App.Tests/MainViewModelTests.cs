@@ -492,61 +492,159 @@ public sealed class MainViewModelTests
         Assert.AreEqual("Status.SettingsSaveFailed:denied", status);
     }
 
-    [TestMethod]
-    public void Profile_overlay_switches_and_close_all_go_through_the_profile_file()
+    private static ProfileRow WithOverlay(ProfileRow row)
     {
-        var desktop = new FakeDesktop();
-        desktop.Document.Unreadable.Add(new UnreadableProfile("broken", """{ "name": "Old" }""", "x"));
-        var vm = desktop.CreateViewModel(Profile("a", "x", 0, 0, 10, 10), Profile("b", "y", 0, 0, 10, 10));
-
-        vm.SetProfileOverlayCommand.Execute(vm.Profiles.Single(p => p.Id == "id-a"));
-        vm.SetProfileOverlayCommand.Execute(vm.Profiles.Single(p => p.Id == "id-b"));
-        vm.SetProfileOverlay(vm.Profiles.Single(p => p.IsUnreadable), true);
-
-        Assert.IsTrue(vm.Profiles.Where(p => !p.IsUnreadable).All(p => p.OverlayEnabled));
-        Assert.IsFalse(vm.Profiles.Single(p => p.IsUnreadable).OverlayEnabled, "읽지 못한 프로필에는 버튼이 없다");
-        Assert.AreEqual(2, desktop.Saves);
-
-        vm.CloseAllOverlaysCommand.Execute(null);
-
-        Assert.IsTrue(desktop.Document.Profiles.All(p => p.Value.OverlayStyle!.Enabled == false));
-        Assert.AreEqual("Status.OverlayAllClosed:{0}", vm.Status);
-        vm.CloseAllOverlaysCommand.Execute(null);
-        Assert.AreEqual(3, desktop.Saves, "켜진 것이 없으면 저장하지 않는다");
+        row.Profile.OverlayStyle = new OverlayStyle { Enabled = true, Shape = "circle" };
+        return row;
     }
 
-    // --- 오버레이 O3: 버튼이 누른 프로필을 직전 창에 ---------------------------------------------
+    private static Core.Overlay.OverlayButton Button(string id, string name, int x = 1, int y = 2, int w = 300, int h = 200) =>
+        new() { Id = id, Name = name, X = x, Y = y, Width = w, Height = h };
 
     [TestMethod]
-    public void Overlay_apply_ignores_matching_counts_the_window_and_keeps_the_undo()
+    public void Overlay_profiles_are_copied_into_buttons_once_and_the_profiles_stay_untouched()
     {
-        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) });
-        var vm = desktop.CreateViewModel(Profile("b", "only-blender", 5, 6, 640, 480));
-        vm.RefreshWindows();
-        vm.SelectedWindow = vm.Windows.Single();
-        vm.SelectedProfile = vm.Profiles.Single();
-        vm.OverwritePositionCommand.Execute(null);
+        var desktop = new FakeDesktop();
+        var settings = new Core.Overlay.OverlaySettings();
+        var vm = desktop.CreateViewModelWithOverlay(settings, WithOverlay(Profile("a", "x", 5, 6, 700, 500)), Profile("b", "y", 0, 0, 10, 10));
 
-        var ok = vm.ApplyProfileToWindow("id-b", 42, "Untitled - Notepad");
+        var button = settings.Buttons.Single();
+        Assert.AreEqual(("id-a", "a", 5, 6, 700, 500), (button.Id, button.Name, button.X, button.Y, button.Width, button.Height));
+        Assert.AreEqual("circle", button.Style.Shape);
+        Assert.IsTrue(settings.ButtonsMigrated);
+        Assert.AreEqual(1, desktop.OverlaySaves);
+        Assert.AreEqual(0, desktop.Saves, "프로필 파일은 쓰지 않는다");
+        Assert.IsTrue(desktop.Document.Find("id-a")!.OverlayStyle!.Enabled, "프로필의 오버레이 값은 그대로다");
+        Assert.AreEqual("Status.OverlayMigrated:1", vm.Status);
+
+        // 다시 시작해도(같은 설정) 다시 복사하지 않고, 사용자가 지운 버튼이 되살아나지 않는다.
+        vm.Overlay.RemoveButton("id-a");
+        var again = desktop.CreateViewModelWithOverlay(settings);
+        Assert.IsEmpty(again.Overlay.Settings.Buttons);
+    }
+
+    [TestMethod]
+    public void Close_all_hides_the_buttons_without_deleting_any()
+    {
+        var desktop = new FakeDesktop();
+        var settings = new Core.Overlay.OverlaySettings { ButtonsMigrated = true };
+        settings.Buttons.Add(Button("a", "a"));
+        var vm = desktop.CreateViewModelWithOverlay(settings);
+
+        vm.CloseAllOverlaysCommand.Execute(null);
+
+        Assert.IsTrue(vm.Overlay.Hidden);
+        Assert.HasCount(1, settings.Buttons);
+    }
+
+    // --- 오버레이 버튼(D-032): 자기 자리를 직전 창에 ------------------------------------------------
+
+    [TestMethod]
+    public void A_button_moves_the_last_window_to_its_own_place_whatever_the_window_is()
+    {
+        var desktop = new FakeDesktop();
+        var settings = new Core.Overlay.OverlaySettings { ButtonsMigrated = true };
+        settings.Buttons.Add(Button("b", "Blender", 5, 6, 640, 480));
+        var vm = desktop.CreateViewModelWithOverlay(settings, Profile("p", "x", 0, 0, 10, 10));
+
+        var ok = vm.ApplyButtonToWindow("b", 42, "Untitled - Notepad");
 
         Assert.IsTrue(ok);
-        Assert.AreEqual((nint)42, desktop.Operations.Moves.Last().Handle, "조건과 맞지 않는 창에도 적용한다(버튼의 뜻)");
-        Assert.AreEqual(1, desktop.Document.Find("id-b")!.AppliedCount);
-        Assert.AreEqual("Status.OverlayApplied:b", vm.Status);
-        Assert.IsTrue(vm.CanUndo, "적용 횟수 저장은 되돌리기를 지우지 않는다");
+        CollectionAssert.Contains(desktop.Operations.Moves, ((nint)42, new PixelRect(5, 6, 640, 480)));
+        Assert.AreEqual("Status.OverlayApplied:Blender", vm.Status);
+        Assert.AreEqual(0, desktop.Saves, "프로필 적용 횟수 같은 프로필 저장은 하지 않는다");
     }
 
     [TestMethod]
-    public void Overlay_apply_without_a_target_or_profile_fails_and_moves_nothing()
+    public void A_button_without_a_target_a_place_or_an_id_fails_and_moves_nothing()
     {
         var desktop = new FakeDesktop();
-        var vm = desktop.CreateViewModel(Profile("b", "x", 5, 6, 640, 480));
+        var settings = new Core.Overlay.OverlaySettings { ButtonsMigrated = true };
+        settings.Buttons.Add(Button("b", "x"));
+        settings.Buttons.Add(Button("empty", "nowhere", 0, 0, 0, 0));
+        var vm = desktop.CreateViewModelWithOverlay(settings);
 
-        Assert.IsFalse(vm.ApplyProfileToWindow("id-b", null, ""));
+        Assert.IsFalse(vm.ApplyButtonToWindow("b", null, ""));
         Assert.AreEqual("Status.OverlayNoTarget:{0}", vm.Status);
-        Assert.IsFalse(vm.ApplyProfileToWindow("gone", 42, "x"));
+        Assert.IsFalse(vm.ApplyButtonToWindow("empty", 42, "x"));
+        Assert.AreEqual("Status.OverlayButtonNoPlace:nowhere", vm.Status);
+        Assert.IsFalse(vm.ApplyButtonToWindow("gone", 42, "x"));
         Assert.IsEmpty(desktop.Operations.Moves);
-        Assert.AreEqual(0, desktop.Saves);
+    }
+
+    [TestMethod]
+    public void A_new_button_takes_the_last_windows_place_and_overwrite_replaces_it()
+    {
+        var desktop = new FakeDesktop(Row(1, "Blender") with { Rect = new PixelRect(70, 80, 1100, 900) });
+        var settings = new Core.Overlay.OverlaySettings { ButtonsMigrated = true };
+        var vm = desktop.CreateViewModelWithOverlay(settings);
+        vm.OverlayTarget = () => 1;
+        vm.WindowTitle = _ => "Blender 5.2";
+
+        var created = vm.NewOverlayButtonFromWindow()!;
+
+        Assert.AreEqual(("Blender 5.2", 70, 80, 1100, 900), (created.Name, created.X, created.Y, created.Width, created.Height));
+        Assert.HasCount(1, vm.Overlay.Buttons);
+        Assert.IsGreaterThan(0, desktop.OverlaySaves);
+
+        desktop.Rows = [Row(1, "Blender") with { Rect = new PixelRect(10, 20, 800, 600) }];
+        Assert.IsTrue(vm.OverwriteButtonPlace(created.Id));
+        var read = vm.Overlay.Find(created.Id)!;
+        Assert.AreEqual((10, 20, 800, 600), (read.X, read.Y, read.Width, read.Height));
+        StringAssert.StartsWith(vm.Status, "Status.OverlayButtonPlaceOverwritten:Blender 5.2");
+
+        vm.OverlayTarget = () => null;
+        Assert.IsNull(vm.NewOverlayButtonFromWindow());
+        Assert.AreEqual("Status.OverlayNoTarget:{0}", vm.Status);
+        Assert.HasCount(1, vm.Overlay.Buttons, "잡지 못하면 버튼을 만들지 않는다");
+    }
+
+    [TestMethod]
+    public void Button_properties_save_only_when_confirmed_and_delete_asks_first()
+    {
+        var desktop = new FakeDesktop();
+        var settings = new Core.Overlay.OverlaySettings { ButtonsMigrated = true };
+        settings.Buttons.Add(Button("b", "Blender"));
+        settings.Layout["b"] = new Core.Overlay.ScreenPoint(3, 4);
+        var vm = desktop.CreateViewModelWithOverlay(settings);
+
+        desktop.Dialogs.EditorAnswer = false;
+        desktop.Dialogs.OnButtonEditor = e => e.Name = "changed";
+        vm.EditOverlayButton("b");
+        Assert.AreEqual("Blender", vm.Overlay.Find("b")!.Name, "취소하면 바뀌지 않는다");
+
+        desktop.Dialogs.EditorAnswer = true;
+        desktop.Dialogs.OnButtonEditor = e => { e.Name = "renamed"; e.X = 99; };
+        vm.EditOverlayButton("b");
+        Assert.AreEqual(("renamed", 99), (vm.Overlay.Find("b")!.Name, vm.Overlay.Find("b")!.X));
+        Assert.AreEqual("renamed", vm.Overlay.Buttons.Single().Name, "목록도 새 값이어야 한다");
+
+        desktop.Dialogs.ConfirmAnswer = false;
+        vm.DeleteOverlayButton("b");
+        Assert.HasCount(1, vm.Overlay.Buttons);
+
+        desktop.Dialogs.ConfirmAnswer = true;
+        vm.DeleteOverlayButton("b");
+        Assert.IsEmpty(vm.Overlay.Buttons);
+        Assert.IsFalse(settings.Layout.ContainsKey("b"), "지운 버튼의 자리도 지운다");
+    }
+
+    [TestMethod]
+    public void Button_names_stay_unique_and_a_duplicate_is_a_separate_button()
+    {
+        var settings = new Core.Overlay.OverlaySettings();
+        var overlay = new OverlayViewModel(settings, _ => null, k => k, _ => { });
+
+        var first = overlay.AddButton(Button("a", "Blender"));
+        var second = overlay.AddButton(Button("b", "blender"));
+        var copy = overlay.DuplicateButton("a")!;
+
+        Assert.AreEqual("Blender", first.Name);
+        Assert.AreEqual("blender (2)", second.Name);
+        Assert.AreEqual("Blender (2) (2)", copy.Name, "복제 이름이 다른 버튼과 겹치면 다시 구분한다");
+        Assert.AreNotEqual(first.Id, copy.Id);
+        Assert.AreNotSame(first.Style, copy.Style);
+        Assert.HasCount(3, settings.Buttons);
     }
 
     // --- 단축키 페이지 (D-026) ---------------------------------------------------------------
@@ -1048,6 +1146,17 @@ public sealed class MainViewModelTests
             while (_posted.Count > 0) _posted.Dequeue()();
         }
 
+        public int OverlaySaves { get; private set; }
+
+        public MainViewModel CreateViewModelWithOverlay(Core.Overlay.OverlaySettings overlay, params ProfileRow[] profiles)
+        {
+            foreach (var p in profiles) Document.Profiles.Add(new(p.Id, p.Profile));
+            return new(() => Rows, Operations, Document,
+                _ => { if (SaveError is null) Saves++; return SaveError; },
+                Dialogs, key => key + ":{0}", null, () => Now, overlaySettings: overlay,
+                saveOverlay: _ => { OverlaySaves++; return null; }, hotkeys: Hotkeys);
+        }
+
         public MainViewModel CreateViewModel(params ProfileRow[] profiles)
         {
             foreach (var p in profiles) Document.Profiles.Add(new(p.Id, p.Profile));
@@ -1086,6 +1195,7 @@ public sealed class MainViewModelTests
         public bool ConfirmAnswer { get; set; } = true;
         public bool EditorAnswer { get; set; } = true;
         public Action<ProfileEditorViewModel>? OnEditor { get; set; }
+        public Action<ButtonEditorViewModel>? OnButtonEditor { get; set; }
         public Func<IReadOnlyList<WindowRow>, WindowRow?> Choose { get; set; } = c => c[0];
         public ProfileEditorViewModel? LastEditor { get; private set; }
         public IReadOnlyList<WindowRow>? LastCandidates { get; private set; }
@@ -1101,6 +1211,12 @@ public sealed class MainViewModelTests
             LastEditor = editor;
             OnEditor?.Invoke(editor);
             // 실제 창과 같이 저장 버튼은 TrySave 가 통과해야 닫힌다.
+            return EditorAnswer && editor.TrySave();
+        }
+
+        public bool ShowButtonEditor(ButtonEditorViewModel editor)
+        {
+            OnButtonEditor?.Invoke(editor);
             return EditorAnswer && editor.TrySave();
         }
 

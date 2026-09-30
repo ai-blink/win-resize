@@ -15,6 +15,9 @@ public interface IDialogService
     /// <summary>프로필 편집 창을 모달로 연다. 저장을 눌러 닫혔으면 true.</summary>
     bool ShowEditor(ProfileEditorViewModel editor);
 
+    /// <summary>오버레이 버튼 속성 창을 모달로 연다. 저장을 눌러 닫혔으면 true.</summary>
+    bool ShowButtonEditor(ButtonEditorViewModel editor);
+
     /// <summary>조건에 맞는 창이 여러 개일 때 하나를 고르게 한다. 취소하면 null.</summary>
     WindowRow? ChooseWindow(IReadOnlyList<WindowRow> candidates);
 

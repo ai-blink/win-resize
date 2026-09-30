@@ -363,28 +363,35 @@
                         <TextBlock Style="{StaticResource FieldHintStyle}" Margin="28,0,0,18" Text="{DynamicResource Overlay.Locked.Hint}" />
 
                         <DockPanel Margin="0,0,0,8">
-                            <Button DockPanel.Dock="Right" Content="{DynamicResource Overlay.CloseAll}"
-                                    Command="{Binding CloseAllOverlaysCommand}" AutomationProperties.Name="{DynamicResource Overlay.CloseAll}" />
-                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Overlay.Profiles}" />
+                            <Button DockPanel.Dock="Right" Content="{DynamicResource Overlay.NewButton}"
+                                    Style="{StaticResource AccentButtonStyle}" Command="{Binding NewOverlayButtonCommand}"
+                                    AutomationProperties.Name="{DynamicResource Overlay.NewButton}" />
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="{DynamicResource Overlay.Buttons}" VerticalAlignment="Center" />
                         </DockPanel>
-                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Overlay.Profiles.Hint}" />
-                        <ItemsControl ItemsSource="{Binding Profiles}">
+                        <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,0,0,8" Text="{DynamicResource Overlay.Buttons.Hint}" />
+                        <TextBlock Text="{DynamicResource Overlay.Buttons.Empty}" Foreground="{DynamicResource AppMutedTextBrush}"
+                                   Visibility="{Binding Overlay.HasNoButtons, Converter={StaticResource BoolToVisibility}}" />
+                        <ItemsControl ItemsSource="{Binding Overlay.Buttons}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <!-- 체크는 값을 보여 주기만 하고(OneWay), 바꾸는 것은 명령이다 - 저장이 끝나면 목록이 다시 그려진다. -->
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding OverlayEnabled, Mode=OneWay}"
-                                              Command="{Binding DataContext.SetProfileOverlayCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                              CommandParameter="{Binding}">
-                                        <CheckBox.Style>
-                                            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsUnreadable}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </CheckBox.Style>
-                                    </CheckBox>
+                                    <Border BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Button Content="{DynamicResource Overlay.Row.Properties}" Margin="0,0,8,0"
+                                                        Command="{Binding DataContext.EditOverlayButtonCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Content="{DynamicResource Overlay.Row.Delete}"
+                                                        Command="{Binding DataContext.DeleteOverlayButtonCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                        CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Style="{StaticResource FieldHintStyle}" Margin="0,2,0,0">
+                                                    <Run Text="{Binding X, Mode=OneWay}" /><Run Text=", " /><Run Text="{Binding Y, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding Width, Mode=OneWay}" /><Run Text=" x " /><Run Text="{Binding Height, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

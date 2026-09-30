@@ -76,8 +76,14 @@ public partial class OverlayButtonWindow : Window
     /// <summary>드래그를 마쳤다. 인자는 새 왼쪽 위(물리 픽셀).</summary>
     public event Action<OverlayButtonWindow, ScreenPoint>? Moved;
 
-    /// <summary>우클릭 "이 버튼 닫기".</summary>
-    public event Action<OverlayButtonWindow>? CloseRequested;
+    /// <summary>우클릭 "이 버튼 삭제".</summary>
+    public event Action<OverlayButtonWindow>? DeleteRequested;
+
+    /// <summary>우클릭 "지금 창의 위치로 덮어쓰기".</summary>
+    public event Action<OverlayButtonWindow>? OverwriteRequested;
+
+    /// <summary>우클릭 "복제".</summary>
+    public event Action<OverlayButtonWindow>? DuplicateRequested;
 
     /// <summary>
     /// 생김새와 발동 설정을 반영한다. 위치는 그대로 둔다. 발동 방식은 프로필이 정했으면 그쪽이 전역을 이긴다
@@ -153,36 +159,40 @@ public partial class OverlayButtonWindow : Window
             Triggered?.Invoke(this);
     }
 
-    /// <summary>우클릭 "이 프로필 편집...".</summary>
+    /// <summary>우클릭 "속성...".</summary>
     public event Action<OverlayButtonWindow>? EditRequested;
 
     /// <summary>우클릭 메뉴(렌더 스모크 테스트가 항목과 클릭을 확인한다).</summary>
     public ContextMenu ButtonMenu => Menu;
 
-    /// <summary>우클릭 메뉴의 연결 대상 줄을 프로필에서 다시 만든다. 프로필이 바뀔 때마다 부른다.</summary>
-    public void SetInfo(OverlayMenuInfo.Lines info) => BuildMenu(info);
+    /// <summary>우클릭 메뉴의 위치 줄을 다시 만든다. 버튼의 자리가 바뀔 때마다 부른다.</summary>
+    public void SetInfo(string position) => BuildMenu(position);
 
     /// <summary>
     /// 머리글(프로필 이름, 굵게)과 정보 줄은 항목이 아니라 글자 조각이다 - 비활성 항목은 회색이 되고 마우스를 올리면
     /// 강조되는데, 이 줄들은 누를 수 있는 것이 아니다.
     /// </summary>
-    private void BuildMenu(OverlayMenuInfo.Lines? info)
+    private void BuildMenu(string? position)
     {
         Menu.Items.Clear();
-        if (info is not null)
+        if (position is not null)
         {
             Menu.Items.Add(InfoText(_profileName, bold: true));
-            Menu.Items.Add(new Separator());
-            foreach (var line in info.Target) Menu.Items.Add(InfoText(line));
-            Menu.Items.Add(InfoText(info.Position));
+            Menu.Items.Add(InfoText(position));
             Menu.Items.Add(new Separator());
         }
-        var edit = new MenuItem { Header = _text("Overlay.Menu.Edit"), IsEnabled = info is not null };
-        edit.Click += (_, _) => EditRequested?.Invoke(this);
-        var close = new MenuItem { Header = _text("Overlay.Button.Close") };
-        close.Click += (_, _) => CloseRequested?.Invoke(this);
-        Menu.Items.Add(edit);
-        Menu.Items.Add(close);
+        Menu.Items.Add(Item("Overlay.Menu.Properties", () => EditRequested?.Invoke(this), position is not null));
+        Menu.Items.Add(Item("Overlay.Menu.Overwrite", () => OverwriteRequested?.Invoke(this), position is not null));
+        Menu.Items.Add(Item("Overlay.Menu.Duplicate", () => DuplicateRequested?.Invoke(this), position is not null));
+        Menu.Items.Add(new Separator());
+        Menu.Items.Add(Item("Overlay.Menu.Delete", () => DeleteRequested?.Invoke(this), true));
+    }
+
+    private MenuItem Item(string key, Action click, bool enabled)
+    {
+        var item = new MenuItem { Header = _text(key), IsEnabled = enabled };
+        item.Click += (_, _) => click();
+        return item;
     }
 
     private static TextBlock InfoText(string value, bool bold = false) => new()

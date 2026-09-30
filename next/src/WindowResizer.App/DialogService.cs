@@ -30,6 +30,9 @@ public sealed class DialogService(Func<string, string> text) : IDialogService
     public bool ShowEditor(ProfileEditorViewModel editor) =>
         new ProfileEditorWindow { DataContext = editor, Owner = Owner() }.ShowDialog() == true;
 
+    public bool ShowButtonEditor(ButtonEditorViewModel editor) =>
+        new ButtonEditorWindow { DataContext = editor, Owner = Owner() }.ShowDialog() == true;
+
     public WindowRow? ChooseWindow(IReadOnlyList<WindowRow> candidates)
     {
         var picker = new WindowPickerWindow(candidates) { Owner = Owner() };

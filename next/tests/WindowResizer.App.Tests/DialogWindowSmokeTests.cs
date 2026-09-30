@@ -124,8 +124,8 @@ public sealed class DialogWindowSmokeTests
                 button.UpdateLayout();
             }
 
-            // 우클릭 메뉴: 이름(굵게) / 연결 대상 / 위치 / 편집 / 닫기. 편집과 닫기는 눌러서 이벤트가 나가는지 본다.
-            button.SetInfo(Overlay.OverlayMenuInfo.Describe(profile, k => k + " {0} {1} {2} {3}"));
+            // 우클릭 메뉴: 이름(굵게) / 위치 / 속성, 덮어쓰기, 복제 / 삭제. 각 항목을 눌러 이벤트가 나가는지 본다.
+            button.SetInfo("Overlay.Menu.Position 1 2 300 200");
             var menu = button.ButtonMenu;
             menu.IsOpen = true;
             try
@@ -134,20 +134,21 @@ public sealed class DialogWindowSmokeTests
                 Assert.AreEqual("Blender", ((System.Windows.Controls.TextBlock)items[0]).Text);
                 Assert.AreEqual(FontWeights.Bold, ((System.Windows.Controls.TextBlock)items[0]).FontWeight);
                 var clickable = items.OfType<System.Windows.Controls.MenuItem>().ToList();
-                Assert.HasCount(2, clickable, string.Join(" | ", clickable.Select(m => m.Header)));
                 // 창의 문구 함수는 위에서 만든 것(k + " {0} {1}")이다.
-                Assert.AreEqual("Overlay.Menu.Edit {0} {1}", clickable[0].Header);
-                Assert.AreEqual("Overlay.Button.Close {0} {1}", clickable[1].Header);
-                Assert.IsTrue(items.Take(items.Count - 2).All(i => i is System.Windows.Controls.TextBlock or System.Windows.Controls.Separator),
+                CollectionAssert.AreEqual(
+                    new[] { "Overlay.Menu.Properties {0} {1}", "Overlay.Menu.Overwrite {0} {1}", "Overlay.Menu.Duplicate {0} {1}", "Overlay.Menu.Delete {0} {1}" },
+                    clickable.Select(m => (string)m.Header).ToArray());
+                Assert.IsTrue(items.TakeWhile(i => i is not System.Windows.Controls.MenuItem).All(i => i is System.Windows.Controls.TextBlock or System.Windows.Controls.Separator),
                     "머리글과 정보 줄은 누를 수 있는 항목이 아니어야 한다");
 
-                string? raised = null;
-                button.EditRequested += _ => raised = "edit";
-                button.CloseRequested += _ => raised = "close";
-                clickable[0].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
-                Assert.AreEqual("edit", raised);
-                clickable[1].RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
-                Assert.AreEqual("close", raised);
+                var raised = new List<string>();
+                button.EditRequested += _ => raised.Add("edit");
+                button.OverwriteRequested += _ => raised.Add("overwrite");
+                button.DuplicateRequested += _ => raised.Add("duplicate");
+                button.DeleteRequested += _ => raised.Add("delete");
+                foreach (var item in clickable)
+                    item.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                CollectionAssert.AreEqual(new[] { "edit", "overwrite", "duplicate", "delete" }, raised);
             }
             finally
             {
@@ -157,6 +158,25 @@ public sealed class DialogWindowSmokeTests
         finally
         {
             button.Close();
+        }
+
+        // 버튼 속성 창: 네 페이지를 앱 리소스로 그려 바인딩 오류가 없는지 본다.
+        var buttonEditor = new ButtonEditorViewModel(
+            new Core.Overlay.OverlayButton { Id = "b", Name = "Blender", X = 1, Y = 2, Width = 300, Height = 200 }, () => null, k => k);
+        var buttonWindow = new ButtonEditorWindow { DataContext = buttonEditor, ShowActivated = false, Left = -4000 };
+        buttonWindow.Show();
+        try
+        {
+            foreach (var page in Enum.GetValues<ButtonPage>())
+            {
+                buttonEditor.Page = page;
+                buttonWindow.UpdateLayout();
+            }
+            Assert.IsNotNull(buttonWindow.Icon, "버튼 속성 창도 같은 아이콘을 받는다");
+        }
+        finally
+        {
+            buttonWindow.Close();
         }
 
         // 감추기 스위치: 두 상태(보임/감춤)와 잠금 여부로 그리고, 활성화 방지가 걸렸는지 본다.

@@ -22,6 +22,7 @@ public sealed class LogViewModelTests
         public bool ConfirmDelete(string profileName) => true;
         public void Warn(string title, string message) { }
         public bool ShowEditor(ProfileEditorViewModel editor) => false;
+        public bool ShowButtonEditor(ButtonEditorViewModel editor) => false;
         public WindowRow? ChooseWindow(IReadOnlyList<WindowRow> candidates) => null;
 
         public bool CopyToClipboard(string text)

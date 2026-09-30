@@ -106,6 +106,9 @@ public partial class App : Application
         _windowEvents = new WindowEventWatcher();
         _foreground = new ForegroundTracker(_windowEvents);
         _overlays = new Overlay.OverlayController(viewModel, _foreground, Text);
+        // 버튼의 "새로 만들기"와 "덮어쓰기"가 잡을 창은 직전에 쓰던 다른 프로그램 창이다.
+        viewModel.OverlayTarget = () => _foreground.Target;
+        viewModel.WindowTitle = hwnd => Infrastructure.Windowing.Win32Windows.DescribeWindow(hwnd).Title;
     }
 
     private AppSettings _settings = new();

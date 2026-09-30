@@ -1,0 +1,164 @@
+<Window x:Class="WindowResizer.App.ButtonEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:WindowResizer.App.ViewModels"
+        Title="{DynamicResource ButtonEditor.Title}"
+        Icon="pack://application:,,,/WindowResizer.App;component/Assets/app.ico"
+        Width="760" Height="560" MinWidth="640" MinHeight="460"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource AppSurfaceBrush}"
+        Foreground="{DynamicResource AppTextBrush}">
+
+    <!-- new-alt 속성 창과 같은 구조: 왼쪽 레일 + 오른쪽 본문. 프로필 편집 창의 스타일을 그대로 쓴다. -->
+    <Grid Margin="16">
+        <Border Background="{DynamicResource AppPanelBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="1" CornerRadius="14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Background="{DynamicResource AppCanvasBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="0,0,1,0" CornerRadius="14,0,0,14" Padding="0,16">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Margin="20,0,12,16"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource AppTextBrush}" />
+                        <RadioButton Style="{StaticResource EditorNavItemStyle}" Content="{DynamicResource ButtonEditor.Nav.General}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:ButtonPage.General}"
+                                     IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:ButtonPage.General}}" />
+                        <RadioButton Style="{StaticResource EditorNavItemStyle}" Content="{DynamicResource ButtonEditor.Nav.Position}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:ButtonPage.Position}"
+                                     IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:ButtonPage.Position}}" />
+                        <RadioButton Style="{StaticResource EditorNavItemStyle}" Content="{DynamicResource ButtonEditor.Nav.Behavior}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:ButtonPage.Behavior}"
+                                     IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:ButtonPage.Behavior}}" />
+                        <RadioButton Style="{StaticResource EditorNavItemStyle}" Content="{DynamicResource ButtonEditor.Nav.Look}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:ButtonPage.Look}"
+                                     IsChecked="{Binding Page, Mode=OneWay, Converter={StaticResource EqualsConverter}, ConverterParameter={x:Static vm:ButtonPage.Look}}" />
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Column="1" Margin="28,24,28,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid Margin="0,0,14,0">
+
+                            <!-- 일반 -->
+                            <StackPanel Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:ButtonPage.General}}">
+                                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource ButtonEditor.Nav.General}" />
+                                <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource ButtonEditor.General.Subtitle}" />
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Editor.Name}" />
+                                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,18"
+                                         AutomationProperties.Name="{DynamicResource Editor.Name}" />
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.Label}" />
+                                <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="{DynamicResource ButtonEditor.Label}" />
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource ButtonEditor.Label.Hint}" />
+                            </StackPanel>
+
+                            <!-- 크기 및 위치 -->
+                            <StackPanel Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:ButtonPage.Position}}">
+                                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource ButtonEditor.Nav.Position}" />
+                                <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource ButtonEditor.Position.Subtitle}" />
+                                <UniformGrid Columns="4" Margin="0,0,0,12">
+                                    <StackPanel Margin="0,0,10,0">
+                                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Col.X}" />
+                                        <TextBox Text="{Binding X}" AutomationProperties.Name="{DynamicResource Col.X}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,10,0">
+                                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Col.Y}" />
+                                        <TextBox Text="{Binding Y}" AutomationProperties.Name="{DynamicResource Col.Y}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,10,0">
+                                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Col.Width}" />
+                                        <TextBox Text="{Binding Width}" AutomationProperties.Name="{DynamicResource Col.Width}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource Col.Height}" />
+                                        <TextBox Text="{Binding Height}" AutomationProperties.Name="{DynamicResource Col.Height}" />
+                                    </StackPanel>
+                                </UniformGrid>
+                                <CheckBox IsChecked="{Binding IsMaximized}" Content="{DynamicResource Editor.Maximized}" Margin="0,0,0,12" />
+                                <Button Content="{DynamicResource ButtonEditor.CaptureFromWindow}" HorizontalAlignment="Left"
+                                        Command="{Binding CaptureFromWindowCommand}"
+                                        AutomationProperties.Name="{DynamicResource ButtonEditor.CaptureFromWindow}" />
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource ButtonEditor.CaptureFromWindow.Hint}" />
+                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource AppAccentBrush}" />
+                            </StackPanel>
+
+                            <!-- 동작 -->
+                            <StackPanel Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:ButtonPage.Behavior}}">
+                                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource ButtonEditor.Nav.Behavior}" />
+                                <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource ButtonEditor.Behavior.Subtitle}" />
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.Activation}" />
+                                <ComboBox ItemsSource="{x:Static vm:ButtonEditorViewModel.Activations}" SelectedItem="{Binding Activation}" MinHeight="36" Margin="0,0,0,18"
+                                          AutomationProperties.Name="{DynamicResource ButtonEditor.Activation}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource ResourceText}, ConverterParameter=ButtonActivation.}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.DwellSeconds}" />
+                                <TextBox Text="{Binding DwellSeconds, StringFormat={}{0:0.0}}" HorizontalAlignment="Left" Width="120"
+                                         AutomationProperties.Name="{DynamicResource ButtonEditor.DwellSeconds}" />
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource ButtonEditor.DwellSeconds.Hint}" />
+                            </StackPanel>
+
+                            <!-- 외형 -->
+                            <StackPanel Visibility="{Binding Page, Converter={StaticResource EqualsToVisibility}, ConverterParameter={x:Static vm:ButtonPage.Look}}">
+                                <TextBlock Style="{StaticResource PageTitleStyle}" Text="{DynamicResource ButtonEditor.Nav.Look}" />
+                                <TextBlock Style="{StaticResource PageSubtitleStyle}" Text="{DynamicResource ButtonEditor.Look.Subtitle}" />
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.Shape}" />
+                                <ComboBox ItemsSource="{x:Static vm:ButtonEditorViewModel.Shapes}" SelectedItem="{Binding Shape}" MinHeight="36" Margin="0,0,0,18"
+                                          AutomationProperties.Name="{DynamicResource ButtonEditor.Shape}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource ResourceText}, ConverterParameter=ButtonShape.}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <UniformGrid Columns="2" Margin="0,0,0,18">
+                                    <StackPanel Margin="0,0,10,0">
+                                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.ButtonWidth}" />
+                                        <TextBox Text="{Binding ButtonWidth}" AutomationProperties.Name="{DynamicResource ButtonEditor.ButtonWidth}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.ButtonHeight}" />
+                                        <TextBox Text="{Binding ButtonHeight}" AutomationProperties.Name="{DynamicResource ButtonEditor.ButtonHeight}" />
+                                    </StackPanel>
+                                </UniformGrid>
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.BackgroundColor}" />
+                                <TextBox Text="{Binding BackgroundColor, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"
+                                         AutomationProperties.Name="{DynamicResource ButtonEditor.BackgroundColor}" />
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.TextColor}" />
+                                <TextBox Text="{Binding TextColor, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"
+                                         AutomationProperties.Name="{DynamicResource ButtonEditor.TextColor}" />
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="{DynamicResource ButtonEditor.BorderColor}" />
+                                <TextBox Text="{Binding BorderColor, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="{DynamicResource ButtonEditor.BorderColor}" />
+                                <TextBlock Style="{StaticResource FieldHintStyle}" Text="{DynamicResource ButtonEditor.Colors.Hint}" />
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+
+                    <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,12,0,0">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="{DynamicResource Common.Cancel}" MinWidth="96" IsCancel="True" Margin="0,0,10,0" />
+                                <Button Style="{StaticResource AccentButtonStyle}" Content="{DynamicResource Common.Save}" MinWidth="96"
+                                        IsDefault="True" Click="OnSave" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource AppDangerBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

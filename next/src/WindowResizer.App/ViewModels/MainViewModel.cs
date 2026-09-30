@@ -104,8 +104,11 @@ public sealed class MainViewModel : ObservableObject
         About = new AboutViewModel(about ?? AboutInfo.Unknown, dialogs, text, ShowStatus);
         Overlay = new OverlayViewModel(overlaySettings ?? new OverlaySettings(), saveOverlay ?? (_ => null), text, message => ShowStatus(message),
             warning: message => ShowStatus(message, LogLevel.Warning));
-        SetProfileOverlayCommand = new ParameterCommand<ProfileRow>(row => SetProfileOverlay(row, !row.OverlayEnabled));
         CloseAllOverlaysCommand = new RelayCommand(CloseAllOverlays);
+        NewOverlayButtonCommand = new RelayCommand(() => NewOverlayButtonFromWindow());
+        EditOverlayButtonCommand = new ParameterCommand<OverlayButton>(button => EditOverlayButton(button.Id));
+        DeleteOverlayButtonCommand = new ParameterCommand<OverlayButton>(button => DeleteOverlayButton(button.Id));
+        MigrateOverlayButtons();
 
         _hotkeyServices = hotkeys ?? new HotkeyServices();
         Hotkeys = new HotkeysViewModel(this, _hotkeyServices, text);
@@ -282,42 +285,74 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>오버레이 전역 설정. 오버레이 페이지, 메뉴 막대, 트레이가 같은 객체를 본다.</summary>
     public OverlayViewModel Overlay { get; }
 
-    /// <summary>프로필 하나의 오버레이 버튼을 켜고 끈다(행을 넘긴다 - 누른 쪽의 반대 값으로).</summary>
-    public ICommand SetProfileOverlayCommand { get; }
-
-    /// <summary>
-    /// 모든 오버레이 버튼을 닫는다. PyQt5 와 같이 각 프로필의 사용 여부를 끄고 저장한다 - 무엇을 띄울지는
-    /// 프로필 한 곳이 정한다. 화면에서만 닫으면 다음 실행에 되살아나 편집 창의 체크와 어긋난다.
-    /// </summary>
+    /// <summary>모든 버튼을 감춘다(감추기 스위치와 같은 상태). 버튼은 지워지지 않고 자리도 그대로다.</summary>
     public ICommand CloseAllOverlaysCommand { get; }
 
-    /// <summary>프로필 오버레이 사용 여부를 바꾸고 저장한다. 버튼 창의 닫기(O3)도 이 길로 온다.</summary>
-    public void SetProfileOverlay(ProfileRow row, bool enabled)
-    {
-        if (row.IsUnreadable) return;
-        var profile = _document.Find(row.Id);
-        if (profile is null) return;
+    /// <summary>직전 창의 지금 자리로 새 버튼을 만든다.</summary>
+    public ICommand NewOverlayButtonCommand { get; }
 
-        if (Commit(() =>
-            {
-                profile.OverlayStyle ??= new OverlayStyle();
-                profile.OverlayStyle.Enabled = enabled;
-            }, SelectedProfile?.Id))
-            Status = string.Format(_text(enabled ? "Status.OverlayProfileOn" : "Status.OverlayProfileOff"), profile.Name);
+    public ICommand EditOverlayButtonCommand { get; }
+    public ICommand DeleteOverlayButtonCommand { get; }
+
+    /// <summary>버튼 속성 창을 연다. 저장하면 같은 ID 의 버튼이 새 값으로 바뀐다.</summary>
+    public void EditOverlayButton(string id)
+    {
+        if (Overlay.Find(id) is not { } button) return;
+
+        var editor = new ButtonEditorViewModel(button.Clone(), () => TryCaptureOverlayTarget(out var capture, out _) ? capture : null, _text);
+        if (_dialogs.ShowButtonEditor(editor)) Overlay.UpdateButton(editor.Button);
+    }
+
+    /// <summary>버튼을 지운다. 되돌릴 수 없어서 묻는다.</summary>
+    public void DeleteOverlayButton(string id)
+    {
+        if (Overlay.Find(id) is not { } button || !_dialogs.ConfirmDelete(button.Name)) return;
+        Overlay.RemoveButton(id);
     }
 
     /// <summary>
-    /// 오버레이 버튼이 누른 프로필을 창 하나에 적용한다. PyQt5 <c>apply_profile(id, window_info)</c> 와 같이
-    /// <b>매칭 조건을 보지 않는다</b> - 버튼은 "직전에 쓰던 창에 이 배치를" 이라는 뜻이다. 성공하면 적용 횟수를
-    /// 저장한다(되돌리기는 지우지 않는다). 결과는 상태 줄과 반환값(버튼의 성공/실패 색)으로 알린다.
+    /// 버튼이 복원할 창을 정하는 곳(직전에 쓰던 창). 이 앱 안의 창은 추적기가 거르므로 메인 창의 버튼을 눌러도 직전의
+    /// 다른 프로그램 창을 돌려준다. 앱이 연결한다 - 뷰모델은 창 이벤트를 모른다.
     /// </summary>
-    /// <param name="target">대상 창. 없으면(추적 대상이 닫힘) null.</param>
-    public bool ApplyProfileToWindow(string profileId, nint? target, string targetTitle)
+    public Func<nint?> OverlayTarget { get; set; } = () => null;
+
+    /// <summary>창 제목(새 버튼의 기본 이름과 상태 줄). 앱이 연결한다 - 창 조작 인터페이스에는 제목이 없다.</summary>
+    public Func<nint, string> WindowTitle { get; set; } = _ => "";
+
+    public void CloseAllOverlays()
     {
-        var profile = _document.Find(profileId);
-        if (profile?.WindowConfig is null)
+        if (Overlay.Hidden) return;
+        Overlay.Hidden = true;
+    }
+
+    /// <summary>
+    /// 프로필의 옛 버튼(오버레이 사용 프로필)을 버튼으로 한 번 복사한다(D-032). 이미 했으면 아무것도 하지 않는다.
+    /// 프로필은 건드리지 않는다.
+    /// </summary>
+    private void MigrateOverlayButtons()
+    {
+        if (Overlay.Settings.ButtonsMigrated) return;
+
+        var copied = _document.Profiles
+            .Where(p => p.Value.OverlayStyle?.Enabled == true)
+            .Select(p => OverlayButton.FromProfile(p.Key, p.Value))
+            .OfType<OverlayButton>()
+            .ToList();
+        Overlay.CompleteMigration(copied);
+        if (copied.Count > 0) ShowStatus(string.Format(_text("Status.OverlayMigrated"), copied.Count));
+    }
+
+    /// <summary>버튼의 자리로 직전 창을 옮긴다. 성공하면 true(버튼이 초록으로 반짝인다).</summary>
+    public bool ApplyButtonToWindow(string buttonId, nint? target, string targetTitle)
+    {
+        if (Overlay.Find(buttonId) is not { } button)
         {
-            Alert(_text("Status.OverlayProfileMissing"));
+            Alert(_text("Status.OverlayButtonMissing"));
+            return false;
+        }
+        if (!button.HasPlace)
+        {
+            Alert(string.Format(_text("Status.OverlayButtonNoPlace"), button.Name));
             return false;
         }
         if (target is not { } hwnd)
@@ -327,28 +362,63 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var title = string.IsNullOrWhiteSpace(targetTitle) ? _text("Status.UntitledWindow") : targetTitle;
-        if (_applier.Apply(hwnd, profile.WindowConfig) != ApplyOutcome.Applied)
+        if (_applier.Apply(hwnd, button.ToWindowConfiguration()) != ApplyOutcome.Applied)
         {
             Alert(string.Format(_text("Status.OverlayApplyFailed"), title));
             return false;
         }
 
-        if (!Commit(() => profile.RecordApplied(1, _now()), () => SelectedProfile?.Id, clearsUndo: false)) return true;
-        Status = string.Format(_text("Status.OverlayApplied"), profile.Name, title);
+        Status = string.Format(_text("Status.OverlayApplied"), button.Name, title);
         return true;
     }
 
-    public void CloseAllOverlays()
+    /// <summary>직전 창의 지금 자리를 잡아 새 버튼을 만든다. 잡지 못하면 이유를 알리고 null.</summary>
+    public OverlayButton? NewOverlayButtonFromWindow()
     {
-        var open = _document.Profiles.Where(p => p.Value.OverlayStyle?.Enabled == true).Select(p => p.Value).ToList();
-        if (open.Count == 0)
+        if (!TryCaptureOverlayTarget(out var capture, out var title)) return null;
+
+        var name = string.IsNullOrWhiteSpace(title) ? _text("Overlay.Button.DefaultName") : title;
+        var button = new OverlayButton { Id = OverlayButton.NewId(), Name = name };
+        (button.X, button.Y, button.Width, button.Height, button.IsMaximized) =
+            (capture.X, capture.Y, capture.Width, capture.Height, capture.IsMaximized);
+        return Overlay.AddButton(button);
+    }
+
+    /// <summary>이 버튼의 자리를 직전 창의 지금 자리로 덮어쓴다.</summary>
+    public bool OverwriteButtonPlace(string buttonId)
+    {
+        if (Overlay.Find(buttonId) is not { } button) return false;
+        if (!TryCaptureOverlayTarget(out var capture, out _)) return false;
+
+        var before = Describe(new WindowConfiguration { X = button.X, Y = button.Y, Width = button.Width, Height = button.Height, IsMaximized = button.IsMaximized });
+        var edited = button.Clone();
+        (edited.X, edited.Y, edited.Width, edited.Height, edited.IsMaximized) =
+            (capture.X, capture.Y, capture.Width, capture.Height, capture.IsMaximized);
+        if (!Overlay.UpdateButton(edited)) return false;
+
+        Status = string.Format(_text("Status.OverlayButtonPlaceOverwritten"), edited.Name, before, Describe(capture));
+        return true;
+    }
+
+    private bool TryCaptureOverlayTarget(out WindowConfiguration capture, out string title)
+    {
+        capture = new WindowConfiguration();
+        title = "";
+        if (OverlayTarget() is not { } hwnd)
         {
-            Status = _text("Status.OverlayNoneOpen");
-            return;
+            Alert(_text("Status.OverlayNoTarget"));
+            return false;
         }
 
-        if (Commit(() => open.ForEach(p => p.OverlayStyle!.Enabled = false), SelectedProfile?.Id))
-            Status = _text("Status.OverlayAllClosed");
+        var result = WindowCapture.Capture(_windows, hwnd);
+        title = WindowTitle(hwnd);
+        if (!result.Succeeded)
+        {
+            Alert(string.Format(_text("Status.CaptureRefused"), title, _text("Capture." + result.Refusal)));
+            return false;
+        }
+        capture = result.Configuration!;
+        return true;
     }
 
     /// <summary>시작 시 한 줄 알림(프로필을 백업에서 읽음 등). 창 목록 상태로 곧 덮인다.</summary>

@@ -6,6 +6,18 @@ This file records notable user-visible changes in WindowResizer. English is the
 canonical source for release notes; the Korean, Simplified Chinese, and Japanese
 versions carry the same release facts.
 
+## 0.02.0-preview.8 - 2026-09-30
+
+Eighth preview of the WPF (.NET 10) app, built from source; the distributed
+executable is still v0.01.5. Details:
+[doc/releases/v0.02.0-preview.8.md](../doc/releases/v0.02.0-preview.8.md).
+
+### Highlights
+
+- Overlay buttons keep their own name and window place and size, apart from profiles: right-click
+  menu (properties, overwrite with the current window's place, duplicate, delete), a properties
+  window, "New button", and a one-time copy of profile overlay buttons. UI scale range 75%-250%.
+
 ## 0.02.0-preview.7 - 2026-09-30
 
 Seventh preview of the WPF (.NET 10) app, built from source; the distributed

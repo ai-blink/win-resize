@@ -51,6 +51,15 @@ public sealed class OverlaySettings
     public ScreenPoint? TogglePosition { get; set; }
 
     /// <summary>
+    /// 버튼들(D-032). 무엇을 띄울지는 이 목록이 정한다 - 프로필의 오버레이 사용 여부는 더 이상 버튼을 만들지 않는다.
+    /// 자리(<see cref="Layout"/>)는 버튼 ID 로 저장한다.
+    /// </summary>
+    public List<OverlayButton> Buttons { get; } = new();
+
+    /// <summary>프로필의 옛 버튼을 <see cref="Buttons"/> 로 한 번 복사했다. 다시 복사하지 않는다.</summary>
+    public bool ButtonsMigrated { get; set; }
+
+    /// <summary>
     /// 이름-문자열 쌍에서 읽는다. 없는 키는 기본값이다. <paramref name="includePositions"/> 가 false 면
     /// 배치와 스위치 위치를 읽지 않는다 - 좌표 단위가 다른 원본(PyQt5 논리 픽셀)에서 가져올 때 쓴다.
     /// </summary>
@@ -69,6 +78,10 @@ public sealed class OverlaySettings
         settings.DwellMs = int.TryParse(Get("dwell_ms"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms)
             ? ms
             : DefaultDwellMs;
+
+        settings.ButtonsMigrated = IsTrue(Get("buttons_migrated"));
+        foreach (var button in ParseButtons(Get("buttons")))
+            settings.Buttons.Add(button);
 
         if (!includePositions) return settings;
 
@@ -92,6 +105,8 @@ public sealed class OverlaySettings
             ["hidden"] = Bool(Hidden),
             ["toggle_visible"] = Bool(ToggleVisible),
             ["locked"] = Bool(Locked),
+            ["buttons_migrated"] = Bool(ButtonsMigrated),
+            ["buttons"] = JsonSerializer.Serialize(Buttons),
             ["layout"] = JsonSerializer.Serialize(
                 Layout.Select(p => new LayoutEntry(p.Key, p.Value.X, p.Value.Y)).ToList(), LayoutJson),
         };
@@ -101,6 +116,39 @@ public sealed class OverlaySettings
             values["toggle_y"] = t.Y.ToString(CultureInfo.InvariantCulture);
         }
         return values;
+    }
+
+    /// <summary>깨진 버튼 목록은 버린다(그 항목만, 또는 전체가 JSON 이 아니면 전체). ID 가 비었거나 겹친 항목도 버린다.</summary>
+    private static IEnumerable<OverlayButton> ParseButtons(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) yield break;
+
+        JsonElement root;
+        try
+        {
+            root = JsonDocument.Parse(raw).RootElement;
+        }
+        catch (JsonException)
+        {
+            yield break;
+        }
+        if (root.ValueKind != JsonValueKind.Array) yield break;
+
+        var seen = new HashSet<string>();
+        foreach (var entry in root.EnumerateArray())
+        {
+            OverlayButton? button;
+            try
+            {
+                button = entry.Deserialize<OverlayButton>();
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+            if (button is null || string.IsNullOrEmpty(button.Id) || !seen.Add(button.Id)) continue;
+            yield return button;
+        }
     }
 
     private static bool IsTrue(string? value) => value is "true" or "True" or "1";
