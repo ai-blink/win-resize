@@ -439,22 +439,110 @@
                 <Setter Property="FontWeight" Value="SemiBold" />
             </Style>
 
-            <!-- 메뉴 막대는 보조 경로다(D-018). 막대 글자색이 팝업으로 상속되면 흰 시스템 팝업 위에 밝은 글자가
-                 올라간다. 하위 항목은 시스템 메뉴 색으로 되돌린다. -->
+            <!-- 메뉴(막대 팝업, 오버레이 버튼 우클릭)는 시스템 모양 대신 앱 색 토큰으로 그린다. 시스템 템플릿의 회색 아이콘 칸은
+                 없앴고, 체크 칸은 메뉴 막대 안의 하위 항목에만 둔다(우클릭 메뉴에는 체크 항목이 없다). -->
             <Style TargetType="{x:Type Menu}">
                 <Setter Property="Background" Value="{DynamicResource AppSurfaceBrush}" />
                 <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
                 <Setter Property="Padding" Value="4,2" />
             </Style>
+            <Style TargetType="{x:Type ContextMenu}">
+                <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+                <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}" />
+                <Setter Property="SnapsToDevicePixels" Value="True" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ContextMenu}">
+                            <Border Background="{DynamicResource AppPanelBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                                    BorderThickness="1" Padding="0,4">
+                                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Separator}">
+                            <Border Height="1" Margin="0,4" Background="{DynamicResource AppBorderBrush}" />
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
             <Style TargetType="{x:Type MenuItem}">
-                <Style.Triggers>
-                    <Trigger Property="Role" Value="SubmenuItem">
-                        <Setter Property="Foreground" Value="{x:Static SystemColors.MenuTextBrush}" />
-                    </Trigger>
-                    <Trigger Property="Role" Value="SubmenuHeader">
-                        <Setter Property="Foreground" Value="{x:Static SystemColors.MenuTextBrush}" />
-                    </Trigger>
-                </Style.Triggers>
+                <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="12,6" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type MenuItem}">
+                            <Grid SnapsToDevicePixels="True">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border x:Name="CheckHost" Width="0" Height="12" VerticalAlignment="Center">
+                                            <Path x:Name="Check" Visibility="Collapsed" Data="M1,6 L4.5,9.5 L11,2" Stroke="{TemplateBinding Foreground}"
+                                                  StrokeThickness="1.6" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Margin="28,0,0,0" VerticalAlignment="Center"
+                                                   Text="{TemplateBinding InputGestureText}" Foreground="{DynamicResource AppMutedTextBrush}" />
+                                        <Path x:Name="Arrow" Grid.Column="3" Visibility="Collapsed" Margin="12,0,0,0" Data="M0,0 L4,4 L0,8"
+                                              Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <Popup x:Name="Popup" Placement="Right" IsOpen="{TemplateBinding IsSubmenuOpen}" Focusable="False"
+                                       AllowsTransparency="False" PopupAnimation="None">
+                                    <Border Background="{DynamicResource AppPanelBrush}" BorderBrush="{DynamicResource AppBorderBrush}"
+                                            BorderThickness="1" Padding="0,4">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="Role" Value="TopLevelHeader">
+                                    <Setter TargetName="Popup" Property="Placement" Value="Bottom" />
+                                    <Setter Property="Padding" Value="10,4" />
+                                </Trigger>
+                                <Trigger Property="Role" Value="TopLevelItem">
+                                    <Setter Property="Padding" Value="10,4" />
+                                </Trigger>
+                                <Trigger Property="Role" Value="SubmenuHeader">
+                                    <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                                </Trigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Role, RelativeSource={RelativeSource Self}}" Value="SubmenuItem" />
+                                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" Value="{x:Null}" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter TargetName="CheckHost" Property="Width" Value="22" />
+                                </MultiDataTrigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Role, RelativeSource={RelativeSource Self}}" Value="SubmenuHeader" />
+                                        <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" Value="{x:Null}" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter TargetName="CheckHost" Property="Width" Value="22" />
+                                </MultiDataTrigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                                </Trigger>
+                                <Trigger Property="IsHighlighted" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AppHoverBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.45" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

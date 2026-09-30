@@ -194,7 +194,7 @@ public partial class OverlayButtonWindow : Window
     private static TextBlock InfoText(string value, bool bold = false) => new()
     {
         Text = value,
-        Margin = new Thickness(14, 3, 14, 3),
+        Margin = new Thickness(12, 3, 12, 3),
         MaxWidth = 360,
         TextWrapping = TextWrapping.Wrap,
         FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
